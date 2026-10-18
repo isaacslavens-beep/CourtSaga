@@ -1,5 +1,6 @@
 import Image, { type StaticImageData } from "next/image";
 import Link from "next/link";
+import { CallMark, EyeIcon, HeadToHead, LogFact, Stars, TournamentLabel } from "./match-ui";
 import { LogDemo, RankDemo, StoryDemo } from "./step-demos";
 import alcarazAo from "@/public/photos/alcaraz-ao.jpg";
 import alcarazAo2026Final from "@/public/photos/alcaraz-ao-2026-final.jpg";
@@ -21,8 +22,8 @@ const steps = [
   },
   {
     demo: <StoryDemo />,
-    title: "Watch your story grow",
-    body: "CourtSaga picks up on patterns, like who you cheer for and the matches you love, and turns them into your own tennis story.",
+    title: "See how tennis becomes a story",
+    body: "No commentary and no guesswork. Head-to-heads, streaks and the matches you watched line up, and the story is right there in the data.",
   },
 ];
 
@@ -66,8 +67,10 @@ type LoggedMatchProps = {
   event: string;
   rating: number;
   score: { name: string; sets: number[] }[]; // match winner first
-  watchedNote: string;
-  highlight: { label: string; title: string; value: string; note: string };
+  watchedSets: number[]; // set indexes the user saw
+  prediction: { pick: string; recent: boolean[]; streak: string }; // recent: oldest first, this match last
+  rivalry: { name: string; wins: number }[]; // same order as score
+  watchedMeetings: [number, number]; // watched, total meetings between the two
 };
 
 const loggedMatches: LoggedMatchProps[] = [
@@ -82,8 +85,13 @@ const loggedMatches: LoggedMatchProps[] = [
       { name: "C. Alcaraz", sets: [2, 6, 6, 7] },
       { name: "N. Djokovic", sets: [6, 2, 3, 5] },
     ],
-    watchedNote: "You watched sets 1–2",
-    highlight: { label: "Rivalry", title: "Djokovic vs Alcaraz", value: "5–5", note: "Tied up" },
+    watchedSets: [0, 1],
+    prediction: { pick: "Djokovic in 4", recent: [false, true, true, true, false], streak: "Streak ends at 3" },
+    rivalry: [
+      { name: "Alcaraz", wins: 5 },
+      { name: "Djokovic", wins: 5 },
+    ],
+    watchedMeetings: [7, 10],
   },
   {
     photo: rybakinaUso2026,
@@ -96,8 +104,13 @@ const loggedMatches: LoggedMatchProps[] = [
       { name: "E. Rybakina", sets: [6, 5, 6] },
       { name: "A. Sabalenka", sets: [4, 7, 2] },
     ],
-    watchedNote: "You watched the whole thing",
-    highlight: { label: "Your pick", title: "Rybakina in three", value: "Called it", note: "Correct" },
+    watchedSets: [0, 1, 2],
+    prediction: { pick: "Rybakina in 3", recent: [false, true, true, true, true], streak: "4 in a row" },
+    rivalry: [
+      { name: "Rybakina", wins: 8 },
+      { name: "Sabalenka", wins: 10 },
+    ],
+    watchedMeetings: [9, 18],
   },
 ];
 
@@ -109,83 +122,128 @@ function LoggedMatch({
   event,
   rating,
   score,
-  watchedNote,
-  highlight,
+  watchedSets,
+  prediction,
+  rivalry,
+  watchedMeetings,
 }: LoggedMatchProps) {
   const [winner, loser] = score;
   const scoreline = winner.sets.map((g, i) => `${g}–${loser.sets[i]}`).join(", ");
+  const watched = (i: number) => watchedSets.includes(i);
+  const correct = prediction.recent[prediction.recent.length - 1];
 
   return (
-    <article className={`overflow-hidden rounded-3xl border border-line bg-surface shadow-xl ${tilt}`}>
-      <Image
-        src={photo}
-        alt={alt}
-        placeholder="blur"
-        loading="eager"
-        sizes="(min-width: 640px) 440px, 100vw"
-        className={`aspect-[2/1] w-full object-cover ${photoPosition}`}
-      />
-
-      <div className="p-5 sm:p-6">
-        <div className="flex items-center justify-between gap-4">
-          <span className="font-semibold">{event}</span>
-          <span className="shrink-0 text-lg text-clay" aria-label={`Rated ${rating} out of 5`}>
-            {"★".repeat(rating)}
-            <span className="text-line">{"★".repeat(5 - rating)}</span>
+    <article className={`overflow-hidden rounded-3xl border border-line bg-surface shadow-xl shadow-court/10 ${tilt}`}>
+      <div className="relative">
+        <Image
+          src={photo}
+          alt={alt}
+          placeholder="blur"
+          loading="eager"
+          sizes="(min-width: 640px) 440px, 100vw"
+          className={`aspect-[2/1] w-full object-cover ${photoPosition}`}
+        />
+        <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-4 bg-gradient-to-t from-[#0a1220]/85 to-transparent px-5 pb-3 pt-10 text-white sm:px-6">
+          <TournamentLabel event={event} onPhoto />
+          <span className="shrink-0 text-lg">
+            <Stars rating={rating} filled="text-ball" empty="text-white/30" />
           </span>
         </div>
+      </div>
 
-        <table className="mt-3 w-full text-left">
+      <div className="p-5 sm:p-6">
+        <table className="w-full text-left">
           <caption className="sr-only">
-            {winner.name} defeated {loser.name} {scoreline}. {watchedNote}.
+            {winner.name} defeated {loser.name} {scoreline}. You watched{" "}
+            {watchedSets.length === winner.sets.length
+              ? "every set"
+              : `sets ${watchedSets.map((i) => i + 1).join(", ")}`}
+            .
           </caption>
+          <thead aria-hidden>
+            <tr>
+              <td />
+              {winner.sets.map((_, i) => (
+                <td key={i} className={`w-9 rounded-t-lg pt-1 text-court ${watched(i) ? "bg-court/10" : ""}`}>
+                  {watched(i) && <EyeIcon className="mx-auto h-4 w-4" />}
+                </td>
+              ))}
+            </tr>
+          </thead>
           <tbody>
             {score.map((p, row) => {
               const opponent = score[1 - row];
               return (
                 <tr key={p.name}>
-                  <th scope="row" className="py-1 font-display text-lg font-semibold">
+                  <th
+                    scope="row"
+                    className={`py-1 font-display text-lg font-semibold ${row === 0 ? "" : "text-muted"}`}
+                  >
                     {p.name}
                   </th>
-                  {p.sets.map((g, i) => {
-                    const wonSet = g > opponent.sets[i];
-                    return (
-                      <td
-                        key={i}
-                        className={`w-8 py-1 text-center font-mono text-xl tabular-nums ${
-                          wonSet ? "font-bold" : "font-normal text-muted"
-                        }`}
-                      >
-                        {g}
-                      </td>
-                    );
-                  })}
+                  {p.sets.map((g, i) => (
+                    <td
+                      key={i}
+                      className={`w-9 py-1 text-center font-mono text-xl tabular-nums ${
+                        g > opponent.sets[i] ? "font-bold" : "text-muted"
+                      } ${watched(i) ? "bg-court/10" : ""} ${watched(i) && row === 1 ? "rounded-b-lg" : ""}`}
+                    >
+                      {g}
+                    </td>
+                  ))}
                 </tr>
               );
             })}
           </tbody>
         </table>
-        <p className="mt-2 font-medium text-muted">{watchedNote}</p>
 
-        <div className="mt-4 flex items-center justify-between gap-4 rounded-2xl bg-background px-4 py-3">
-          <div>
-            <p className="text-sm font-medium text-muted">{highlight.label}</p>
-            <p className="font-semibold">{highlight.title}</p>
-          </div>
-          <p className="text-right">
-            <span className="font-display text-2xl font-bold">{highlight.value}</span>
-            <span className="block text-sm font-semibold text-grass">{highlight.note}</span>
-          </p>
+        <div className="mt-5 grid grid-cols-2 gap-3">
+          <section className="rounded-2xl bg-background p-4">
+            <h3 className="text-sm font-medium text-muted">Your call</h3>
+            <p className="mt-2 flex items-center gap-2">
+              <CallMark correct={correct} />
+              <span className="font-display text-lg font-bold leading-tight">{prediction.pick}</span>
+              <span className="sr-only">{correct ? "Correct" : "Missed"}</span>
+            </p>
+            <p className="mt-3 flex gap-1" aria-hidden>
+              {prediction.recent.map((hit, i) => (
+                <span key={i} className={`h-2 flex-1 rounded-full ${hit ? "bg-grass" : "bg-fault"}`} />
+              ))}
+            </p>
+            <p className={`mt-1.5 text-sm font-semibold ${correct ? "text-grass" : "text-fault"}`}>
+              {prediction.streak}
+            </p>
+          </section>
+
+          <section className="rounded-2xl bg-background p-4">
+            <h3 className="mb-2 text-sm font-medium text-muted">Head-to-head</h3>
+            <HeadToHead left={rivalry[0]} right={rivalry[1]} />
+          </section>
         </div>
 
+        <LogFact className="mt-4">
+          You&apos;ve watched{" "}
+          <span className="font-semibold text-foreground">
+            {watchedMeetings[0]} of {watchedMeetings[1]}
+          </span>{" "}
+          of their meetings
+        </LogFact>
       </div>
     </article>
   );
 }
 
+const heroSteps = ["Log your matches", "Rate and rank", "See the story"];
+
 export default function Home() {
   return (
     <div className="flex flex-1 flex-col">
+      {/* Court edge: green surround, blue court, white line */}
+      <div aria-hidden className="flex h-1.5">
+        <span className="w-[12%] bg-grass" />
+        <span className="flex-1 border-x-2 border-white bg-court" />
+        <span className="w-[12%] bg-grass" />
+      </div>
       <header className="mx-auto flex w-full max-w-5xl items-center justify-between px-4 py-5 sm:px-8">
         <Link href="/" className="flex items-center gap-2">
           <span aria-hidden className="text-2xl leading-none">🎾</span>
@@ -199,13 +257,20 @@ export default function Home() {
           <div className="max-w-3xl">
             <h1 className="font-display text-4xl font-bold leading-[1.1] tracking-tight sm:text-5xl lg:text-6xl">
               Your tennis story gets a little deeper with{" "}
-              <span className="text-clay">every match you watch.</span>
+              <span className="text-court">every match you watch.</span>
             </h1>
-            <p className="mt-6 max-w-lg text-lg leading-relaxed text-muted">
-              Keep track of what you watch, rate the ones that stuck with you,
-              and watch your own fan story take shape along the way.
-            </p>
-            <p className="mt-8 inline-block rounded-full bg-ball/40 px-4 py-1.5 font-medium">
+            <ol className="mt-6 flex flex-wrap gap-x-6 gap-y-3 text-lg font-semibold">
+              {heroSteps.map((step, i) => (
+                <li key={step} className="flex items-center gap-2">
+                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-court text-sm font-bold text-court-ink">
+                    {i + 1}
+                  </span>
+                  {step}
+                </li>
+              ))}
+            </ol>
+            <p className="mt-8 inline-flex items-center gap-2 rounded-full border border-line bg-surface px-4 py-1.5 font-medium">
+              <span aria-hidden className="h-2.5 w-2.5 rounded-full bg-ball ring-1 ring-black/10" />
               Coming for the 2027 season
             </p>
           </div>
@@ -221,7 +286,7 @@ export default function Home() {
           <ol className="grid gap-10 md:grid-cols-3 md:gap-6">
             {steps.map((s, i) => (
               <li key={s.title} className="flex flex-col">
-                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-clay text-sm font-bold text-clay-ink">
+                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-court text-sm font-bold text-court-ink">
                   {i + 1}
                 </span>
                 <h2 className="mt-3 font-display text-xl font-bold">{s.title}</h2>

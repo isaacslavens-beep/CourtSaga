@@ -1,15 +1,21 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f6f1e7;
-  --foreground: #1c1a17;
-  --muted: #4f4940;
-  --surface: #fffcf5;
-  --line: #e2d9c8;
-  --clay: #c2552d;
-  --clay-ink: #fff8f0;
-  --grass: #2f5d3a;
+  /* US Open hard court: navy ink, court blue, outer-court green, white lines, a touch of ball yellow */
+  --background: #f5f7fa;
+  --foreground: #0f1b2d;
+  --muted: #4b5a6e;
+  --surface: #ffffff;
+  --line: #dde3eb;
+  --court: #1f4f8f;
+  --court-ink: #ffffff;
+  --grass: #2d6a4f;
+  --fault: #b23b33;
   --ball: #d4e157;
+  /* Court surfaces, used only to tag tournaments */
+  --clay: #8a2433;
+  --hard: #1f74d6;
+  --lawn: #1e6b3a;
 }
 
 @theme inline {
@@ -18,10 +24,14 @@
   --color-muted: var(--muted);
   --color-surface: var(--surface);
   --color-line: var(--line);
-  --color-clay: var(--clay);
-  --color-clay-ink: var(--clay-ink);
+  --color-court: var(--court);
+  --color-court-ink: var(--court-ink);
   --color-grass: var(--grass);
+  --color-fault: var(--fault);
   --color-ball: var(--ball);
+  --color-clay: var(--clay);
+  --color-hard: var(--hard);
+  --color-lawn: var(--lawn);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
   --font-display: var(--font-bricolage);
@@ -29,15 +39,19 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #14130f;
-    --foreground: #f1ece2;
-    --muted: #c9c1b3;
-    --surface: #1d1b17;
-    --line: #34302a;
-    --clay: #e07049;
-    --clay-ink: #1a0f0a;
-    --grass: #7fb88d;
+    --background: #0a1220;
+    --foreground: #eef2f7;
+    --muted: #a7b3c4;
+    --surface: #111c2e;
+    --line: #23324a;
+    --court: #7aa8e8;
+    --court-ink: #08111f;
+    --grass: #6cc39b;
+    --fault: #f08b7e;
     --ball: #d4e157;
+    --clay: #e8909c;
+    --hard: #5aa2f0;
+    --lawn: #6fcf8f;
   }
 }
 

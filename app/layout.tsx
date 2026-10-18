@@ -20,7 +20,7 @@ const bricolage = Bricolage_Grotesque({
 export const metadata: Metadata = {
   title: "CourtSaga",
   description:
-    "Your tennis story gets a little deeper with every match you watch. Track what you watch and build your own fan story.",
+    "Your tennis story gets a little deeper with every match you watch. Track what you watch and see the story in your own data.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

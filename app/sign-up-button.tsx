@@ -4,7 +4,7 @@ import { useRef } from "react";
 
 const variants = {
   primary:
-    "bg-clay text-clay-ink hover:brightness-110 px-6 py-3 text-base",
+    "bg-court text-court-ink hover:brightness-110 px-6 py-3 text-base",
   small:
     "bg-foreground text-background hover:opacity-85 px-4 py-2 text-sm",
 };
@@ -23,7 +23,7 @@ export default function SignUpButton({
       <button
         type="button"
         onClick={() => dialogRef.current?.showModal()}
-        className={`inline-flex items-center justify-center rounded-full font-medium transition cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-clay ${variants[variant]}`}
+        className={`inline-flex items-center justify-center rounded-full font-medium transition cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-court ${variants[variant]}`}
       >
         {label}
       </button>
