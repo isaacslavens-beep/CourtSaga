@@ -1,26 +1,52 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f6f1e7;
+  --foreground: #1c1a17;
+  --muted: #4f4940;
+  --surface: #fffcf5;
+  --line: #e2d9c8;
+  --clay: #c2552d;
+  --clay-ink: #fff8f0;
+  --grass: #2f5d3a;
+  --ball: #d4e157;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-surface: var(--surface);
+  --color-line: var(--line);
+  --color-clay: var(--clay);
+  --color-clay-ink: var(--clay-ink);
+  --color-grass: var(--grass);
+  --color-ball: var(--ball);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --font-display: var(--font-bricolage);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: #14130f;
+    --foreground: #f1ece2;
+    --muted: #c9c1b3;
+    --surface: #1d1b17;
+    --line: #34302a;
+    --clay: #e07049;
+    --clay-ink: #1a0f0a;
+    --grass: #7fb88d;
+    --ball: #d4e157;
   }
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+}
+
+dialog::backdrop {
+  background: rgb(0 0 0 / 0.5);
+  backdrop-filter: blur(2px);
 }
