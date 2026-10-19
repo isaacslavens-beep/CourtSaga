@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { TennisBall } from "./demos/fun";
+import { SmoothAnchors } from "./smooth-anchors";
 import { LogDemo } from "./demos/log-demo";
 import { LogProvider } from "./demos/log-store";
 import { RankDemo } from "./demos/rank-demo";
@@ -25,7 +26,7 @@ const steps = [
   {
     id: "story",
     demo: <StoryDemo />,
-    title: "Your tennis Saga",
+    title: "Read your saga",
     body: "Your saga is automatically generated based on the matches you log. Explore the story behind the sport!",
     book: true,
   },
@@ -36,6 +37,7 @@ const heroSteps = ["Log", "Rank", "Story"];
 export default function Home() {
   return (
     <div className="flex flex-1 flex-col">
+      <SmoothAnchors />
       {/* Court edge: green surround, blue court, white line */}
       <div aria-hidden className="flex h-1.5">
         <span className="w-[12%] bg-grass" />

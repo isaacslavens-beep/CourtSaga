@@ -24,6 +24,16 @@ const neutralStyle: PlayerStyle = { bg: "bg-line", border: "border-line", soft: 
 
 export const playerStyle = (name: string | null) => (name && playerStyles[name]) || neutralStyle;
 
+/**
+ * Distinct colours for up to four players in one chart: each keeps their own colour when they have
+ * one, and anyone else takes the next colour no one in the chart is using.
+ */
+export function chartStyles(names: string[]) {
+  const taken = new Set(names.filter((n) => playerStyles[n]));
+  const free = Object.keys(playerStyles).filter((n) => !taken.has(n));
+  return new Map(names.map((n) => [n, playerStyles[n] ?? (free.length ? playerStyles[free.shift()!] : neutralStyle)]));
+}
+
 const headshots: Record<string, StaticImageData> = {
   Alcaraz: alcarazHead,
   Sinner: sinnerHead,
@@ -39,12 +49,14 @@ export function Avatar({
   name,
   size = "h-8 w-8 text-sm",
   className = "",
+  tone,
 }: {
   name: string;
   size?: string;
   className?: string;
+  tone?: PlayerStyle; // a chart's colour for this player, when it differs from their usual one
 }) {
-  const s = playerStyle(name);
+  const s = tone ?? playerStyle(name);
   const photo = headshots[name];
   if (photo) {
     return (

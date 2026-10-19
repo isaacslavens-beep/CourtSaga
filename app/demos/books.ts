@@ -2,7 +2,7 @@
 // fixed rules over the data, so the same log always binds the same book. No generated prose:
 // the only free text in a book is the fan's own notes. Lines are kept short on purpose.
 
-import { findRivalries, isRewatch, matchById, matches, monthLabel, parseSets, rivalries, setCount, type FanEntry, type Match } from "./library";
+import { findRivalries, isRewatch, matchById, matches, monthLabel, parseSets, rivalries, setCount, tournamentOf, type FanEntry, type Match } from "./library";
 import { rivalryRecords, type RecordMeeting } from "./rivalry-records";
 
 /* ---------- The shape every book shares ---------- */
@@ -22,16 +22,19 @@ export type BookChapter = {
   footer: { label: string; value: string; share: number | null };
 };
 
+// One mark per match in "The shape of it" chart
 export type StripItem = {
   key: string;
-  group: string;
-  face: string | null; // a player's face, or…
-  dot: string | null; // …a dot in this player's colour ("" for neutral)
-  glyph: "✓" | "✗" | null;
-  bar: number | null; // your rating
+  group: string; // rivalries: the year it sits under; collections: the row it counts towards
+  color: string; // a player's name, "right"/"exact"/"wrong" for calls, "other", or "" for no side
+  value: number; // your rating (1–5), or 3 for a meeting you didn't log
+  side: 1 | -1; // rivalries: above the line for the first player, below for the second
+  watched: boolean;
   title: string;
   logId?: string;
 };
+
+export type StripLegend = { color: string; label: string; faded?: boolean }[];
 
 export type BookData = {
   id: string;
@@ -40,7 +43,9 @@ export type BookData = {
   faces: string[];
   subtitle: string;
   strip: StripItem[];
-  stripLegend: string;
+  stripLegend: StripLegend;
+  stripMode: "rivalry" | "rows";
+  stripCaption: string;
   facts: [string, string][];
   chapters: BookChapter[];
   epilogue: {
@@ -58,7 +63,7 @@ export const COLLECTION_MIN = 3;
 
 const rivalryLeathers = ["#5a2a1f", "#24463a", "#55284d"];
 const collections: (Omit<ShelfBook, "kind" | "players"> & { test: (x: Item) => boolean })[] = [
-  { id: "seasons", title: "Your Seasons", leather: "#2f4060", blurb: "matches", test: () => true },
+  { id: "seasons", title: "Seasons", leather: "#2f4060", blurb: "matches", test: () => true },
   { id: "five", title: "Five-Setters", leather: "#7a3028", blurb: "matches", test: (x) => isFive(x.m) },
   { id: "comebacks", title: "Comebacks", leather: "#46562f", blurb: "matches", test: (x) => lostFirst(x.m) },
   { id: "calls", title: "Called It", leather: "#6a5226", blurb: "calls", test: (x) => !!x.fan.pick },
@@ -160,19 +165,47 @@ function favouriteOf(items: Item[], order: string[]) {
   return fav ? { label: `${fav.m.event} · ${fav.m.round}`, note: fav.fan.note } : null;
 }
 
-function stripOf(items: Item[], opts: { glyph?: (x: Item) => "✓" | "✗"; dotBy?: (x: Item) => string | null }): StripItem[] {
-  const useDots = items.length > 12 || !!opts.dotBy;
-  return [...items].sort(byWatched).map((x) => ({
-    key: x.m.id,
-    group: x.fan.watchedDate.slice(0, 4),
-    face: useDots || opts.glyph ? null : x.m.winner,
-    dot: opts.glyph ? null : useDots ? ((opts.dotBy ? opts.dotBy(x) : x.m.winner) ?? "") : null,
-    glyph: opts.glyph ? opts.glyph(x) : null,
-    bar: opts.glyph ? null : x.fan.rating,
-    title: `${x.m.event} · ${x.m.round}: ${x.m.winner} won · you rated it ${x.fan.rating}`,
-    logId: x.m.id,
-  }));
+/**
+ * Collection charts: one row per category, one block per match, so each row's length is its count.
+ * Rows come in `rows` order (empty ones dropped); blocks cluster by colour. Only the top `keep`
+ * players with 2+ matches get their own colour; everyone else folds into "other".
+ */
+function rowsOf(items: Item[], rowOf: (x: Item) => string, colorBy: (x: Item) => string, rows: string[], label: (color: string) => string, keep = 3) {
+  const counts = new Map<string, number>();
+  for (const x of items) counts.set(colorBy(x), (counts.get(colorBy(x)) ?? 0) + 1);
+  const special = (c: string) => c === "" || c === "right" || c === "exact" || c === "wrong";
+  const kept = [...counts.entries()].filter(([c, n]) => !special(c) && n >= 2).sort((a, b) => b[1] - a[1]).slice(0, keep).map(([c]) => c);
+  const colour = (x: Item) => (special(colorBy(x)) || kept.includes(colorBy(x)) ? colorBy(x) : "other");
+  const rank = (c: string) => (kept.includes(c) ? kept.indexOf(c) : c === "other" ? 90 : 95);
+  const strip: StripItem[] = rows.flatMap((row) =>
+    items
+      .filter((x) => rowOf(x) === row)
+      .sort((a, b) => rank(colour(a)) - rank(colour(b)) || byWatched(a, b))
+      .map((x) => ({
+        key: x.m.id,
+        group: row,
+        color: colour(x),
+        value: x.fan.rating,
+        side: 1 as const,
+        watched: true,
+        title: `${x.m.event} · ${x.m.round}: ${x.m.winner} won · you rated it ${x.fan.rating}`,
+        logId: x.m.id,
+      })),
+  );
+  const present = [...new Set(strip.map((x) => x.color))].sort((a, b) => rank(a) - rank(b));
+  return { strip, stripMode: "rows" as const, stripLegend: present.map((c) => ({ color: c, label: c === "other" ? "Someone else" : label(c) })) };
 }
+
+/** The most sets the eventual winner was ever behind by. */
+const deficit = (m: Match) => {
+  let [w, l, worst] = [0, 0, 0];
+  for (const set of parseSets(m.score)) {
+    if (set.w > set.l) w++;
+    else l++;
+    worst = Math.max(worst, l - w);
+  }
+  return worst;
+};
 
 /** "Sinner: 2 wins, 3 losses" for whoever you backed most, or null. */
 function mostBacked(items: Item[]) {
@@ -282,14 +315,20 @@ function bindRivalry(id: string, entries: Record<string, FanEntry>, order: strin
     strip: beats.map((x) => ({
       key: String(x.i),
       group: x.meet.date.slice(0, 4),
-      face: x.fan ? x.meet.winner : null,
-      dot: x.fan ? null : x.meet.winner,
-      glyph: null,
-      bar: x.fan ? x.fan.rating : null,
+      color: x.meet.winner,
+      value: x.fan ? x.fan.rating : 3,
+      side: x.meet.winner === A ? 1 : -1,
+      watched: !!x.fan,
       title: `${x.meet.event} ${x.meet.date.slice(0, 4)}: ${x.meet.winner} won${x.fan ? ` · you rated it ${x.fan.rating}` : " · not in your log"}`,
       logId: x.meet.logId,
     })),
-    stripLegend: "Faces: ones you watched. Dots: the rest. Colour: who won.",
+    stripMode: "rivalry",
+    stripCaption: "Every meeting in order: above the line for one player, below for the other.",
+    stripLegend: [
+      { color: A, label: `${A} won` },
+      { color: B, label: `${B} won` },
+      { color: "", label: "Not in your log", faded: true },
+    ],
     facts: [
       ["Overall", standing(a, b)],
       ["In the ones you watched", view.a === view.b ? `${view.a}–${view.b}` : `${view.a > view.b ? A : B} ${Math.max(view.a, view.b)}–${Math.min(view.a, view.b)}`],
@@ -370,11 +409,13 @@ function bindSeasons(items: Item[], order: string[]): BookData {
   return {
     id: "seasons",
     kind: "collection",
-    title: "Your Seasons",
+    title: "Seasons",
     faces: [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3).map(([p]) => p),
     subtitle: `Your whole log: ${items.length} matches, ${years[0].year}–${years[years.length - 1].year}.`,
-    strip: stripOf(items, { dotBy: (x) => x.fan.cheering }),
-    stripLegend: "Each dot is a match, coloured by who you backed. Bars: your rating.",
+    ...(() => {
+      const r = rowsOf(items, (x) => x.fan.watchedDate.slice(0, 4), (x) => x.fan.cheering ?? "", years.map((y) => y.year), (c) => (c ? `Backed ${c}` : "No side"));
+      return { ...r, stripCaption: "Each year's matches, by who you backed." };
+    })(),
     facts: [
       ["Matches logged", String(items.length)],
       ["Backed most", top ? `${top.player} (${top.n})` : "No one yet"],
@@ -432,8 +473,12 @@ function bindFive(all: Item[], order: string[]): BookData {
     title: "Five-Setters",
     faces: [...new Set(items.map((x) => x.m.winner))].slice(0, 3),
     subtitle: `Every match you watched that went the distance: ${items.length} so far.`,
-    strip: stripOf(items, {}),
-    stripLegend: "Faces: who won. Bars: your rating.",
+    ...(() => {
+      const t = new Map<string, number>();
+      for (const x of items) t.set(tournamentOf(x.m), (t.get(tournamentOf(x.m)) ?? 0) + 1);
+      const rows = [...t.entries()].sort((a, b) => b[1] - a[1]).map(([k]) => k);
+      return { ...rowsOf(items, (x) => tournamentOf(x.m), (x) => x.m.winner, rows, (c) => `${c} won`), stripCaption: "Where they happened, and who won." };
+    })(),
     facts: [
       ["Five-setters watched", String(items.length)],
       ["Your average", `${avg(items.map((x) => x.fan.rating)).toFixed(1)} (${avg(others.map((x) => x.fan.rating)).toFixed(1)} for the rest)`],
@@ -494,8 +539,10 @@ function bindComebacks(all: Item[], order: string[]): BookData {
     title: "Comebacks",
     faces: [...c.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3).map(([p]) => p),
     subtitle: `Every winner you watched who lost the first set: ${items.length} so far.`,
-    strip: stripOf(items, {}),
-    stripLegend: "Each dot is a comeback, coloured by who came back. Bars: your rating.",
+    ...(() => {
+      const down = (x: Item) => (deficit(x.m) >= 2 ? "From 2 sets down" : "From 1 set down");
+      return { ...rowsOf(items, down, (x) => x.m.winner, ["From 1 set down", "From 2 sets down"], (c) => `${c} came back`), stripCaption: "How far behind they were, and who came back." };
+    })(),
     facts: [
       ["Comebacks watched", String(items.length)],
       ["Came back most", `${mostP} (${mostN})`],
@@ -573,8 +620,15 @@ function bindCalls(all: Item[], order: string[]): BookData {
     title: "Called It",
     faces: [...perPlayer.entries()].sort((a, b) => b[1].n - a[1].n).slice(0, 3).map(([p]) => p),
     subtitle: `Every prediction you made: ${items.length} calls.`,
-    strip: stripOf(items, { glyph: (x) => (called(x) ? "✓" : "✗") }),
-    stripLegend: "✓ you called the winner   ✗ you didn't",
+    ...rowsOf(
+      items,
+      (x) => (exact(x) ? "Winner and sets" : called(x) ? "Winner only" : "Missed"),
+      (x) => (exact(x) ? "exact" : called(x) ? "right" : "wrong"),
+      ["Winner and sets", "Winner only", "Missed"],
+      () => "",
+    ),
+    stripLegend: [],
+    stripCaption: "How close each call came.",
     facts: [
       ["Right", `${r} of ${items.length}`],
       ["Exactly right", String(items.filter(exact).length)],

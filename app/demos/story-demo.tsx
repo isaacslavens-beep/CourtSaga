@@ -2,10 +2,11 @@
 
 import { useEffect, useRef, useState, useSyncExternalStore, type CSSProperties, type ReactNode } from "react";
 import { SAGA_MIN_MATCHES, bookFor, buildBook, buildShelf, shelfCount, type BookChapter, type BookData, type Entry } from "./books";
-import { Avatar, BallScore, CollectionIcon, IconArrowUp, hasHeadshot, playerStyle } from "./fun";
+import { Avatar, BallScore, CollectionIcon, IconArrowUp, chartStyles, hasHeadshot, playerStyle } from "./fun";
 import { monthLabel } from "./library";
 import { SlamLogo } from "../match-ui";
 import { useLog } from "./log-store";
+import { glideTo } from "../glide";
 
 /* Step 3: a shelf of books bound from the log. Rivalries tell the whole rivalry with your
    meetings marked in; collections organise your log another way. See books.ts for the rules. */
@@ -73,48 +74,88 @@ function TitlePage({ book, onJump }: { book: BookData; onJump: (page: number) =>
   );
 }
 
+// Mark colours: a player's colour, green/red for calls, grey for everyone else, outline for no side
+const fillOf = (color: string, players: Map<string, { bg: string }> = new Map()) =>
+  color === "exact" ? "bg-grass" : color === "right" ? "bg-grass/55" : color === "wrong" ? "bg-fault" : color === "other" ? "bg-muted/60" : color ? (players.get(color) ?? playerStyle(color)).bg : "ring-1 ring-inset ring-muted/60";
+
+const slams = ["Australian Open", "Roland Garros", "Wimbledon", "US Open"];
+
 function ArcPage({ book, spotId }: { book: BookData; spotId: string | null }) {
   const groups = [...new Set(book.strip.map((x) => x.group))];
+  const rivalry = book.stripMode === "rivalry";
+  const ring = (x: BookData["strip"][number]) => (spotId && spotId === x.logId ? "spot-tile ring-2 ring-foreground" : "");
+  const players = chartStyles([...new Set(book.strip.map((x) => x.color))].filter((c) => !["", "other", "right", "exact", "wrong"].includes(c)));
+  const most = Math.max(...groups.map((g) => book.strip.filter((x) => x.group === g).length));
+
   return (
     <div>
       <Kicker>At a glance</Kicker>
       <h3 className="mt-2 font-serif text-4xl font-semibold">The shape of it</h3>
+      <p className="mt-2 font-medium text-muted">{book.stripCaption}</p>
 
-      <div className="mt-6 flex flex-wrap items-end gap-x-2 gap-y-3" role="img" aria-label={book.strip.map((x) => x.title).join("; ")}>
-        {groups.map((g) => (
-          <div key={g} className="flex flex-col items-center">
-            <div className="flex items-end gap-0.5">
-              {book.strip
-                .filter((x) => x.group === g)
-                .map((x) => {
-                  const spot = spotId && spotId === x.logId ? "spot-tile" : "";
-                  return (
-                    <div key={x.key} className="flex flex-col items-center gap-1" title={x.title}>
-                      {x.face ? (
-                        <Avatar name={x.face} size="h-6 w-6 text-[10px]" className={`${sepia} ${spot}`} />
-                      ) : x.glyph ? (
-                        <span className={`flex h-6 w-4 items-center justify-center text-base font-bold ${x.glyph === "✓" ? "text-grass" : "text-fault"} ${spot}`}>
-                          {x.glyph}
-                        </span>
-                      ) : (
-                        <span className="flex h-6 items-center">
-                          <span className={`h-3 w-3 rounded-full ${x.dot ? playerStyle(x.dot).bg : "bg-line"} ${spot}`} />
-                        </span>
-                      )}
-                      {x.bar !== null && (
-                        <span className="flex h-10 w-2 items-end overflow-hidden rounded-full bg-line/70">
-                          <span className="w-full rounded-full bg-foreground/70 transition-all duration-500" style={{ height: `${x.bar * 20}%` }} />
-                        </span>
-                      )}
-                    </div>
-                  );
-                })}
-            </div>
-            <span className="mt-1.5 text-sm font-medium text-muted">{g}</span>
+      {rivalry ? (
+        <div className="mt-5 flex items-stretch gap-3" role="img" aria-label={book.strip.map((x) => x.title).join("; ")}>
+          <div className="flex shrink-0 flex-col justify-between py-1" aria-hidden>
+            {book.faces.slice(0, 2).map((p) => (
+              <Avatar key={p} name={p} size="h-8 w-8 text-xs" tone={players.get(p)} />
+            ))}
           </div>
+          <div className="flex min-w-0 flex-1 items-end gap-2">
+            {groups.map((g) => {
+              const items = book.strip.filter((x) => x.group === g);
+              return (
+                <div key={g} className="flex min-w-9 flex-col items-center" style={{ flex: `${items.length} 1 0`, maxWidth: items.length * 16 }}>
+                  <div className="flex w-full flex-col">
+                    <div className="flex h-11 items-end justify-center gap-0.5">
+                      {items.map((x) => (
+                        <span key={x.key} title={x.title} className={`h-full max-w-3 flex-1 rounded-t-sm ${x.side === 1 ? fillOf(x.color, players) : ""} ${x.side === 1 && !x.watched ? "opacity-30" : ""} ${ring(x)}`} />
+                      ))}
+                    </div>
+                    <span aria-hidden className="h-0.5 w-full bg-foreground/60" />
+                    <div className="flex h-11 items-start justify-center gap-0.5">
+                      {items.map((x) => (
+                        <span key={x.key} title={x.title} className={`h-full max-w-3 flex-1 rounded-b-sm ${x.side === -1 ? fillOf(x.color, players) : ""} ${x.side === -1 && !x.watched ? "opacity-30" : ""} ${ring(x)}`} />
+                      ))}
+                    </div>
+                  </div>
+                  <span className="mt-1.5 text-sm font-medium text-muted">{g}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ) : (
+        <dl className="mt-5 space-y-2.5">
+          {groups.map((g) => {
+            const items = book.strip.filter((x) => x.group === g);
+            return (
+              <div key={g}>
+                <dt className="flex items-center gap-2 text-sm font-semibold">
+                  {slams.includes(g) && <SlamLogo event={g} size="h-5 w-5" />}
+                  {g}
+                </dt>
+                <dd className="mt-1 flex items-center gap-2">
+                  <span className="flex h-5 min-w-0 gap-0.5" style={{ width: `${(items.length / most) * 85}%` }}>
+                    {items.map((x) => (
+                      <span key={x.key} title={x.title} className={`h-full flex-1 first:rounded-l-sm last:rounded-r-sm ${fillOf(x.color, players)} ${ring(x)}`} />
+                    ))}
+                  </span>
+                  <span className="text-sm font-semibold tabular-nums">{items.length}</span>
+                </dd>
+              </div>
+            );
+          })}
+        </dl>
+      )}
+
+      <ul className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-sm font-medium text-muted">
+        {book.stripLegend.map((l) => (
+          <li key={l.label} className="flex items-center gap-1.5">
+            <span aria-hidden className={`h-3 w-3 rounded-sm ${l.faded ? "bg-muted/30" : fillOf(l.color, players)}`} />
+            {l.label}
+          </li>
         ))}
-      </div>
-      <p className="mt-3 text-sm text-muted">{book.stripLegend}</p>
+      </ul>
 
       <div className="mt-6">
         <Facts rows={book.facts} />
@@ -349,9 +390,9 @@ export function StoryDemo() {
   const bookRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (spotlight?.target !== "story") return;
-    const behavior = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth";
     const beat = bookRef.current?.querySelector(`[data-beat="${spotlight.id}"]`);
-    (beat ?? bookRef.current)?.scrollIntoView({ behavior, block: beat ? "center" : "start" });
+    if (beat) glideTo(beat, "center");
+    else glideTo(bookRef.current);
   }, [spotlight]);
 
   if (!shelf.length) {
@@ -366,8 +407,7 @@ export function StoryDemo() {
   const spotId = spot && book.chapters.some((c) => c.entries.some((e) => e.kind === "logged" && e.id === spot.id)) ? spot.id : null;
   const editInLog = (id: string) => {
     setFocusId(id);
-    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    document.getElementById("log")?.scrollIntoView({ behavior: reduce ? "auto" : "smooth" });
+    glideTo(document.getElementById("log"), "start", 0);
   };
 
   const pages: ReactNode[] = [

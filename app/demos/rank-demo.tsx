@@ -7,6 +7,7 @@ import { SlamLogo, TournamentLabel } from "../match-ui";
 import { Avatar, BallRating, BallScore, NextStep, TennisBall } from "./fun";
 import { eventLabel, matchById, matches, rivalryOf, tournamentOf, tournaments, type Match, type Tournament } from "./library";
 import { useLog } from "./log-store";
+import { glideToRow } from "../glide";
 
 // Each tournament's own colours: main, then second. Used for its tile and its whole ranking panel.
 const themes: Record<Tournament, { accent: string; second: string }> = {
@@ -83,8 +84,7 @@ export function RankDemo() {
   useEffect(() => {
     if (spotlight?.target !== "rank") return;
     const row = olRef.current?.querySelector(`[data-row="${spotlight.id}"]`);
-    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    row?.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "center" });
+    glideToRow(row ?? null, olRef.current);
   }, [spotlight]);
 
   const rows = order.map((id) => matchById[id]).filter((m) => tournamentOf(m) === tournament);
