@@ -101,7 +101,7 @@ const markStyle = (x: { color: string; watched?: boolean }, players: ReturnType<
 const slamNames = ["Australian Open", "Roland Garros", "Wimbledon", "US Open"];
 
 /**
- * "The shape of it": every meeting in order, above the line for one player and below for the
+ * The at-a-glance chart: every meeting in order, above the line for one player and below for the
  * other, bars you didn't watch faded. Collections get one row per category instead.
  * Hovering a mark swaps the caption for that match.
  */

@@ -45,7 +45,7 @@ function storyOf(book: BookData) {
 
   const Shape = () => (
     <div>
-      <Kicker>The shape of it</Kicker>
+      <Kicker>At a glance</Kicker>
       <Headline>{rivalry ? book.facts[0][1] : `${lead.n} ${lead.label}`}</Headline>
       <div className="rise mt-4 [--step:90ms]" style={beat(1)}>
         <ShapeChart book={book} caption={rivalry ? "Hollow bars: not in your log." : "Where they happened."} compact />
@@ -141,7 +141,7 @@ function storyOf(book: BookData) {
   };
 
   return [
-    { label: "the shape of it", dur: 6000, Slide: Shape },
+    { label: "at a glance", dur: 6000, Slide: Shape },
     { label: `chapter ${roman[chapterIdx]}`, dur: 5500, Slide: Chapter },
     ...(words ? [{ label: "your words", dur: 5000, Slide: Words }] : []),
     { label: "where it stands", dur: 5500, Slide: Stands },

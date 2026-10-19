@@ -98,7 +98,7 @@ function ShapePage({ book, spotId, onYear }: { book: BookData; spotId: string | 
     <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_15rem] lg:gap-12">
       <div className="min-w-0">
         <Kicker>At a glance</Kicker>
-        <Title>The shape of it</Title>
+        <Title>{book.kind === "rivalry" ? "Every meeting" : "Every match"}</Title>
         <div className="rise mt-8" style={beat(2)}>
           <ShapeChart
             book={book}
@@ -435,7 +435,7 @@ export function StoryDemo() {
   const pages: { label: string; node: ReactNode }[] = [
     { label: "the cover", node: <CoverPage book={book} onJump={(p) => goTo(p)} /> },
     {
-      label: "the shape of it",
+      label: "at a glance",
       node: (
         <ShapePage
           book={book}

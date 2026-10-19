@@ -22,7 +22,7 @@ export type BookChapter = {
   footer: { label: string; value: string; share: number | null };
 };
 
-// One mark per match in "The shape of it" chart
+// One mark per match in the at-a-glance chart
 export type StripItem = {
   key: string;
   group: string; // rivalries: the year it sits under; collections: the row it counts towards
