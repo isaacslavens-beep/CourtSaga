@@ -197,7 +197,7 @@ export function ShapeChart({
                       key={x.key}
                       {...hoverProps(x)}
                       className={`grow-x h-full flex-1 first:rounded-l-[4px] last:rounded-r-[4px] ${spot(x)}`}
-                      style={markStyle(x, players, n++)}
+                      style={compact ? ({ "--i": n++, background: "var(--tint-a)" } as CSSProperties) : markStyle(x, players, n++)}
                     />
                   ))}
                 </span>
@@ -220,7 +220,7 @@ export function ShapeChart({
           {chart}
         </div>
       )}
-      {book.stripLegend.length > 0 && (
+      {!compact && book.stripLegend.length > 0 && (
         <ul className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-sm text-muted">
           {book.stripLegend.map((l) => (
             <li key={l.label} className="flex items-center gap-1.5">
@@ -230,7 +230,7 @@ export function ShapeChart({
           ))}
         </ul>
       )}
-      <figcaption className="mt-2 min-h-[2.5rem] text-sm text-muted sm:min-h-[1.5rem]">
+      <figcaption className={`mt-2 text-sm text-muted ${compact ? "" : "min-h-[2.5rem] sm:min-h-[1.5rem]"}`}>
         {hover ? <span className="text-foreground">{hover.title}</span> : caption}
       </figcaption>
     </figure>

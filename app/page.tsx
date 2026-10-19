@@ -25,7 +25,7 @@ const steps = [
   {
     id: "story",
     demo: <StoryDemo />,
-    title: "Read your saga",
+    title: "Explore your saga",
     body: "Your saga is automatically generated based on the matches you log. Explore the story behind the sport!",
     stage: true,
   },

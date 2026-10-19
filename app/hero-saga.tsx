@@ -48,7 +48,7 @@ function storyOf(book: BookData) {
       <Kicker>The shape of it</Kicker>
       <Headline>{rivalry ? book.facts[0][1] : `${lead.n} ${lead.label}`}</Headline>
       <div className="rise mt-4 [--step:90ms]" style={beat(1)}>
-        <ShapeChart book={book} caption={rivalry ? book.subtitle : book.stripCaption} compact />
+        <ShapeChart book={book} caption={rivalry ? "Hollow bars: not in your log." : "Where they happened."} compact />
       </div>
     </div>
   );
@@ -57,8 +57,8 @@ function storyOf(book: BookData) {
     <div>
       <Kicker>{`Chapter ${roman[chapterIdx]} · ${chapter.year}`}</Kicker>
       <Headline>{chapter.title}</Headline>
-      <ol className="mt-3 space-y-1.5">
-        {chapter.entries.slice(0, 6).map((e, i) => {
+      <ol className="mt-4 space-y-2.5">
+        {chapter.entries.slice(0, 4).map((e, i) => {
           const winner = e.kind === "logged" ? e.m.winner : chapterStrip[i]?.color;
           return (
             <li key={e.kind === "logged" ? e.id : e.key} className="rise flex items-center gap-2.5 text-sm" style={beat(2 + i)}>
@@ -66,7 +66,7 @@ function storyOf(book: BookData) {
               <span className={`min-w-0 flex-1 truncate ${e.kind === "logged" ? "font-medium" : "text-muted"}`}>
                 {e.kind === "logged" ? `${e.m.event.replace(/ \d{4}$/, "")} · ${e.m.round}` : e.head}
               </span>
-              {e.kind === "logged" ? <BallScore value={e.fan.rating} size="sm" /> : <span className="text-xs text-muted">Not in your log</span>}
+              {e.kind === "logged" ? <BallScore value={e.fan.rating} size="sm" /> : <span className="text-muted" aria-label="Not in your log">–</span>}
             </li>
           );
         })}
@@ -129,7 +129,7 @@ function storyOf(book: BookData) {
           </div>
         )}
         <dl className="mt-4 divide-y divide-foreground/10 text-sm">
-          {book.epilogue.facts.map(([label, value], i) => (
+          {book.epilogue.facts.slice(0, 2).map(([label, value], i) => (
             <div key={label} className="rise flex items-baseline justify-between gap-4 py-2" style={beat(3 + i)}>
               <dt className="text-muted">{label}</dt>
               <dd className="text-right font-semibold">{value}</dd>
@@ -245,9 +245,9 @@ export function HeroSaga({ bookId, head = 0 }: { bookId: string; head?: number }
         </div>
       </div>
 
-      <div className="flex items-center justify-between gap-3 border-t border-white/10 px-5 py-3">
+      <div className="flex items-center justify-between gap-3 px-5 pb-4">
         <a href="#story" className="group inline-flex items-center gap-1.5 text-sm font-semibold text-court">
-          Read the whole saga
+          Explore the whole saga
           <span aria-hidden className="transition group-hover:translate-y-0.5">
             ↓
           </span>
