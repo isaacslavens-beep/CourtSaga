@@ -64,8 +64,7 @@ export default function Home() {
               <span className="text-court">every match you watch.</span>
             </h1>
             <p className="mt-5 max-w-xl text-lg font-medium leading-relaxed text-muted sm:text-xl">
-              Log any match played since <span className="font-semibold text-foreground">Wimbledon 2003</span>. The more you watch, the more your
-              saga has to tell: new rivalries, new chapters, new records of your own.
+              Log any match since Wimbledon 2003. The more you watch, the more your saga has to tell.
             </p>
             {/* The rest of the page is a working demo: say so, loudly */}
             <div className="mt-6 rounded-3xl bg-ball/25 p-5 ring-2 ring-ball">
