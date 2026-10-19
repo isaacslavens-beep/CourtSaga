@@ -79,7 +79,7 @@ export default function Home() {
                   href="#log"
                   className="nudge inline-flex items-center gap-3 rounded-full bg-court px-6 py-3 text-lg font-bold text-court-ink shadow-lg shadow-court/30 transition hover:-translate-y-0.5 hover:shadow-xl"
                 >
-                  Start the demo
+                  Try it out
                   <svg
                     viewBox="0 0 16 16"
                     aria-hidden
