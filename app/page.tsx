@@ -1,14 +1,13 @@
 import Image from "next/image";
 import Link from "next/link";
 import { TennisBall } from "./demos/fun";
+import { HeroSaga } from "./hero-saga";
 import { SmoothAnchors } from "./smooth-anchors";
 import { LogDemo } from "./demos/log-demo";
 import { LogProvider } from "./demos/log-store";
 import { RankDemo } from "./demos/rank-demo";
 import { StoryDemo } from "./demos/story-demo";
-import alcarazAo2026Final from "@/public/photos/alcaraz-ao-2026-final.jpg";
 import djokovicCentreCourt from "@/public/photos/djokovic-wimbledon-centre-court.jpg";
-import rybakinaUso2026 from "@/public/photos/rybakina-uso-2026.jpg";
 
 const steps = [
   {
@@ -28,7 +27,7 @@ const steps = [
     demo: <StoryDemo />,
     title: "Read your saga",
     body: "Your saga is automatically generated based on the matches you log. Explore the story behind the sport!",
-    book: true,
+    stage: true,
   },
 ];
 
@@ -58,12 +57,16 @@ export default function Home() {
 
       <main className="flex-1">
         {/* Hero */}
-        <section className="hero mx-auto grid w-full max-w-6xl items-center gap-10 px-4 pb-16 pt-6 sm:px-8 sm:pt-10 lg:min-h-[calc(100vh-5rem)] lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:pb-20">
+        <section className="hero mx-auto grid w-full max-w-6xl items-center gap-10 px-4 pb-16 pt-6 sm:px-8 sm:pt-10 lg:pb-20 xl:min-h-[calc(100vh-5rem)] xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
           <div>
             <h1 className="hero-title font-display text-4xl font-bold leading-[1.1] tracking-tight sm:text-5xl lg:text-6xl">
               Your tennis story gets more interesting with{" "}
               <span className="text-court">every match you watch.</span>
             </h1>
+            <p className="mt-5 max-w-xl text-lg font-medium leading-relaxed text-muted sm:text-xl">
+              Log any match played since <span className="font-semibold text-foreground">Wimbledon 2003</span>. The more you watch, the more your
+              saga has to tell: new rivalries, new chapters, new records of your own.
+            </p>
             {/* The rest of the page is a working demo: say so, loudly */}
             <div className="mt-6 rounded-3xl bg-ball/25 p-5 ring-2 ring-ball">
               <p className="flex flex-wrap items-center gap-x-2 text-sm font-bold uppercase tracking-wide">
@@ -111,27 +114,14 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="relative mx-auto aspect-[5/4] w-full max-w-xl">
-            <Image
-              src={alcarazAo2026Final}
-              alt="Carlos Alcaraz lying on the court smiling after winning the 2026 Australian Open final"
-              placeholder="blur"
-              loading="eager"
-              // 16:9 photo filling a 4:3 frame: it needs about 1.35x the frame width
-              sizes="(min-width: 1024px) 480px, 90vw"
-              quality={90}
-              className="absolute left-0 top-0 aspect-[4/3] w-[64%] -rotate-2 rounded-3xl object-cover object-[25%_30%] shadow-xl shadow-court/10"
-            />
-            <Image
-              src={rybakinaUso2026}
-              alt="Elena Rybakina on court at the 2026 US Open"
-              placeholder="blur"
-              loading="eager"
-              // 3:2 photo filling a 3:4 portrait frame: it needs about 2x the frame width
-              sizes="(min-width: 1024px) 560px, 95vw"
-              quality={90}
-              className="absolute bottom-0 right-0 aspect-[3/4] w-[45%] rotate-2 rounded-3xl object-cover object-[50%_10%] shadow-xl shadow-court/10 ring-[6px] ring-background"
-            />
+          {/* Two books from the sample saga, playing themselves, just overlapping */}
+          <div className="flex w-full flex-col items-center gap-6 md:flex-row md:items-start md:justify-center md:gap-0 xl:-mr-12 xl:w-auto xl:justify-end">
+            <div className="float relative z-10 w-full max-w-[22rem] -rotate-1 transition-[rotate] duration-300 hover:z-30 hover:rotate-0 md:w-[20rem]">
+              <HeroSaga bookId="Alcaraz-Sinner" />
+            </div>
+            <div className="float relative z-20 w-full max-w-[22rem] rotate-1 transition-[rotate] duration-300 [animation-delay:-3.5s] hover:z-30 hover:rotate-0 md:-ml-2.5 md:mt-14 md:w-[20rem]">
+              <HeroSaga bookId="five" head={2800} />
+            </div>
           </div>
         </section>
 
@@ -142,22 +132,18 @@ export default function Home() {
               key={s.id}
               id={s.id}
               aria-labelledby={`${s.id}-title`}
-              className={`flex min-h-screen items-center py-20 ${
-                "book" in s ? "library border-t border-line" : `border-t border-line ${i % 2 ? "bg-surface/60" : ""}`
+              className={`flex min-h-screen items-center ${
+                "stage" in s ? "stage py-44" : `border-t border-line py-20 ${i % 2 ? "bg-surface/60" : ""}`
               }`}
             >
               <div className="mx-auto w-full max-w-6xl px-4 sm:px-8">
                 <div className="max-w-2xl">
-                  <span
-                    className={`flex h-10 w-10 items-center justify-center rounded-full font-bold ${
-                      "bg-court text-court-ink"
-                    }`}
-                  >
+                  <span className="flex h-10 w-10 items-center justify-center rounded-full bg-court font-bold text-court-ink">
                     {i + 1}
                   </span>
                   <h2
                     id={`${s.id}-title`}
-                    className={`mt-5 text-4xl font-bold tracking-tight sm:text-5xl ${"book" in s ? "font-serif font-semibold" : "font-display"}`}
+                    className="mt-5 font-display text-4xl font-bold tracking-tight sm:text-5xl"
                   >
                     {s.title}
                   </h2>

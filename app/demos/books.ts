@@ -55,18 +55,17 @@ export type BookData = {
   };
 };
 
-export type ShelfBook = { id: string; kind: "rivalry" | "collection"; title: string; players: string[]; leather: string; blurb: string };
+export type ShelfBook = { id: string; kind: "rivalry" | "collection"; title: string; players: string[]; blurb: string };
 
 // The saga unlocks once you've logged this many matches; a collection appears once it has this many
 export const SAGA_MIN_MATCHES = 5;
 export const COLLECTION_MIN = 3;
 
-const rivalryLeathers = ["#5a2a1f", "#24463a", "#55284d"];
 const collections: (Omit<ShelfBook, "kind" | "players"> & { test: (x: Item) => boolean })[] = [
-  { id: "seasons", title: "Seasons", leather: "#2f4060", blurb: "matches", test: () => true },
-  { id: "five", title: "Five-Setters", leather: "#7a3028", blurb: "matches", test: (x) => isFive(x.m) },
-  { id: "comebacks", title: "Comebacks", leather: "#46562f", blurb: "matches", test: (x) => lostFirst(x.m) },
-  { id: "calls", title: "Called It", leather: "#6a5226", blurb: "calls", test: (x) => !!x.fan.pick },
+  { id: "seasons", title: "Seasons", blurb: "matches", test: () => true },
+  { id: "five", title: "Five-Setters", blurb: "matches", test: (x) => isFive(x.m) },
+  { id: "comebacks", title: "Comebacks", blurb: "matches", test: (x) => lostFirst(x.m) },
+  { id: "calls", title: "Called It", blurb: "calls", test: (x) => !!x.fan.pick },
 ];
 
 /** The shelf, decided by rule from the log: rivalries first, then every collection with enough in it. */
@@ -74,17 +73,16 @@ export function buildShelf(entries: Record<string, FanEntry>): ShelfBook[] {
   const all: Item[] = loggedItems(entries);
   if (all.length < SAGA_MIN_MATCHES) return [];
   return [
-    ...findRivalries(entries).map((r, i) => ({
+    ...findRivalries(entries).map((r) => ({
       id: r.id,
       kind: "rivalry" as const,
       title: r.players.join(" & "),
       players: r.players,
-      leather: rivalryLeathers[i % rivalryLeathers.length],
       blurb: "meetings",
     })),
     ...collections
       .filter((c) => c.id === "seasons" || all.filter(c.test).length >= COLLECTION_MIN)
-      .map((c) => ({ id: c.id, title: c.title, leather: c.leather, blurb: c.blurb, kind: "collection" as const, players: [] })),
+      .map((c) => ({ id: c.id, title: c.title, blurb: c.blurb, kind: "collection" as const, players: [] })),
   ];
 }
 

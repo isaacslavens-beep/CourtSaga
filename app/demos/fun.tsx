@@ -11,16 +11,16 @@ import type { Surface } from "./library";
 
 /* ---------- Players ---------- */
 
-type PlayerStyle = { bg: string; border: string; soft: string; ink: string };
+type PlayerStyle = { bg: string; border: string; soft: string; ink: string; color: string };
 
 // Fixed slots from the validated palette. Class names are spelled out for Tailwind.
 const playerStyles: Record<string, PlayerStyle> = {
-  Alcaraz: { bg: "bg-p-alcaraz", border: "border-p-alcaraz", soft: "bg-p-alcaraz/15", ink: "text-white" },
-  Sinner: { bg: "bg-p-sinner", border: "border-p-sinner", soft: "bg-p-sinner/15", ink: "text-black" },
-  Djokovic: { bg: "bg-p-djokovic", border: "border-p-djokovic", soft: "bg-p-djokovic/15", ink: "text-black" },
-  Rybakina: { bg: "bg-p-rybakina", border: "border-p-rybakina", soft: "bg-p-rybakina/20", ink: "text-black" },
+  Alcaraz: { bg: "bg-p-alcaraz", border: "border-p-alcaraz", soft: "bg-p-alcaraz/15", ink: "text-white", color: "var(--p-alcaraz)" },
+  Sinner: { bg: "bg-p-sinner", border: "border-p-sinner", soft: "bg-p-sinner/15", ink: "text-black", color: "var(--p-sinner)" },
+  Djokovic: { bg: "bg-p-djokovic", border: "border-p-djokovic", soft: "bg-p-djokovic/15", ink: "text-black", color: "var(--p-djokovic)" },
+  Rybakina: { bg: "bg-p-rybakina", border: "border-p-rybakina", soft: "bg-p-rybakina/20", ink: "text-black", color: "var(--p-rybakina)" },
 };
-const neutralStyle: PlayerStyle = { bg: "bg-line", border: "border-line", soft: "bg-line/50", ink: "text-foreground" };
+const neutralStyle: PlayerStyle = { bg: "bg-line", border: "border-line", soft: "bg-line/50", ink: "text-foreground", color: "var(--muted)" };
 
 export const playerStyle = (name: string | null) => (name && playerStyles[name]) || neutralStyle;
 
@@ -97,7 +97,7 @@ export function TennisBall({ filled, className = "h-5 w-5" }: { filled: boolean;
   );
 }
 
-const ballSizes = { sm: "h-4 w-4", md: "h-5 w-5", lg: "h-8 w-8" } as const;
+const ballSizes = { xs: "h-3 w-3", sm: "h-4 w-4", md: "h-5 w-5", lg: "h-8 w-8" } as const;
 
 /** Read-only rating as tennis balls. */
 export function BallScore({ value, size = "sm" }: { value: number; size?: keyof typeof ballSizes }) {
