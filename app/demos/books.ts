@@ -9,7 +9,8 @@ import { rivalryRecords, type RecordMeeting } from "./rivalry-records";
 
 export type Entry =
   | { kind: "logged"; id: string; m: Match; fan: FanEntry; mark: string | null; detail: string | null }
-  | { kind: "other"; key: string; head: string; line: string; mark: string | null };
+  // A rivalry meeting not in your log, with the record's details of it
+  | { kind: "other"; key: string; head: string; line: string; mark: string | null; meet: RecordMeeting; loser: string };
 
 export type BookChapter = {
   key: string;
@@ -19,7 +20,8 @@ export type BookChapter = {
   epigraph: { note: string; date: string; id: string } | null;
   entries: Entry[];
   compact: boolean;
-  footer: { label: string; value: string; share: number | null };
+  // `score`: a rivalry's head-to-head at the end of the chapter, first player first
+  footer: { label: string; value: string; share: number | null; score?: [number, number] };
 };
 
 // One mark per match in the at-a-glance chart
@@ -291,10 +293,10 @@ function bindRivalry(id: string, entries: Record<string, FanEntry>, order: strin
       entries: cb.map((x): Entry =>
         x.fan && x.m
           ? loggedEntry({ m: x.m, fan: x.fan }, null, x.turn)
-          : { kind: "other", key: String(x.i), head: `${x.meet.event} · ${x.meet.round}`, line: `${x.meet.winner} won`, mark: x.turn },
+          : { kind: "other", key: String(x.i), head: `${x.meet.event} · ${x.meet.round}`, line: `${x.meet.winner} won`, mark: x.turn, meet: x.meet, loser: x.meet.winner === A ? B : A },
       ),
       compact: false,
-      footer: { label: `End of ${year}:`, value: standing(last.a, last.b), share: last.a / (last.a + last.b) },
+      footer: { label: `End of ${year}:`, value: standing(last.a, last.b), share: last.a / (last.a + last.b), score: [last.a, last.b] },
     };
   });
 
@@ -321,7 +323,7 @@ function bindRivalry(id: string, entries: Record<string, FanEntry>, order: strin
       logId: x.meet.logId,
     })),
     stripMode: "rivalry",
-    stripCaption: "Every meeting in order: above the line for one player, below for the other.",
+    stripCaption: `The head-to-head after every meeting: above the middle line ${A} leads, below it ${B} does. Filled dots are the meetings you watched.`,
     stripLegend: [
       { color: A, label: `${A} won` },
       { color: B, label: `${B} won` },
@@ -659,6 +661,28 @@ export function bookFor(id: string) {
   const m = matchById[id];
   const inPair = (p: string) => m.winner === p || m.loser === p;
   return rivalries.find((r) => inPair(r.players[0]) && inPair(r.players[1]))?.id ?? "seasons";
+}
+
+export type MissedMeeting = { key: string; event: string; year: string; round: string };
+
+/**
+ * A rivalry's meetings that aren't in your log, as a list to catch up on: finals first, then
+ * semifinals and quarterfinals, newest first within each. Winners are left out, so the list
+ * doesn't give the result away.
+ */
+export function missedMeetings(id: string, entries: Record<string, FanEntry>) {
+  const players = (findRivalries(entries).find((r) => r.id === id)?.players ?? id.split("-")) as [string, string];
+  const record = recordFor(id, players);
+  const stage = (round: string) => {
+    const i = ["Final", "Semifinal", "Quarterfinal"].indexOf(round);
+    return i < 0 ? 3 : i;
+  };
+  const missed = record
+    .map((meet, i) => ({ meet, i }))
+    .filter(({ meet }) => !meet.logId || !entries[meet.logId])
+    .sort((a, b) => stage(a.meet.round) - stage(b.meet.round) || b.meet.date.localeCompare(a.meet.date))
+    .map(({ meet, i }): MissedMeeting => ({ key: String(i), event: meet.event, year: meet.date.slice(0, 4), round: meet.round }));
+  return { players, total: record.length, missed };
 }
 
 /** How many matches a book holds, for its cover. */

@@ -17,10 +17,19 @@ const bricolage = Bricolage_Grotesque({
   subsets: ["latin"],
 });
 
+const description =
+  "A free, simple diary for the tennis you watch. Log any match since Wimbledon 2003, rank your favourites, and your saga builds itself. Coming for the 2027 season.";
+
 export const metadata: Metadata = {
   title: "CourtSaga",
-  description:
-    "Your tennis story gets more interesting with every match you watch. Track what you watch and see the story in your own data.",
+  description,
+  openGraph: {
+    title: "CourtSaga",
+    description,
+    siteName: "CourtSaga",
+    type: "website",
+  },
+  twitter: { card: "summary_large_image" },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

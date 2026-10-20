@@ -237,20 +237,114 @@ html {
   }
 }
 
-/* Keep the hero's demo prompt above the fold on short screens. Unlayered, so it wins over utilities. */
-@media (min-width: 1280px) and (max-height: 860px) {
-  .hero {
-    padding-top: 1rem;
-    padding-bottom: 2rem;
+/* ---------- The hero: a hard court from above, the same in both themes ---------- */
+
+.hero-court {
+  --hc-surround: #3a7556;
+  --hc-court: #2b5d9b;
+  --hc-line: rgb(255 255 255 / 0.85);
+  --hc-alley: 1.25rem;
+}
+
+@media (min-width: 1024px) {
+  .hero-court {
+    --hc-alley: 2.75rem;
   }
+}
+
+/* Keep the whole court on short screens. Unlayered, so it wins over utilities. */
+@media (min-width: 1024px) and (max-height: 700px) {
   .hero-title {
     font-size: 3rem;
   }
 }
 
-@media (min-width: 1280px) and (max-height: 700px) {
-  .hero-title {
-    font-size: 2.5rem;
+/* The net's mesh, seen from above */
+.net-mesh {
+  background-color: rgb(0 0 0 / 0.25);
+  background-image:
+    repeating-linear-gradient(45deg, rgb(255 255 255 / 0.55) 0 1px, transparent 1px 5px),
+    repeating-linear-gradient(-45deg, rgb(255 255 255 / 0.55) 0 1px, transparent 1px 5px);
+}
+
+/* The opening rally: the ball sits at the centre of the log card and flies in from (--fx, --fy) away.
+   On a phone the court stands on end and the ball comes up from below the net; on wide screens it comes
+   in over the net on the right. Its height is shown by lifting and growing the ball away from its shadow. */
+.rally {
+  --fx: 2.5rem;
+  --fy: 17rem;
+  --rally: 1.25s;
+  opacity: 0;
+  animation: rally-path var(--rally) cubic-bezier(0.3, 0.5, 0.55, 1) 0.6s forwards;
+}
+
+@media (min-width: 1024px) {
+  .rally {
+    --fx: 18rem;
+    --fy: -13rem;
+  }
+}
+
+@keyframes rally-path {
+  0% {
+    translate: var(--fx) var(--fy);
+    opacity: 1;
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    translate: 0 0;
+    opacity: 0;
+  }
+}
+
+.rally-ball {
+  animation: rally-lift var(--rally) ease-in-out 0.6s both;
+}
+
+@keyframes rally-lift {
+  45% {
+    translate: -10px -56px;
+    scale: 1.7;
+  }
+  100% {
+    scale: 0.8;
+  }
+}
+
+.rally-shadow {
+  opacity: 0.5;
+  animation: rally-shade var(--rally) ease-in-out 0.6s both;
+}
+
+@keyframes rally-shade {
+  45% {
+    scale: 0.5;
+    opacity: 0.2;
+  }
+}
+
+/* The log card takes the ball: a small bump and a ball-yellow ring as it lands */
+.catch {
+  animation: catch 0.8s ease-out 1.75s both;
+}
+
+@keyframes catch {
+  30% {
+    scale: 1.04;
+    box-shadow:
+      0 0 0 4px var(--ball),
+      0 25px 50px -12px rgb(0 0 0 / 0.35);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rally {
+    display: none;
+  }
+  .catch {
+    animation: none;
   }
 }
 
@@ -356,56 +450,11 @@ html {
   animation: fade-in 0.8s ease both;
 }
 
-/* A story's progress segment filling up; its end moves the story on */
-@keyframes fill {
-  from {
-    transform: scaleX(0);
-  }
-}
-
-.fill {
-  transform-origin: left;
-  animation: fill var(--dur, 5s) linear both;
-}
-
-.paused .fill,
-.paused .ken-burns {
-  animation-play-state: paused;
-}
-
-/* A slow drift across the cover photo */
-@keyframes ken-burns {
-  to {
-    transform: scale(1.12) translate(-2%, -1%);
-  }
-}
-
-.ken-burns {
-  animation: ken-burns 18s ease-in-out infinite alternate;
-  transform-origin: 50% 0;
-  will-change: transform;
-  backface-visibility: hidden;
-}
-
-/* The hero's story card bobs gently */
-@keyframes float {
-  50% {
-    transform: translateY(-8px);
-  }
-}
-
-.float {
-  animation: float 7s ease-in-out infinite;
-}
-
 @media (prefers-reduced-motion: reduce) {
   .rise,
   .grow,
   .grow-x,
-  .fade-in,
-  .fill,
-  .ken-burns,
-  .float {
+  .fade-in {
     animation: none;
   }
 }

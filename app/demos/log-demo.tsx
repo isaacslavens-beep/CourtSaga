@@ -373,7 +373,7 @@ export function LogDemo() {
         onClick={() => goTo("rank", editedId ?? focusId)}
         idle={
           <>
-            Next: <span className="text-foreground">2 · Your tournament rankings</span>
+            Next: <span className="text-foreground">2 · Rank your favourites</span>
           </>
         }
         done={

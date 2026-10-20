@@ -108,7 +108,10 @@ export function TournamentLabel({
   );
 }
 
-/** A link to a match's highlights on YouTube. */
+/**
+ * A link to a match's highlights on YouTube. Without a checked `videoId` it opens a YouTube search
+ * for them instead, so no link ever points at a video nobody has looked at.
+ */
 export function HighlightsLink({
   videoId,
   players,
@@ -116,15 +119,20 @@ export function HighlightsLink({
   onPhoto = false,
   className = "",
 }: {
-  videoId: string;
+  videoId?: string;
   players: [string, string];
   event: string; // e.g. "Wimbledon 2023 · Final"
   onPhoto?: boolean;
   className?: string;
 }) {
+  const search = `${players[0]} vs ${players[1]} ${event.replace(" · ", " ")} highlights`;
   return (
     <a
-      href={`https://www.youtube.com/watch?v=${videoId}`}
+      href={
+        videoId
+          ? `https://www.youtube.com/watch?v=${videoId}`
+          : `https://www.youtube.com/results?search_query=${encodeURIComponent(search)}`
+      }
       target="_blank"
       rel="noopener noreferrer"
       className={`inline-flex w-fit items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 ${
@@ -139,7 +147,7 @@ export function HighlightsLink({
       Highlights
       <span className="sr-only">
         {" "}
-        for {players[0]} vs {players[1]}, {event}, on YouTube (opens in a new tab)
+        for {players[0]} vs {players[1]}, {event}, {videoId ? "on YouTube" : "searched on YouTube"} (opens in a new tab)
       </span>
     </a>
   );

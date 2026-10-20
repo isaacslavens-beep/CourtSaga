@@ -1,9 +1,9 @@
 "use client";
 
-// Pieces shared by the saga in step 3 and the story that plays in the hero.
+// Pieces of the saga in step 3: each book's look, its at-a-glance chart, and its page progress.
 
 import { type StaticImageData } from "next/image";
-import { useState, type CSSProperties } from "react";
+import { useRef, useState, type CSSProperties } from "react";
 import alcarazAo2026Final from "@/public/photos/alcaraz-ao-2026-final.jpg";
 import alcarazDjokovicAo2026 from "@/public/photos/alcaraz-djokovic-ao-2026-trophies.jpg";
 import rybakinaUso2026 from "@/public/photos/rybakina-uso-2026.jpg";
@@ -75,185 +75,260 @@ export const tintVars = ([a, b]: [string, string]) => ({ "--tint-a": a, "--tint-
 
 /* ---------- Marks ---------- */
 
+type Tones = ReturnType<typeof chartStyles>;
+
 const special = ["", "other", "right", "exact", "wrong"];
 
-/** The colour of one mark: a player's, green/red for calls, grey for everyone else. "" has no side. */
-function markColor(color: string, players: ReturnType<typeof chartStyles>) {
+/** The fill of one mark: a player's colour, green/red for calls, and two greys for someone else and no side. */
+function markColor(color: string, players: Tones) {
   if (color === "exact") return "var(--grass)";
-  if (color === "right") return "color-mix(in srgb, var(--grass) 55%, transparent)";
+  if (color === "right") return "color-mix(in srgb, var(--grass) 55%, var(--surface))";
   if (color === "wrong") return "var(--fault)";
-  if (color === "other") return "color-mix(in srgb, var(--muted) 55%, transparent)";
-  if (color === "") return "transparent";
+  if (color === "other") return "color-mix(in srgb, var(--muted) 70%, var(--surface))";
+  if (color === "") return "color-mix(in srgb, var(--foreground) 22%, var(--surface))";
   return players.get(color)?.color ?? "var(--muted)";
 }
 
-// A match you didn't watch is drawn hollow, in the same colour
-const markStyle = (x: { color: string; watched?: boolean }, players: ReturnType<typeof chartStyles>, i: number): CSSProperties => {
-  const color = markColor(x.color, players);
-  const hollow = x.color === "" || x.watched === false;
+/** A meeting you didn't watch is a ring in the winner's colour; one you did is a filled dot. */
+function dotStyle(color: string, hollow: boolean, spot: boolean): CSSProperties {
+  const ring = spot ? "0 0 0 3px var(--foreground)" : "0 0 0 2px var(--surface)";
   return {
-    "--i": i,
-    background: hollow ? "transparent" : color,
-    boxShadow: hollow ? `inset 0 0 0 1.5px ${x.color === "" ? "var(--muted)" : color}` : undefined,
-  } as CSSProperties;
-};
+    background: hollow ? "var(--surface)" : color,
+    boxShadow: hollow ? `inset 0 0 0 2px ${color}, ${ring}` : ring,
+  };
+}
+
+type Tip = { item: StripItem; x: number; y: number } | null;
+// Hovering or focusing a mark shows its tooltip; `pick` (when given) opens the chapter it belongs to
+type Hover = { show: (x: StripItem) => (e: { currentTarget: HTMLElement }) => void; hide: () => void; pick?: (x: StripItem) => void };
+
+/** Everything a mark needs to answer the pointer, the keyboard and a click. */
+const markProps = (x: StripItem, hover: Hover) => ({
+  onMouseEnter: hover.show(x),
+  onMouseLeave: hover.hide,
+  onFocus: hover.show(x),
+  onBlur: hover.hide,
+  ...(hover.pick ? { onClick: () => hover.pick!(x), "aria-label": `${x.title}. Read its chapter.` } : { tabIndex: -1, "aria-hidden": true }),
+});
+
+/** The match under the pointer: where and when first, then what happened. */
+function ChartTip({ tip }: { tip: Tip }) {
+  if (!tip) return null;
+  const cut = tip.item.title.indexOf(": ");
+  return (
+    <div
+      aria-hidden
+      className="pointer-events-none absolute z-10 w-max max-w-[15rem] -translate-x-1/2 -translate-y-full rounded-xl bg-background px-3 py-2 text-sm shadow-xl ring-1 ring-foreground/15"
+      style={{ left: tip.x, top: tip.y - 8 }}
+    >
+      <span className="block font-semibold">{cut < 0 ? tip.item.title : tip.item.title.slice(0, cut)}</span>
+      {cut >= 0 && <span className="block text-muted">{tip.item.title.slice(cut + 2)}</span>}
+    </div>
+  );
+}
 
 const slamNames = ["Australian Open", "Roland Garros", "Wimbledon", "US Open"];
 
 /**
- * The at-a-glance chart: every meeting in order, above the line for one player and below for the
- * other, bars you didn't watch faded. Collections get one row per category instead.
- * Hovering a mark swaps the caption for that match.
+ * A rivalry at a glance: the head-to-head after every meeting, as one line that climbs when the first
+ * player wins and drops when the second does. Each player's half is tinted and marked with their face;
+ * each meeting is a dot in its winner's colour, hollow if it isn't in your log. Years run underneath,
+ * and each year's band opens its chapter.
  */
+function LeadChart({ book, players, spotId, onGroup, hover }: { book: BookData; players: Tones; spotId: string | null; onGroup?: (group: string) => void; hover: Hover }) {
+  const [A, B] = book.faces;
+  const n = book.strip.length;
+  // The head-to-head after each meeting: +1 for every win by the first player, -1 for the second
+  const leads = book.strip.reduce<number[]>((acc, x) => [...acc, (acc.at(-1) ?? 0) + x.side], []);
+  const pts = book.strip.map((x, k) => ({ x, u: ((k + 0.5) / n) * 100, lead: leads[k] }));
+  const top = Math.max(2, ...pts.map((p) => Math.abs(p.lead)));
+  const y = (v: number) => 50 - (v / top) * 40; // % of the plot's height, with room for the dots at the edges
+  const groups = [...new Set(book.strip.map((x) => x.group))].map((g) => {
+    const ks = book.strip.flatMap((x, k) => (x.group === g ? [k] : []));
+    const won = (p: string) => ks.filter((k) => book.strip[k].color === p).length;
+    return { g, from: (ks[0] / n) * 100, to: ((ks[ks.length - 1] + 1) / n) * 100, a: won(A), b: won(B) };
+  });
+  const wins = (p: string) => book.strip.filter((x) => x.color === p).length;
+  const tint = (p: string) => `color-mix(in srgb, ${players.get(p)?.color ?? "var(--muted)"} 10%, transparent)`;
+  const last = pts[pts.length - 1];
+
+  return (
+    <div className="flex gap-3">
+      <div aria-hidden className="relative w-9 shrink-0">
+        <span className="absolute top-[12%]">
+          <Avatar name={A} size="h-9 w-9 text-sm" tone={players.get(A)} />
+        </span>
+        <span className="absolute bottom-[calc(1.75rem+12%)]">
+          <Avatar name={B} size="h-9 w-9 text-sm" tone={players.get(B)} />
+        </span>
+      </div>
+      <div className="min-w-0 flex-1 pr-12">
+        <div className="relative h-44 sm:h-52">
+          <div aria-hidden className="absolute inset-x-0 top-0 rounded-t-xl" style={{ height: `${y(0)}%`, background: tint(A) }} />
+          <div aria-hidden className="absolute inset-x-0 bottom-0 rounded-b-xl" style={{ top: `${y(0)}%`, background: tint(B) }} />
+          <svg aria-hidden viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 h-full w-full overflow-visible">
+            {groups.slice(1).map((g) => (
+              <line key={g.g} x1={g.from} x2={g.from} y1={0} y2={100} stroke="currentColor" strokeOpacity={0.12} vectorEffect="non-scaling-stroke" />
+            ))}
+            <line x1={0} x2={100} y1={y(0)} y2={y(0)} stroke="currentColor" strokeOpacity={0.4} vectorEffect="non-scaling-stroke" />
+            <polyline
+              points={[`0,${y(0)}`, ...pts.map((p) => `${p.u},${y(p.lead)}`)].join(" ")}
+              fill="none"
+              stroke="currentColor"
+              strokeOpacity={0.75}
+              strokeWidth={2}
+              strokeLinejoin="round"
+              strokeLinecap="round"
+              vectorEffect="non-scaling-stroke"
+            />
+          </svg>
+          {onGroup &&
+            groups.map((g) => (
+              <button
+                key={g.g}
+                type="button"
+                onClick={() => onGroup(g.g)}
+                aria-label={`${g.g}: ${A} won ${g.a}, ${B} won ${g.b}. Open the chapter.`}
+                className="absolute inset-y-0 cursor-pointer rounded-lg transition-colors hover:bg-foreground/[0.06] focus-visible:outline-2 focus-visible:outline-court"
+                style={{ left: `${g.from}%`, width: `${g.to - g.from}%` }}
+              />
+            ))}
+          {pts.map((p, i) => (
+            <button
+              key={p.x.key}
+              type="button"
+              {...markProps(p.x, hover)}
+              className="absolute flex h-6 w-6 -translate-x-1/2 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full transition-[scale] hover:scale-125 focus-visible:outline-2 focus-visible:outline-court"
+              style={{ left: `${p.u}%`, top: `${y(p.lead)}%` }}
+            >
+              <span
+                className={`tile-in block h-3.5 w-3.5 rounded-full ${spotId && spotId === p.x.logId ? "spot-tile" : ""}`}
+                style={{ animationDelay: `${i * 35}ms`, ...dotStyle(markColor(p.x.color, players), !p.x.watched, !!spotId && spotId === p.x.logId) }}
+              />
+            </button>
+          ))}
+          {/* Where it stands now, at the end of the line */}
+          <span
+            className="absolute left-full ml-2.5 -translate-y-1/2 whitespace-nowrap font-display text-lg font-bold"
+            style={{ top: `${y(last.lead)}%` }}
+          >
+            {wins(A)}–{wins(B)}
+          </span>
+        </div>
+        <div aria-hidden className="relative h-7">
+          {groups.map((g) => (
+            <span
+              key={g.g}
+              // A year with a single meeting is too narrow to label on a phone; its band still opens the chapter
+              className={`absolute top-1.5 -translate-x-1/2 text-xs font-medium tabular-nums text-muted ${g.to - g.from < 9 ? "max-sm:hidden" : ""}`}
+              style={{ left: `${(g.from + g.to) / 2}%` }}
+            >
+              <span className="sm:hidden">&rsquo;{g.g.slice(2)}</span>
+              <span className="max-sm:hidden">{g.g}</span>
+            </span>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** A collection at a glance: one bar per row, one segment per match, the count at the tip. */
+function RowsChart({ book, players, spotId, hover }: { book: BookData; players: Tones; spotId: string | null; hover: Hover }) {
+  const groups = [...new Set(book.strip.map((x) => x.group))];
+  const most = Math.max(...groups.map((g) => book.strip.filter((x) => x.group === g).length));
+  let n = 0;
+  return (
+    <dl className="space-y-4 sm:space-y-3">
+      {groups.map((g) => {
+        const items = book.strip.filter((x) => x.group === g);
+        return (
+          <div key={g} className="grid gap-1.5 sm:grid-cols-[11rem_minmax(0,1fr)] sm:items-center sm:gap-4">
+            <dt className="flex min-w-0 items-center gap-2 text-sm font-semibold">
+              {slamNames.includes(g) && <SlamLogo event={g} size="h-5 w-5" />}
+              <span className="truncate">{g}</span>
+            </dt>
+            <dd className="flex min-w-0 items-center gap-2.5">
+              <span className="flex h-5 min-w-0 gap-[2px]" style={{ width: `${(items.length / most) * 88}%` }}>
+                {items.map((x) => (
+                  <button
+                    key={x.key}
+                    type="button"
+                    {...markProps(x, hover)}
+                    className={`grow-x h-full min-w-[3px] flex-1 cursor-pointer transition-[filter] last:rounded-r-[4px] hover:brightness-125 focus-visible:outline-2 focus-visible:outline-court ${spotId && spotId === x.logId ? "spot-tile rounded-[4px]" : ""}`}
+                    style={{ "--i": n++, background: markColor(x.color, players) } as CSSProperties}
+                  />
+                ))}
+              </span>
+              <span className="text-sm font-semibold tabular-nums">{items.length}</span>
+            </dd>
+          </div>
+        );
+      })}
+    </dl>
+  );
+}
+
+/** The at-a-glance chart for any book, with its legend, caption and a tooltip for the match under the pointer. */
 export function ShapeChart({
   book,
   caption,
   spotId = null,
   onGroup,
-  compact = false,
+  onMark,
 }: {
   book: BookData;
   caption: string;
   spotId?: string | null;
-  onGroup?: (group: string) => void; // open the chapter a year's bars belong to
-  compact?: boolean;
+  onGroup?: (group: string) => void; // open the chapter a year's meetings belong to
+  onMark?: (item: StripItem) => void; // open the chapter one match belongs to
 }) {
-  const [hover, setHover] = useState<StripItem | null>(null);
-  const groups = [...new Set(book.strip.map((x) => x.group))];
+  const [tip, setTip] = useState<Tip>(null);
+  const fig = useRef<HTMLElement>(null);
   const players = chartStyles([...new Set(book.strip.map((x) => x.color))].filter((c) => !special.includes(c)));
-  const spot = (x: StripItem) => (spotId && spotId === x.logId ? "spot-tile rounded-[4px]" : "");
-  const hoverProps = (x: StripItem) => ({ onMouseEnter: () => setHover(x), onMouseLeave: () => setHover(null) });
-  let n = 0;
-
-  const chart =
-    book.stripMode === "rivalry" ? (
-      <div className="flex items-stretch gap-3">
-        <div className="flex shrink-0 flex-col justify-between pb-7" aria-hidden>
-          {book.faces.slice(0, 2).map((p) => (
-            <Avatar key={p} name={p} size={compact ? "h-7 w-7 text-xs" : "h-9 w-9 text-sm"} tone={players.get(p)} />
-          ))}
-        </div>
-        <div className="flex min-w-0 flex-1 gap-1 sm:gap-1.5">
-          {groups.map((g) => {
-            const items = book.strip.filter((x) => x.group === g);
-            const [a, b] = book.faces;
-            const wins = (p: string) => items.filter((x) => x.color === p).length;
-            const bars = (
-              <>
-                <span className="flex w-full justify-center gap-[3px]">
-                  {items.map((x) => {
-                    const i = n++;
-                    return (
-                      <span key={x.key} className={`flex min-w-1 flex-1 flex-col ${compact ? "max-w-3" : "max-w-5"} ${spot(x)}`} {...hoverProps(x)}>
-                        <span className={`flex items-end ${compact ? "h-10" : "h-20"}`}>
-                          {x.side === 1 && <span className="grow block h-full w-full origin-bottom rounded-t-[4px]" style={markStyle(x, players, i)} />}
-                        </span>
-                        <span className={`flex items-start ${compact ? "h-10" : "h-20"}`}>
-                          {x.side === -1 && <span className="grow block h-full w-full origin-top rounded-b-[4px]" style={markStyle(x, players, i)} />}
-                        </span>
-                      </span>
-                    );
-                  })}
-                </span>
-                <span aria-hidden className={`pointer-events-none absolute inset-x-1 h-px bg-foreground/35 ${compact ? "top-[calc(0.25rem+2.5rem)]" : "top-[calc(0.25rem+5rem)]"}`} />
-                <span className="mt-1.5 text-xs font-medium tabular-nums text-muted">{g}</span>
-              </>
-            );
-            const shared = { className: `relative flex flex-col items-center rounded-lg px-1 pt-1 pb-1 ${compact ? "min-w-8" : "min-w-10"}`, style: { flex: `${items.length} 1 0` } };
-            return onGroup ? (
-              <button
-                key={g}
-                type="button"
-                onClick={() => onGroup(g)}
-                aria-label={`${g}: ${a} won ${wins(a)}, ${b} won ${wins(b)}. Open the chapter.`}
-                {...shared}
-                className={`${shared.className} cursor-pointer transition-colors hover:bg-foreground/[0.06] focus-visible:outline-2 focus-visible:outline-court`}
-              >
-                {bars}
-              </button>
-            ) : (
-              <span key={g} {...shared}>
-                {bars}
-              </span>
-            );
-          })}
-        </div>
-      </div>
-    ) : (
-      <dl className={compact ? "space-y-2" : "space-y-3"}>
-        {groups.map((g) => {
-          const items = book.strip.filter((x) => x.group === g);
-          const most = Math.max(...groups.map((k) => book.strip.filter((x) => x.group === k).length));
-          return (
-            <div key={g} className={compact ? "flex items-center gap-3" : ""}>
-              <dt className={`flex items-center gap-2 text-sm font-semibold ${compact ? "w-32 shrink-0 truncate" : ""}`}>
-                {slamNames.includes(g) && <SlamLogo event={g} size={compact ? "h-4 w-4" : "h-5 w-5"} />}
-                <span className="truncate">{g}</span>
-              </dt>
-              <dd className={`flex min-w-0 flex-1 items-center gap-3 ${compact ? "" : "mt-1.5"}`}>
-                <span className={`flex min-w-0 gap-[2px] ${compact ? "h-4" : "h-6"}`} style={{ width: `${(items.length / most) * 85}%` }}>
-                  {items.map((x) => (
-                    <span
-                      key={x.key}
-                      {...hoverProps(x)}
-                      className={`grow-x h-full flex-1 first:rounded-l-[4px] last:rounded-r-[4px] ${spot(x)}`}
-                      style={compact ? ({ "--i": n++, background: "var(--tint-a)" } as CSSProperties) : markStyle(x, players, n++)}
-                    />
-                  ))}
-                </span>
-                <span className="text-sm font-semibold tabular-nums">{items.length}</span>
-              </dd>
-            </div>
-          );
-        })}
-      </dl>
-    );
+  const hover: Hover = {
+    show: (item) => (e) => {
+      if (!fig.current) return;
+      const f = fig.current.getBoundingClientRect();
+      const r = e.currentTarget.getBoundingClientRect();
+      // Keep the tooltip inside the chart near its edges
+      const x = Math.min(Math.max(r.left + r.width / 2 - f.left, 120), f.width - 120);
+      setTip({ item, x, y: r.top - f.top });
+    },
+    hide: () => setTip(null),
+    pick: onMark,
+  };
+  const label = book.strip.map((x) => x.title).join("; ");
 
   return (
-    <figure>
-      {onGroup ? (
-        <div role="group" aria-label={book.strip.map((x) => x.title).join("; ")}>
-          {chart}
-        </div>
-      ) : (
-        <div role="img" aria-label={book.strip.map((x) => x.title).join("; ")}>
-          {chart}
-        </div>
-      )}
-      {!compact && book.stripLegend.length > 0 && (
-        <ul className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-sm text-muted">
+    <figure ref={fig} className="relative">
+      {book.stripLegend.length > 0 && (
+        <ul className="mb-4 flex flex-wrap gap-x-5 gap-y-1 text-sm text-muted">
           {book.stripLegend.map((l) => (
             <li key={l.label} className="flex items-center gap-1.5">
-              <span aria-hidden className="h-2.5 w-2.5 rounded-full" style={markStyle({ color: l.color, watched: !l.faded }, players, 0)} />
+              <span aria-hidden className="h-2.5 w-2.5 rounded-full" style={dotStyle(markColor(l.color, players), !!l.faded && l.color === "", false)} />
               {l.label}
             </li>
           ))}
         </ul>
       )}
-      <figcaption className={`mt-2 text-sm text-muted ${compact ? "" : "min-h-[2.5rem] sm:min-h-[1.5rem]"}`}>
-        {hover ? <span className="text-foreground">{hover.title}</span> : caption}
-      </figcaption>
+      <div role={onGroup || onMark ? "group" : "img"} aria-label={label}>
+        {book.stripMode === "rivalry" ? (
+          <LeadChart book={book} players={players} spotId={spotId} onGroup={onGroup} hover={hover} />
+        ) : (
+          <RowsChart book={book} players={players} spotId={spotId} hover={hover} />
+        )}
+      </div>
+      <figcaption className="mt-3 max-w-xl text-sm text-muted">{caption}</figcaption>
+      <ChartTip tip={tip} />
     </figure>
   );
 }
 
 /* ---------- Story progress ---------- */
 
-/**
- * One segment per page, filled up to the current one. With `auto`, the current segment fills over
- * `dur` ms and then calls `onDone`, so pausing the fill (a `.paused` ancestor) pauses the story too.
- */
-export function Segments({
-  labels,
-  current,
-  onPick,
-  auto,
-}: {
-  labels: string[];
-  current: number;
-  onPick: (i: number) => void;
-  auto?: { dur: number; onDone: () => void };
-}) {
+/** One segment per page, filled up to and including the current one. */
+export function Segments({ labels, current, onPick }: { labels: string[]; current: number; onPick: (i: number) => void }) {
   return (
     <div className="flex gap-1.5">
       {labels.map((label, i) => (
@@ -267,18 +342,7 @@ export function Segments({
           className="group relative h-5 min-w-0 flex-1 cursor-pointer focus-visible:outline-2 focus-visible:outline-court"
         >
           <span className="absolute inset-x-0 top-1/2 h-1 -translate-y-1/2 overflow-hidden rounded-full bg-foreground/20 transition-colors group-hover:bg-foreground/35">
-            {i < current && <span className="absolute inset-0 bg-foreground" />}
-            {i === current &&
-              (auto ? (
-                <span
-                  key={current}
-                  className="fill absolute inset-0 bg-foreground"
-                  style={{ "--dur": `${auto.dur}ms` } as CSSProperties}
-                  onAnimationEnd={auto.onDone}
-                />
-              ) : (
-                <span className="absolute inset-0 bg-foreground" />
-              ))}
+            {i <= current && <span className="absolute inset-0 bg-foreground" />}
           </span>
         </button>
       ))}

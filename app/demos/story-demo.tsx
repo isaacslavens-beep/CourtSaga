@@ -2,10 +2,22 @@
 
 import Image from "next/image";
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
-import { SAGA_MIN_MATCHES, bookFor, buildBook, buildShelf, shelfCount, type BookChapter, type BookData, type Entry, type ShelfBook } from "./books";
-import { Avatar, BallScore, CollectionIcon, IconArrowUp, chartStyles } from "./fun";
-import { monthLabel } from "./library";
-import { SlamLogo } from "../match-ui";
+import {
+  SAGA_MIN_MATCHES,
+  bookFor,
+  buildBook,
+  buildShelf,
+  missedMeetings,
+  shelfCount,
+  type BookChapter,
+  type BookData,
+  type Entry,
+  type ShelfBook,
+  type StripItem,
+} from "./books";
+import { Avatar, BallScore, CollectionIcon, CourtArt, IconArrowUp, chartStyles } from "./fun";
+import { eventLabel, matchById, monthLabel, parseSets } from "./library";
+import { HighlightsLink, SlamLogo } from "../match-ui";
 import { useLog } from "./log-store";
 import { glideTo } from "../glide";
 import { Segments, ShapeChart, beat, coverPhotos, roman, tintVars, tintsOf } from "./saga-ui";
@@ -54,7 +66,10 @@ function Faces({ names, size }: { names: string[]; size: string }) {
 
 /* ---------- The pages ---------- */
 
-function CoverPage({ book, onJump }: { book: BookData; onJump: (page: number) => void }) {
+type CatchUp = ReturnType<typeof missedMeetings>;
+
+function CoverPage({ book, catchUp, onJump }: { book: BookData; catchUp: CatchUp | null; onJump: (page: number) => void }) {
+  const missed = catchUp?.missed.length ?? 0;
   return (
     <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,22rem)] lg:items-end lg:gap-12">
       <div>
@@ -68,6 +83,20 @@ function CoverPage({ book, onJump }: { book: BookData; onJump: (page: number) =>
         <p className="rise mt-5 max-w-md text-lg text-muted" style={beat(3)}>
           {book.subtitle}
         </p>
+        {/* The meetings you haven't seen are the next ones to watch */}
+        {missed > 0 && (
+          <button
+            type="button"
+            onClick={() => onJump(1)}
+            className="rise mt-5 inline-flex cursor-pointer items-center gap-2 rounded-full bg-court/15 px-4 py-2 text-left font-semibold text-court ring-1 ring-court/30 transition hover:bg-court/25"
+            style={beat(4)}
+          >
+            <svg viewBox="0 0 12 12" aria-hidden className="h-3 w-3 shrink-0 fill-current">
+              <path d="M3 1.5v9l7.5-4.5z" />
+            </svg>
+            {missed === 1 ? "1 meeting you missed" : `${missed} meetings you missed`}: see what to catch up on →
+          </button>
+        )}
       </div>
       <nav aria-label="Chapters" className="rise rounded-3xl bg-background/60 p-2 ring-1 ring-foreground/10 backdrop-blur-md" style={beat(3)}>
         <p className="px-3 pb-1 pt-2 text-sm font-semibold text-muted">Chapters</p>
@@ -93,23 +122,58 @@ function CoverPage({ book, onJump }: { book: BookData; onJump: (page: number) =>
   );
 }
 
-function ShapePage({ book, spotId, onYear }: { book: BookData; spotId: string | null; onYear: ((year: string) => void) | null }) {
+function ShapePage({
+  book,
+  catchUp,
+  spotId,
+  onYear,
+  onMark,
+}: {
+  book: BookData;
+  catchUp: CatchUp | null;
+  spotId: string | null;
+  onYear: ((year: string) => void) | null;
+  onMark: (item: StripItem) => void;
+}) {
   return (
-    <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_15rem] lg:gap-12">
+    <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_17rem] lg:gap-12">
       <div className="min-w-0">
         <Kicker>At a glance</Kicker>
-        <Title>{book.kind === "rivalry" ? "Every meeting" : "Every match"}</Title>
+        <Title>{book.kind === "rivalry" ? "The head-to-head" : "Every match"}</Title>
         <div className="rise mt-8" style={beat(2)}>
           <ShapeChart
             book={book}
-            caption={onYear ? `${book.stripCaption} Pick a year to read its chapter.` : book.stripCaption}
+            caption={`${book.stripCaption} ${onYear ? "Pick a meeting or a year" : "Pick a match"} to read its chapter.`}
             spotId={spotId}
             onGroup={onYear ?? undefined}
+            onMark={onMark}
           />
         </div>
       </div>
-      <div className="lg:pt-10 lg:[&_dl]:grid-cols-1">
+      <div className="space-y-3 lg:pt-10 lg:[&_dl]:grid-cols-1">
         <Stats rows={book.facts} i={3} />
+        {catchUp && catchUp.missed.length > 0 && (
+          <div className="rise rounded-2xl bg-court/10 p-4 ring-1 ring-court/25" style={beat(3 + book.facts.length)}>
+            <p className="text-sm font-semibold uppercase tracking-[0.14em] text-court">Catch up</p>
+            <p className="mt-1 text-sm text-muted">
+              {catchUp.missed.length} of {catchUp.total} meetings aren&apos;t in your log. Start with:
+            </p>
+            <ol className="mt-3 space-y-2.5">
+              {catchUp.missed.slice(0, 3).map((x) => (
+                <li key={x.key}>
+                  <span className="flex items-center gap-1.5 font-semibold">
+                    <SlamLogo event={x.event} size="h-5 w-5" />
+                    {x.event} {x.year}
+                  </span>
+                  <span className="mt-0.5 flex items-center justify-between gap-2 text-sm text-muted">
+                    {x.round}
+                    <HighlightsLink players={catchUp.players} event={`${x.event} ${x.year} · ${x.round}`} className="shrink-0" />
+                  </span>
+                </li>
+              ))}
+            </ol>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -220,19 +284,144 @@ function EntryRow({
   );
 }
 
+type Tones = ReturnType<typeof chartStyles>;
+
+/** Games per set for both players, the set's winner in bold, a tiebreak's points on the set's loser. */
+function MiniScore({ winner, loser, score, tones }: { winner: string; loser: string; score: string; tones: Tones }) {
+  const sets = score.split(" ").map((set, k) => {
+    const { w, l } = parseSets(score)[k];
+    const tb = set.match(/\((\d+)(?:-(\d+))?\)/);
+    return { w, l, tb: tb ? (tb[2] ?? tb[1]) : null };
+  });
+  return (
+    <span className="block overflow-hidden rounded-xl bg-black/25 ring-1 ring-white/10">
+      {[winner, loser].map((name, row) => (
+        <span key={name} className={`flex items-center gap-2 px-2.5 py-1.5 ${row ? "border-t border-white/10" : ""}`}>
+          <Avatar name={name} size="h-6 w-6 text-[10px]" tone={tones.get(name)} />
+          <span className={`min-w-0 flex-1 truncate font-display font-bold ${row ? "text-muted" : ""}`}>{name}</span>
+          {/* The sets packed close, so five of them still leave room for the name */}
+          <span className="flex shrink-0">
+            {sets.map((set, k) => {
+              const games = row ? set.l : set.w;
+              const tookSet = row ? set.l > set.w : set.w > set.l;
+              return (
+                <span key={k} className={`relative w-5 text-center font-mono tabular-nums ${tookSet ? "font-bold" : "text-muted"}`}>
+                  {games}
+                  {set.tb && !tookSet && <sup className="absolute -right-0.5 top-0 text-[9px] text-muted">{set.tb}</sup>}
+                </span>
+              );
+            })}
+          </span>
+        </span>
+      ))}
+    </span>
+  );
+}
+
+/**
+ * A rivalry meeting: where it was, the score, and what you made of it. One you haven't logged is drawn
+ * as an outline on a greyed court, with its result and a way to find the highlights instead.
+ */
+function MeetingCard({
+  entry,
+  tones,
+  isEpigraph,
+  flash,
+  onEdit,
+  i,
+}: {
+  entry: Entry;
+  tones: Tones;
+  isEpigraph: boolean;
+  flash: boolean;
+  onEdit: (id: string) => void;
+  i: number;
+}) {
+  const logged = entry.kind === "logged";
+  const meet = logged
+    ? { event: entry.m.event.replace(/ \d{4}$/, ""), year: entry.m.date.slice(0, 4), round: entry.m.round, surface: entry.m.surface, winner: entry.m.winner, loser: entry.m.loser, score: entry.m.score, retired: false }
+    : { event: entry.meet.event, year: entry.meet.date.slice(0, 4), round: entry.meet.round, surface: entry.meet.surface, winner: entry.meet.winner, loser: entry.loser, score: entry.meet.score ?? null, retired: !!entry.meet.retired };
+  const side = logged ? (entry.fan.cheering ?? entry.fan.pick?.winner ?? null) : null;
+
+  return (
+    <li
+      data-beat={logged ? entry.id : undefined}
+      data-focus={logged ? entry.id : `other-${entry.key}`}
+      className={`rise flex flex-col overflow-hidden rounded-2xl ${logged ? "bg-foreground/[0.06] ring-1 ring-foreground/10" : "border-2 border-dashed border-foreground/15"} ${flash ? "spot-flash" : ""}`}
+      style={beat(i)}
+    >
+      <div className="relative">
+        <CourtArt surface={meet.surface} className={`absolute inset-0 ${logged ? "opacity-70" : "opacity-30 grayscale"}`} />
+        <div className="relative flex items-center gap-2.5 bg-gradient-to-r from-black/55 to-black/10 px-3 py-2 text-white">
+          <SlamLogo event={meet.event} size="h-7 w-7" />
+          {/* The name gets the whole first line; your rating, or that it isn't logged, shares the second */}
+          <span className="min-w-0 flex-1 leading-tight">
+            <span className="block truncate font-semibold">
+              {meet.event} {meet.year}
+            </span>
+            <span className="mt-0.5 flex items-center justify-between gap-2 text-sm text-white/75">
+              <span className="truncate">{meet.round}</span>
+              {logged ? (
+                <BallScore value={entry.fan.rating} size="xs" />
+              ) : (
+                <span className="flex shrink-0 items-center gap-1.5 rounded-full bg-black/40 px-2 py-px text-xs font-semibold text-white/85">
+                  <span aria-hidden className="h-2 w-2 rounded-full ring-[1.5px] ring-white/80" />
+                  Not in your log
+                </span>
+              )}
+            </span>
+          </span>
+        </div>
+      </div>
+      <div className="flex flex-1 flex-col gap-2.5 p-3">
+        {meet.score ? (
+          <MiniScore winner={meet.winner} loser={meet.loser} score={meet.score} tones={tones} />
+        ) : (
+          <p className="text-sm">
+            <span className="font-semibold">{meet.winner}</span> <span className="text-muted">beat {meet.loser}</span>
+          </p>
+        )}
+        <div className="mt-auto flex flex-wrap items-center gap-x-2 gap-y-1.5 text-sm">
+          {entry.mark && <Mark>{entry.mark}</Mark>}
+          {meet.retired && <span className="text-xs font-semibold text-muted">{meet.loser} retired</span>}
+          {side && (
+            <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${side === meet.winner ? "bg-grass/15 text-grass" : "bg-fault/15 text-fault"}`}>
+              {side === meet.winner ? "✓" : "✗"} Backed {side}
+            </span>
+          )}
+          <span className="ml-auto">
+            {logged ? (
+              <EditButton onClick={() => onEdit(entry.id)} />
+            ) : (
+              <HighlightsLink players={[meet.winner, meet.loser]} event={`${meet.event} ${meet.year} · ${meet.round}`} />
+            )}
+          </span>
+        </div>
+        {logged && entry.fan.note && !isEpigraph && <p className="text-sm italic text-muted">&ldquo;{entry.fan.note}&rdquo;</p>}
+      </div>
+    </li>
+  );
+}
+
 function ChapterPage({
   chapter,
   index,
+  faces,
   rivalry,
   spot,
+  focus,
   onEdit,
 }: {
   chapter: BookChapter;
   index: number;
+  faces: string[];
   rivalry: boolean;
   spot: { id: string; n: number } | null;
+  focus: { key: string; n: number } | null; // the match picked in the chart, to flash
   onEdit: (id: string) => void;
 }) {
+  const tones = chartStyles(faces);
+  const score = rivalry ? chapter.footer.score : undefined;
   return (
     <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)] lg:gap-12">
       <div className="flex flex-col">
@@ -251,16 +440,37 @@ function ChapterPage({
               {chapter.epigraph.note}
               <span className="text-court">&rdquo;</span>
             </p>
-            <footer className="mt-2 text-sm text-muted">Your words, {monthLabel(chapter.epigraph.date)}</footer>
+            {/* Always say which match the words are about */}
+            <footer className="mt-3 flex items-center gap-2 text-sm text-muted">
+              <SlamLogo event={matchById[chapter.epigraph.id].event} size="h-5 w-5" />
+              <span>
+                Your words on <span className="font-semibold text-foreground">{eventLabel(matchById[chapter.epigraph.id])}</span>,{" "}
+                {monthLabel(chapter.epigraph.date)}
+              </span>
+            </footer>
           </blockquote>
         )}
 
         <div className="rise mt-auto pt-8" style={beat(4)}>
-          {chapter.footer.share !== null && (
-            <div className="flex h-2 gap-[2px]" aria-hidden>
-              <span className="rounded-l-full bg-[var(--tint-a)] transition-all duration-500" style={{ width: `${chapter.footer.share * 100}%` }} />
-              <span className={`flex-1 rounded-r-full ${rivalry ? "bg-[var(--tint-b)]" : "bg-foreground/15"}`} />
+          {/* A rivalry's score so far, each player's face and number at their end of the bar */}
+          {score ? (
+            <div className="flex items-center gap-3" aria-hidden>
+              <Avatar name={faces[0]} size="h-9 w-9 text-sm" tone={tones.get(faces[0])} />
+              <span className="font-display text-3xl font-bold">{score[0]}</span>
+              <span className="flex h-2 flex-1 gap-[2px]">
+                <span className="rounded-l-full bg-[var(--tint-a)] transition-all duration-500" style={{ width: `${(score[0] / (score[0] + score[1])) * 100}%` }} />
+                <span className="flex-1 rounded-r-full bg-[var(--tint-b)]" />
+              </span>
+              <span className="font-display text-3xl font-bold">{score[1]}</span>
+              <Avatar name={faces[1]} size="h-9 w-9 text-sm" tone={tones.get(faces[1])} />
             </div>
+          ) : (
+            chapter.footer.share !== null && (
+              <div className="flex h-2 gap-[2px]" aria-hidden>
+                <span className="rounded-l-full bg-[var(--tint-a)] transition-all duration-500" style={{ width: `${chapter.footer.share * 100}%` }} />
+                <span className="flex-1 rounded-r-full bg-foreground/15" />
+              </div>
+            )
           )}
           <p className="mt-2.5 text-muted">
             {chapter.footer.label} <span className="font-semibold text-foreground">{chapter.footer.value}</span>
@@ -268,24 +478,45 @@ function ChapterPage({
         </div>
       </div>
 
-      <ol className={`self-start ${chapter.compact ? "space-y-0.5" : "space-y-2"}`}>
-        {chapter.entries.map((e, k) => (
-          <EntryRow
-            key={e.kind === "logged" ? (spot?.id === e.id ? `${e.id}-${spot.n}` : e.id) : e.key}
-            entry={e}
-            compact={chapter.compact}
-            isEpigraph={e.kind === "logged" && chapter.epigraph?.id === e.id}
-            spot={spot}
-            onEdit={onEdit}
-            i={2 + k}
-          />
-        ))}
-      </ol>
+      {rivalry ? (
+        <ol className={`grid content-start gap-3 ${chapter.entries.length > 2 ? "sm:grid-cols-2" : ""}`}>
+          {chapter.entries.map((e, k) => {
+            const id = e.kind === "logged" ? e.id : `other-${e.key}`;
+            const flash = (e.kind === "logged" && spot?.id === e.id) || focus?.key === id;
+            // A fresh key replays the flash
+            return (
+              <MeetingCard
+                key={flash ? `${id}-${spot?.n ?? 0}-${focus?.n ?? 0}` : id}
+                entry={e}
+                tones={tones}
+                isEpigraph={e.kind === "logged" && chapter.epigraph?.id === e.id}
+                flash={flash}
+                onEdit={onEdit}
+                i={2 + k}
+              />
+            );
+          })}
+        </ol>
+      ) : (
+        <ol className={`self-start ${chapter.compact ? "space-y-0.5" : "space-y-2"}`}>
+          {chapter.entries.map((e, k) => (
+            <EntryRow
+              key={e.kind === "logged" ? (spot?.id === e.id || focus?.key === e.id ? `${e.id}-${spot?.n ?? 0}-${focus?.n ?? 0}` : e.id) : e.key}
+              entry={e}
+              compact={chapter.compact}
+              isEpigraph={e.kind === "logged" && chapter.epigraph?.id === e.id}
+              spot={focus && e.kind === "logged" && focus.key === e.id ? { id: e.id, n: focus.n } : spot}
+              onEdit={onEdit}
+              i={2 + k}
+            />
+          ))}
+        </ol>
+      )}
     </div>
   );
 }
 
-function EpiloguePage({ book }: { book: BookData }) {
+function EpiloguePage({ book, next }: { book: BookData; next: { title: string; open: () => void } }) {
   const { big, facts, favourite } = book.epilogue;
   const [a, b] = big;
   return (
@@ -322,9 +553,16 @@ function EpiloguePage({ book }: { book: BookData }) {
             ))}
           </div>
         )}
-        <p className="rise mt-auto pt-10 text-muted" style={beat(6)}>
-          To be continued in 2027.
-        </p>
+        <div className="rise mt-auto flex flex-wrap items-center gap-x-5 gap-y-3 pt-10" style={beat(6)}>
+          <button
+            type="button"
+            onClick={next.open}
+            className="cursor-pointer rounded-full bg-foreground px-5 py-2.5 font-semibold text-background shadow-md transition hover:brightness-90"
+          >
+            Read next: {next.title} →
+          </button>
+          <p className="text-muted">To be continued in 2027.</p>
+        </div>
       </div>
       <div className="space-y-3 lg:pt-10 lg:[&_dl]:grid-cols-1">
         <Stats rows={facts} i={3} />
@@ -381,6 +619,42 @@ function BookRing({ book, on, seen, count, onOpen }: { book: ShelfBook; on: bool
   );
 }
 
+/* ---------- Turning pages ---------- */
+
+/** A round arrow either side of the book. The forward one is filled; at the start the back one hides. */
+function PageArrow({
+  dir,
+  label,
+  disabled = false,
+  nudge = false,
+  onClick,
+  className = "",
+}: {
+  dir: 1 | -1;
+  label: string;
+  disabled?: boolean;
+  nudge?: boolean; // glow until the visitor turns a page
+  onClick: () => void;
+  className?: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={label}
+      title={label}
+      className={`z-10 flex shrink-0 cursor-pointer items-center justify-center rounded-full shadow-xl shadow-black/40 transition-[scale,opacity] hover:scale-110 active:scale-95 disabled:pointer-events-none disabled:opacity-0 ${
+        dir > 0 ? "bg-foreground text-background" : "bg-surface text-foreground ring-1 ring-foreground/20"
+      } ${nudge ? "nudge" : ""} ${className}`}
+    >
+      <svg viewBox="0 0 16 16" aria-hidden className="h-1/2 w-1/2 fill-none stroke-current stroke-2" strokeLinecap="round" strokeLinejoin="round">
+        <path d={dir > 0 ? "M6 3l5 5-5 5" : "M10 3 5 8l5 5"} />
+      </svg>
+    </button>
+  );
+}
+
 /* ---------- The story ---------- */
 
 export function StoryDemo() {
@@ -415,6 +689,14 @@ export function StoryDemo() {
 
   const swipeX = useRef<number | null>(null);
 
+  // A match picked in the chart: its chapter opens and its card flashes
+  const [focus, setFocus] = useState<{ key: string; n: number } | null>(null);
+  useEffect(() => {
+    if (!focus) return;
+    const card = bookRef.current?.querySelector(`[data-focus="${focus.key}"], [data-beat="${focus.key}"]`);
+    if (card && card.getBoundingClientRect().bottom > innerHeight) glideTo(card, "center");
+  }, [focus]);
+
   if (!shelf.length) {
     return (
       <p className="rounded-2xl border-2 border-dashed border-line p-8 text-center text-lg font-medium text-muted">
@@ -431,38 +713,7 @@ export function StoryDemo() {
     glideTo(document.getElementById("log"), "start", 0);
   };
   const photo = coverPhotos[bookId];
-
-  const pages: { label: string; node: ReactNode }[] = [
-    { label: "the cover", node: <CoverPage book={book} onJump={(p) => goTo(p)} /> },
-    {
-      label: "at a glance",
-      node: (
-        <ShapePage
-          book={book}
-          spotId={spotId}
-          onYear={rivalry ? (year) => goTo(2 + book.chapters.findIndex((c) => c.year === year)) : null}
-        />
-      ),
-    },
-    ...book.chapters.map((c, i) => ({
-      label: `chapter ${roman[i]}, ${c.year}`,
-      node: <ChapterPage chapter={c} index={i} rivalry={rivalry} spot={spotId ? spot : null} onEdit={editInLog} />,
-    })),
-    { label: "where it stands", node: <EpiloguePage book={book} /> },
-  ];
-  // The log can change under an open book, so keep the page in range
-  const current = Math.min(pageIdx, pages.length - 1);
-  const atStart = current === 0;
-  const atEnd = current === pages.length - 1;
-  function goTo(p: number) {
-    setTouched(true);
-    setDir(p >= current ? 1 : -1);
-    setPageIdx(Math.max(0, Math.min(pages.length - 1, p)));
-  }
-  const turn = (d: 1 | -1) => {
-    if ((d < 0 && atStart) || (d > 0 && atEnd)) return;
-    goTo(current + d);
-  };
+  const catchUp = rivalry ? missedMeetings(bookId, entries) : null;
   const nextBook = shelf[(shelf.findIndex((b) => b.id === bookId) + 1) % shelf.length];
   const open = (id: string) => {
     setTouched(true);
@@ -471,6 +722,52 @@ export function StoryDemo() {
     setPageIdx(0);
     setDir(1);
   };
+
+  // The cover, the at-a-glance page, a page per chapter and the ending. The log can change under an
+  // open book, so keep the page in range.
+  const pageCount = book.chapters.length + 3;
+  const current = Math.min(pageIdx, pageCount - 1);
+  const atStart = current === 0;
+  const atEnd = current === pageCount - 1;
+  const goTo = (p: number) => {
+    setTouched(true);
+    setDir(p >= current ? 1 : -1);
+    setPageIdx(Math.max(0, Math.min(pageCount - 1, p)));
+  };
+
+  const pages: { label: string; node: ReactNode }[] = [
+    { label: "the cover", node: <CoverPage book={book} catchUp={catchUp} onJump={(p) => goTo(p)} /> },
+    {
+      label: "at a glance",
+      node: (
+        <ShapePage
+          book={book}
+          catchUp={catchUp}
+          spotId={spotId}
+          onYear={rivalry ? (year) => goTo(2 + book.chapters.findIndex((c) => c.year === year)) : null}
+          onMark={(x) => {
+            const at = book.chapters.findIndex((c) => c.entries.some((e) => (e.kind === "logged" ? e.id === x.logId : e.key === x.key)));
+            if (at < 0) return;
+            setFocus((f) => ({ key: x.logId ?? `other-${x.key}`, n: (f?.n ?? 0) + 1 }));
+            goTo(at + 2);
+          }}
+        />
+      ),
+    },
+    ...book.chapters.map((c, i) => ({
+      label: `chapter ${roman[i]}, ${c.year}`,
+      node: <ChapterPage chapter={c} index={i} faces={book.faces} rivalry={rivalry} spot={spotId ? spot : null} focus={focus} onEdit={editInLog} />,
+    })),
+    { label: "where it stands", node: <EpiloguePage book={book} next={{ title: nextBook.title, open: () => open(nextBook.id) }} /> },
+  ];
+  const turn = (d: 1 | -1) => {
+    if ((d < 0 && atStart) || (d > 0 && atEnd)) return;
+    goTo(current + d);
+  };
+  // Forward from the last page is on to the next book
+  const forward = () => (atEnd ? open(nextBook.id) : turn(1));
+  const backLabel = atStart ? "Back" : `Back to ${pages[current - 1].label}`;
+  const forwardLabel = atEnd ? `Next book: ${nextBook.title}` : `Next: ${pages[current + 1].label}`;
 
   return (
     <div>
@@ -497,88 +794,72 @@ export function StoryDemo() {
         ))}
       </div>
 
-      {/* The open book, one page at a time */}
-      <div
-        ref={bookRef}
-        tabIndex={0}
-        aria-label={`${shelfBook.title}. Use the arrow keys to turn pages.`}
-        onKeyDown={(e) => {
-          if (e.key === "ArrowRight") turn(1);
-          if (e.key === "ArrowLeft") turn(-1);
-        }}
-        style={tintVars(tintsOf(bookId, shelfBook.players))}
-        className="glow relative mt-8 scroll-mt-6 overflow-hidden rounded-[2rem] shadow-2xl shadow-black/60 ring-1 ring-foreground/10 outline-none focus-visible:ring-2 focus-visible:ring-court"
-      >
-        {/* A rivalry's cover photo, behind its first page */}
-        {atStart && photo && (
-          <div
-            key={bookId}
-            aria-hidden
-            className="fade-in pointer-events-none absolute inset-x-0 top-0 h-[60%] opacity-55 [mask-image:linear-gradient(to_bottom,black_20%,transparent)] lg:inset-y-0 lg:left-auto lg:h-full lg:w-[68%] lg:[mask-image:linear-gradient(to_left,black_30%,transparent)]"
-          >
-            <Image src={photo.src} alt="" fill placeholder="blur" sizes="(min-width: 1024px) 760px, 100vw" className={`object-cover ${photo.position}`} />
-          </div>
-        )}
-
-        <div className="relative px-5 pt-4 sm:px-8 sm:pt-6">
-          <Segments labels={pages.map((p) => p.label)} current={current} onPick={goTo} />
-          <div className="mt-2 flex items-center justify-between gap-3 text-sm">
-            <span className="flex min-w-0 items-center gap-2 font-semibold">
-              {shelfBook.players.length ? (
-                <span className="flex shrink-0 -space-x-1.5">
-                  <Faces names={shelfBook.players} size="h-6 w-6 text-[10px] ring-2 ring-surface" />
-                </span>
-              ) : (
-                <CollectionIcon id={shelfBook.id} className="h-5 w-5 shrink-0 text-court" />
-              )}
-              <span className="truncate">{shelfBook.title}</span>
-            </span>
-            <span className="shrink-0 tabular-nums text-muted">
-              {current + 1} / {pages.length}
-            </span>
-          </div>
-        </div>
-
+      {/* The open book, one page at a time, with an arrow either side to turn the pages */}
+      <div className="relative mt-8">
         <div
-          key={`${bookId}-${current}`}
-          onPointerDown={(e) => {
-            if (e.pointerType === "touch") swipeX.current = e.clientX;
+          ref={bookRef}
+          tabIndex={0}
+          aria-label={`${shelfBook.title}. Use the arrow keys to turn pages.`}
+          onKeyDown={(e) => {
+            if (e.key === "ArrowRight") turn(1);
+            if (e.key === "ArrowLeft") turn(-1);
           }}
-          onPointerUp={(e) => {
-            if (swipeX.current === null) return;
-            const dx = e.clientX - swipeX.current;
-            swipeX.current = null;
-            if (Math.abs(dx) > 60) turn(dx < 0 ? 1 : -1);
-          }}
-          style={{ "--dx": `${dir * 20}px` } as CSSProperties}
-          className="relative grid min-h-[30rem] grid-cols-1 touch-pan-y px-5 py-8 sm:px-8 lg:min-h-[35rem] lg:px-12 lg:py-10"
+          style={tintVars(tintsOf(bookId, shelfBook.players))}
+          className="glow relative scroll-mt-6 overflow-hidden rounded-[2rem] shadow-2xl shadow-black/60 ring-1 ring-foreground/10 outline-none focus-visible:ring-2 focus-visible:ring-court"
         >
-          {pages[current].node}
+          {/* A rivalry's cover photo, behind its first page */}
+          {atStart && photo && (
+            <div
+              key={bookId}
+              aria-hidden
+              className="fade-in pointer-events-none absolute inset-x-0 top-0 h-[60%] opacity-55 [mask-image:linear-gradient(to_bottom,black_20%,transparent)] lg:inset-y-0 lg:left-auto lg:h-full lg:w-[68%] lg:[mask-image:linear-gradient(to_left,black_30%,transparent)]"
+            >
+              <Image src={photo.src} alt="" fill placeholder="blur" sizes="(min-width: 1024px) 760px, 100vw" className={`object-cover ${photo.position}`} />
+            </div>
+          )}
+
+          <div className="relative px-5 pt-4 sm:px-8 sm:pt-6">
+            <Segments labels={pages.map((p) => p.label)} current={current} onPick={goTo} />
+            <div className="mt-2 flex items-center justify-between gap-3 text-sm">
+              {/* On a phone the arrows sit either side of the title */}
+              <PageArrow dir={-1} label={backLabel} disabled={atStart} onClick={() => turn(-1)} className="h-9 w-9 md:hidden" />
+              <span className="flex min-w-0 flex-1 items-center gap-2 font-semibold">
+                {shelfBook.players.length ? (
+                  <span className="flex shrink-0 -space-x-1.5">
+                    <Faces names={shelfBook.players} size="h-6 w-6 text-[10px] ring-2 ring-surface" />
+                  </span>
+                ) : (
+                  <CollectionIcon id={shelfBook.id} className="h-5 w-5 shrink-0 text-court" />
+                )}
+                <span className="truncate">{shelfBook.title}</span>
+              </span>
+              <span className="shrink-0 tabular-nums text-muted">
+                {current + 1} / {pages.length}
+              </span>
+              <PageArrow dir={1} label={forwardLabel} nudge={!touched} onClick={forward} className="h-9 w-9 md:hidden" />
+            </div>
+          </div>
+
+          <div
+            key={`${bookId}-${current}`}
+            onPointerDown={(e) => {
+              if (e.pointerType === "touch") swipeX.current = e.clientX;
+            }}
+            onPointerUp={(e) => {
+              if (swipeX.current === null) return;
+              const dx = e.clientX - swipeX.current;
+              swipeX.current = null;
+              if (Math.abs(dx) > 60) turn(dx < 0 ? 1 : -1);
+            }}
+            style={{ "--dx": `${dir * 20}px` } as CSSProperties}
+            className="relative grid min-h-[30rem] grid-cols-1 touch-pan-y px-5 py-8 sm:px-8 lg:min-h-[35rem] lg:px-12 lg:py-10"
+          >
+            {pages[current].node}
+          </div>
         </div>
 
-        {/* Turning pages */}
-        <div className="relative flex items-center justify-between gap-4 border-t border-foreground/10 px-5 py-4 sm:px-8">
-          <button
-            type="button"
-            onClick={() => turn(-1)}
-            disabled={atStart}
-            className="cursor-pointer whitespace-nowrap rounded-full px-4 py-2 font-semibold text-muted ring-1 ring-foreground/15 transition hover:text-foreground hover:ring-foreground/40 disabled:cursor-default disabled:opacity-30"
-          >
-            ← Back
-          </button>
-          <p className="min-w-0 truncate text-sm text-muted max-sm:hidden">
-            {atEnd ? "The end, for now" : `Next: ${pages[current + 1].label}`}
-          </p>
-          <button
-            type="button"
-            onClick={() => (atEnd ? open(nextBook.id) : turn(1))}
-            className={`cursor-pointer truncate whitespace-nowrap rounded-full bg-foreground px-5 py-2 font-semibold text-background shadow-md transition hover:brightness-90 ${
-              !touched ? "nudge" : ""
-            }`}
-          >
-            {atEnd ? `Next: ${nextBook.title} →` : "Next page →"}
-          </button>
-        </div>
+        <PageArrow dir={-1} label={backLabel} disabled={atStart} onClick={() => turn(-1)} className="absolute -left-7 top-1/2 h-14 w-14 -translate-y-1/2 max-md:hidden" />
+        <PageArrow dir={1} label={forwardLabel} nudge={!touched} onClick={forward} className="absolute -right-7 top-1/2 h-14 w-14 -translate-y-1/2 max-md:hidden" />
       </div>
     </div>
   );

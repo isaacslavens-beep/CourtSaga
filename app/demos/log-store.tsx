@@ -11,8 +11,8 @@ type LogStore = {
   /** Match ids in the fan's own ranking, best first */
   order: string[];
   update: (id: string, patch: Partial<FanEntry>) => void;
-  /** Swap two matches in the ranking */
-  swap: (a: string, b: string) => void;
+  /** Put some matches (one tournament's) in a new order, in the ranking slots they already hold */
+  reorder: (ids: string[]) => void;
   /** The match open in the log section */
   focusId: string;
   setFocusId: (id: string) => void;
@@ -38,14 +38,12 @@ export function LogProvider({ children }: { children: ReactNode }) {
     (id: string, patch: Partial<FanEntry>) => setEntries((e) => ({ ...e, [id]: { ...e[id], ...patch } })),
     [],
   );
-  const swap = useCallback(
-    (a: string, b: string) =>
+  const reorder = useCallback(
+    (ids: string[]) =>
       setOrder((o) => {
-        const next = [...o];
-        const i = next.indexOf(a);
-        const j = next.indexOf(b);
-        [next[i], next[j]] = [next[j], next[i]];
-        return next;
+        const moving = new Set(ids);
+        const queue = [...ids];
+        return o.map((id) => (moving.has(id) ? queue.shift()! : id));
       }),
     [],
   );
@@ -56,8 +54,8 @@ export function LogProvider({ children }: { children: ReactNode }) {
   );
 
   const value = useMemo(
-    () => ({ entries, order, update, swap, focusId, setFocusId, spotlight, goTo }),
-    [entries, order, update, swap, focusId, spotlight, goTo],
+    () => ({ entries, order, update, reorder, focusId, setFocusId, spotlight, goTo }),
+    [entries, order, update, reorder, focusId, spotlight, goTo],
   );
   return <LogContext.Provider value={value}>{children}</LogContext.Provider>;
 }

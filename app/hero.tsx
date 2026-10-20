@@ -1,0 +1,88 @@
+import Link from "next/link";
+import { HeroShowcase } from "./hero-showcase";
+
+/* The hero is one half of a hard court seen from above: baseline on the left and net on the right (on a
+   phone, baseline at the top and net at the bottom). The words sit in the backcourt, where a court has
+   no lines, and the logged match sits over the service boxes. The service line and the centre line are
+   edges of the layout, so they always fall around the content, never through it. The court keeps its
+   colours in light and dark alike. */
+
+// One court line; --hc-alley is the gap between the doubles and singles sidelines
+const line = "pointer-events-none absolute bg-[var(--hc-line)]";
+
+/** The net along the open edge, from above: mesh, white tape along the top, and a post at each end. */
+function Net() {
+  const post = "absolute h-3.5 w-3.5 rounded-full bg-[#0c1a2b] ring-2 ring-white/80";
+  return (
+    <div
+      aria-hidden
+      className="absolute z-[1] max-lg:inset-x-[-0.9rem] max-lg:bottom-[-6px] max-lg:h-3 lg:inset-y-[-0.9rem] lg:right-[-6px] lg:w-3"
+    >
+      <div className="net-mesh absolute inset-0 opacity-60" />
+      <div className="absolute bg-white max-lg:inset-x-0 max-lg:top-1/2 max-lg:h-[3px] max-lg:-translate-y-1/2 lg:inset-y-0 lg:left-1/2 lg:w-[3px] lg:-translate-x-1/2" />
+      <span className={`${post} max-lg:left-0 max-lg:top-1/2 max-lg:-translate-y-1/2 lg:left-1/2 lg:top-0 lg:-translate-x-1/2`} />
+      <span className={`${post} max-lg:right-0 max-lg:top-1/2 max-lg:-translate-y-1/2 lg:bottom-0 lg:left-1/2 lg:-translate-x-1/2`} />
+    </div>
+  );
+}
+
+export function Hero() {
+  return (
+    <div className="hero-court relative isolate overflow-hidden bg-[var(--hc-surround)] text-white">
+      <header className="relative mx-auto flex w-full max-w-6xl items-center justify-between px-4 py-4 sm:px-8">
+        <Link href="/" className="flex items-center gap-2">
+          <span aria-hidden className="text-2xl leading-none">🎾</span>
+          <span className="font-display text-xl font-bold tracking-tight">CourtSaga</span>
+        </Link>
+        <p className="inline-flex items-center gap-2 whitespace-nowrap rounded-full bg-white/10 px-3 py-1 text-sm font-medium ring-1 ring-white/25">
+          <span aria-hidden className="h-2.5 w-2.5 rounded-full bg-ball" />
+          Free · coming in 2027
+        </p>
+      </header>
+
+      <div className="mx-auto max-w-6xl px-4 pb-10 sm:px-10">
+        {/* The doubles sidelines and the baseline are the court's border; the net takes the open side */}
+        <section className="hero relative grid grid-cols-[minmax(0,1fr)] border-[3px] border-[var(--hc-line)] bg-[var(--hc-court)] max-lg:border-b-0 lg:grid-cols-[minmax(0,46fr)_minmax(0,54fr)] lg:border-r-0">
+          {/* Singles sidelines, the length of the court */}
+          <span aria-hidden className={`${line} max-lg:inset-y-0 max-lg:left-[var(--hc-alley)] max-lg:w-[3px] lg:inset-x-0 lg:top-[var(--hc-alley)] lg:h-[3px]`} />
+          <span aria-hidden className={`${line} max-lg:inset-y-0 max-lg:right-[var(--hc-alley)] max-lg:w-[3px] lg:inset-x-0 lg:bottom-[var(--hc-alley)] lg:h-[3px]`} />
+          <Net />
+
+          {/* The backcourt: nothing crosses it but the short centre mark on the baseline */}
+          <div className="relative flex flex-col justify-center px-11 pb-14 pt-16 sm:px-16 lg:py-20 lg:pl-16 lg:pr-12">
+            <span aria-hidden className={`${line} max-lg:left-1/2 max-lg:top-0 max-lg:h-3 max-lg:w-[3px] lg:left-0 lg:top-1/2 lg:h-[3px] lg:w-3`} />
+            <h1 className="hero-title font-display text-[2.6rem] font-bold leading-[1.02] tracking-tight sm:text-6xl lg:text-[3.25rem] xl:text-6xl">
+              Remember every match you watch.
+            </h1>
+            <p className="mt-6 max-w-lg text-lg font-medium leading-relaxed text-white/90 sm:text-xl">
+              CourtSaga is a free, simple diary for the tennis you watch. Log any match since Wimbledon 2003, rank your
+              favourites, and your saga builds itself from there.
+            </p>
+            <div className="mt-8 flex flex-wrap items-center gap-x-5 gap-y-3">
+              <a
+                href="#log"
+                className="inline-flex items-center gap-2.5 rounded-full bg-ball px-6 py-3 text-lg font-bold text-[#0b0d12] shadow-lg shadow-black/25 transition hover:-translate-y-0.5 hover:shadow-xl"
+              >
+                Try it out
+                <svg viewBox="0 0 16 16" aria-hidden className="h-5 w-5 fill-none stroke-current stroke-[2.5]" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M8 3v10M4 9l4 4 4-4" />
+                </svg>
+              </a>
+              <p className="max-w-[16rem] text-sm text-white/80">A working demo with a sample fan&apos;s log. Nothing you change is saved.</p>
+            </div>
+          </div>
+
+          {/* The service boxes: the service line along one edge, the centre service line through the middle */}
+          <div className="relative flex items-center justify-center px-6 pb-16 pt-14 sm:px-16 lg:py-14 lg:pl-14 lg:pr-12">
+            <span aria-hidden className={`${line} max-lg:inset-x-[var(--hc-alley)] max-lg:top-0 max-lg:h-[3px] lg:inset-y-[var(--hc-alley)] lg:left-0 lg:w-[3px]`} />
+            <span
+              aria-hidden
+              className={`${line} max-lg:inset-y-0 max-lg:left-1/2 max-lg:w-[3px] max-lg:-translate-x-1/2 lg:inset-x-0 lg:top-1/2 lg:h-[3px] lg:-translate-y-1/2`}
+            />
+            <HeroShowcase />
+          </div>
+        </section>
+      </div>
+    </div>
+  );
+}
