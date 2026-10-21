@@ -36,9 +36,9 @@ export function Hero() {
           <span aria-hidden className="text-2xl leading-none">🎾</span>
           <span className="font-display text-xl font-bold tracking-tight">CourtSaga</span>
         </Link>
-        <p className="inline-flex items-center gap-2 whitespace-nowrap rounded-full bg-white/10 px-3 py-1 text-sm font-medium ring-1 ring-white/25">
+        <p className="inline-flex items-center gap-2 rounded-2xl bg-white/10 px-3 py-1 text-xs leading-snug font-medium ring-1 ring-white/25 max-sm:ml-3 max-sm:max-w-48 sm:whitespace-nowrap sm:rounded-full sm:text-sm">
           <span aria-hidden className="h-2.5 w-2.5 rounded-full bg-ball" />
-          Free · coming in 2027
+          Free · Launching before 2027 Australian Open
         </p>
       </header>
       <PhoneSlams />
