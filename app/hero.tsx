@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { HeroBadges } from "./hero-badges";
+import { CityTicker, HeroBadges, PhoneSlams } from "./hero-badges";
 import { HeroShowcase } from "./hero-showcase";
 
 /* The hero is one half of a hard court seen from above: baseline on the left and net on the right (on a
@@ -41,6 +41,7 @@ export function Hero() {
           Free · coming in 2027
         </p>
       </header>
+      <PhoneSlams />
 
       <div className="mx-auto max-w-6xl px-4 pb-10 sm:px-10">
         {/* The doubles sidelines and the baseline are the court's border; the net takes the open side */}
@@ -49,9 +50,10 @@ export function Hero() {
           <span aria-hidden className={`${line} max-lg:inset-y-0 max-lg:left-[var(--hc-alley)] max-lg:w-[3px] lg:inset-x-0 lg:top-[var(--hc-alley)] lg:h-[3px]`} />
           <span aria-hidden className={`${line} max-lg:inset-y-0 max-lg:right-[var(--hc-alley)] max-lg:w-[3px] lg:inset-x-0 lg:bottom-[var(--hc-alley)] lg:h-[3px]`} />
           <Net />
+          <CityTicker />
 
           {/* The backcourt: nothing crosses it but the short centre mark on the baseline */}
-          <div className="relative flex flex-col justify-center px-11 pb-14 pt-16 sm:px-16 lg:py-20 lg:pl-16 lg:pr-12">
+          <div className="relative flex flex-col justify-center px-11 pb-14 pt-20 sm:px-16 lg:py-20 lg:pl-16 lg:pr-12">
             <span aria-hidden className={`${line} max-lg:left-1/2 max-lg:top-0 max-lg:h-3 max-lg:w-[3px] lg:left-0 lg:top-1/2 lg:h-[3px] lg:w-3`} />
             <h1 className="hero-title font-display text-[2.6rem] font-bold leading-[1.02] tracking-tight sm:text-6xl lg:text-[3.25rem] xl:text-6xl">
               Remember every match you watch.

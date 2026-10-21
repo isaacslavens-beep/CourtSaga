@@ -533,13 +533,13 @@ export function RankDemo() {
         onClick={() => goTo("story", nextMatch.id)}
         idle={
           <>
-            Next: <span className="text-foreground">3 · Explore your saga</span>
+            Next: <span className="font-bold">3 · Explore your saga</span>
           </>
         }
         done={
           <>
             {editedId ? "✓ Ranking updated. " : "Next: "}
-            <span className="underline decoration-ball decoration-2 underline-offset-4">
+            <span className="font-bold underline decoration-2 underline-offset-4">
               {nextRivalry
                 ? `Find it in your ${rivalryTitle(nextRivalry.players)} book`
                 : "Find it in your saga"}

@@ -427,13 +427,13 @@ export function LogDemo() {
         onClick={() => goTo("rank", editedId ?? focusId)}
         idle={
           <>
-            Next: <span className="text-foreground">2 · Rank your favourites</span>
+            Next: <span className="font-bold">2 · Rank your favourites</span>
           </>
         }
         done={
           <>
             ✓ Saved to page {pages.get(editedId ?? focusId)} of your diary.{" "}
-            <span className="underline decoration-ball decoration-2 underline-offset-4">
+            <span className="font-bold underline decoration-2 underline-offset-4">
               See where it ranks among your {tournamentOf(matchById[editedId ?? focusId]).replace("Other events", "other")} favourites
             </span>
           </>

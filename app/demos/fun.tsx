@@ -276,7 +276,10 @@ export const watchIcons = { Live: IconLive, TV: IconTV, Stream: IconStream } as 
 
 /* ---------- Moving on to the next section ---------- */
 
-/** A full-width bar at the foot of a demo. It wakes up once you've changed something. */
+/**
+ * A full-width bar at the foot of a demo, coloured so it's hard to miss: the section's court colour with a
+ * nudging ball, then ball yellow once you've changed something.
+ */
 export function NextStep({
   active,
   idle,
@@ -292,10 +295,8 @@ export function NextStep({
     <button
       type="button"
       onClick={onClick}
-      className={`flex w-full cursor-pointer items-center justify-between gap-4 border-t px-5 py-4 text-left font-semibold transition-colors sm:px-8 ${
-        active
-          ? "border-court bg-court text-court-ink hover:brightness-110"
-          : "border-line bg-background/60 text-muted hover:text-court"
+      className={`group flex w-full cursor-pointer items-center justify-between gap-4 border-t px-5 py-4 text-left font-semibold transition sm:px-8 ${
+        active ? "border-ball bg-ball text-[#0b0d12] hover:brightness-105" : "border-court bg-court text-court-ink hover:brightness-110"
       }`}
     >
       <span key={active ? "done" : "idle"} className={`min-w-0 ${active ? "sticker-in" : ""}`}>
@@ -303,13 +304,13 @@ export function NextStep({
       </span>
       <span
         aria-hidden
-        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${
-          active ? "bg-ball text-black" : "bg-surface ring-1 ring-line"
+        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full shadow-md shadow-black/20 transition-transform group-hover:scale-110 ${
+          active ? "bg-[#0b0d12] text-ball" : "bg-ball text-[#0b0d12]"
         }`}
       >
         <svg
           viewBox="0 0 16 16"
-          className={`h-5 w-5 fill-none stroke-current stroke-[2.5] ${active ? "motion-safe:animate-bounce" : ""}`}
+          className={`h-5 w-5 fill-none stroke-current stroke-[2.5] ${active ? "motion-safe:animate-bounce" : "nudge"}`}
           strokeLinecap="round"
           strokeLinejoin="round"
         >

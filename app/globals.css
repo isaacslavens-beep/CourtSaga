@@ -240,6 +240,32 @@ html {
   animation: sticker-in 0.35s ease-out both;
 }
 
+/* A small push on the next-step arrow every few seconds, to catch the eye without nagging */
+@keyframes nudge {
+  0%,
+  70%,
+  100% {
+    translate: 0 0;
+  }
+  78%,
+  92% {
+    translate: 0 3px;
+  }
+  85% {
+    translate: 0 -1px;
+  }
+}
+
+.nudge {
+  animation: nudge 2.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nudge {
+    animation: none;
+  }
+}
+
 @keyframes tile-in {
   from {
     opacity: 0;
@@ -334,6 +360,32 @@ html {
 
 @media (prefers-reduced-motion: reduce) {
   .bob {
+    animation: none;
+  }
+}
+
+/* The cities' ticker along the top of the court: the track holds the list twice, so sliding it by half
+   loops without a seam. The ends fade into the court. */
+.ticker-track {
+  mask-image: linear-gradient(to right, transparent, black 2.5rem, black calc(100% - 2.5rem), transparent);
+}
+
+@keyframes ticker {
+  to {
+    translate: -50% 0;
+  }
+}
+
+.ticker {
+  animation: ticker 55s linear infinite;
+}
+
+.ticker-track:hover .ticker {
+  animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ticker {
     animation: none;
   }
 }

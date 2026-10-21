@@ -1,14 +1,14 @@
 import Image, { type StaticImageData } from "next/image";
-import { Fragment, type CSSProperties } from "react";
+import type { CSSProperties } from "react";
 import australianOpen from "@/public/slams/australian-open.png";
 import olympics from "@/public/slams/olympics.png";
 import rolandGarros from "@/public/slams/roland-garros.png";
 import usOpen from "@/public/slams/us-open.png";
 import wimbledon from "@/public/slams/wimbledon.png";
 
-/* The season around the court: the Olympics top and centre with the Slams either side of it, and the
-   other big events' cities down the two sides, every row in calendar order. The Slams bob, each on its own beat; the cities keep still.
-   (The Masters' logos are in public/masters, for later.) */
+/* The season around the court: the Olympics top and centre with the Slams either side of it, bobbing
+   each on its own beat, and the other big events' cities running along the top of the court like a
+   ticker, in calendar order. (The Masters' logos are in public/masters, for later.) */
 
 type Badge = { name: string; logo: StaticImageData };
 
@@ -19,9 +19,9 @@ const topRow: Badge[] = [
   { name: "Wimbledon", logo: wimbledon },
   { name: "US Open", logo: usOpen },
 ];
-// The big events beyond the Slams, by city: the first half of the season down the left, the second half
-// down the right. Canada's alternates between Toronto and Montreal, so it gets both.
-const leftSide = [
+// The big events beyond the Slams, by city, through the season. Canada's alternates between Toronto
+// and Montreal, so it gets both.
+const cities = [
   ["🇶🇦", "Doha"],
   ["🇦🇪", "Dubai"],
   ["🇺🇸", "Indian Wells"],
@@ -29,10 +29,7 @@ const leftSide = [
   ["🇲🇨", "Monte-Carlo"],
   ["🇪🇸", "Madrid"],
   ["🇮🇹", "Rome"],
-];
-const rightSide = [
-  ["🇨🇦", "Toronto"],
-  ["🇨🇦", "Montreal"],
+  ["🇨🇦", "Toronto / Montreal"],
   ["🇺🇸", "Cincinnati"],
   ["🇨🇳", "Shanghai"],
   ["🇨🇳", "Wuhan"],
@@ -60,43 +57,61 @@ function Tile({ badge, i, size }: { badge: Badge; i: number; size: string }) {
   );
 }
 
-/** A city, standing still and quiet: the Slams are the ones that float */
-function City({ flag, name }: { flag: string; name: string }) {
+/**
+ * The cities, running right to left along the top of the court for a glance while you read. The list is
+ * drawn twice so the loop is seamless; it stops under the pointer, and stands still for anyone who
+ * prefers less motion. On wide screens it fills the alley; on a phone it runs just inside the baseline.
+ */
+export function CityTicker() {
+  const run = (copy: number) =>
+    cities.map(([flag, name]) => (
+      <span key={`${copy}-${name}`} className="flex items-center whitespace-nowrap pr-7 text-sm font-medium text-white lg:text-[0.95rem]">
+        <span aria-hidden className="mr-1.5">{flag}</span>
+        {name}
+        <span aria-hidden className="ml-7 h-1 w-1 rounded-full bg-ball/80" />
+      </span>
+    ));
   return (
-    <span className="whitespace-nowrap text-sm font-medium text-white 2xl:text-[0.95rem]">
-      <span aria-hidden className="mr-1.5">{flag}</span>
-      {name}
-    </span>
+    <div
+      aria-hidden
+      className="ticker-track fade-in absolute z-[2] flex items-center overflow-hidden max-lg:inset-x-[calc(var(--hc-alley)+3px)] max-lg:top-4 max-lg:h-7 lg:inset-x-0 lg:top-0 lg:h-[var(--hc-alley)] lg:pr-3"
+    >
+      <div className="ticker flex w-max">
+        {run(0)}
+        {run(1)}
+      </div>
+    </div>
   );
 }
 
-/** A column of cities with a short rule between each, except Toronto and Montreal: they're one event */
-function Cities({ list }: { list: string[][] }) {
-  return list.map(([flag, name], i) => (
-    <Fragment key={name}>
-      {i > 0 && name !== "Montreal" && <span aria-hidden className="h-px w-6 bg-white/35" />}
-      <City flag={flag} name={name} />
-    </Fragment>
-  ));
+const tileSize = (b: Badge, phone = false) =>
+  b.name === "Olympics"
+    ? phone
+      ? "h-9 w-[3.4rem]"
+      : "h-10 w-[3.75rem] lg:h-12 lg:w-[4.5rem]"
+    : phone
+      ? "h-9 w-9"
+      : "h-10 w-10 lg:h-12 lg:w-12";
+
+/** On a phone the header has no room for the Slams, so they get a row of their own between it and the court */
+export function PhoneSlams() {
+  return (
+    <div aria-hidden className="fade-in relative flex justify-center gap-3 pb-5 pt-1 md:hidden">
+      {topRow.map((b, i) => (
+        <Tile key={b.name} badge={b} i={i} size={tileSize(b, true)} />
+      ))}
+    </div>
+  );
 }
 
 export function HeroBadges() {
-  // The green margin either side of the court: half the room left over by the court's width, plus its padding.
-  // Below 1360px it's too narrow for the longer names.
-  const margin = "absolute bottom-10 top-[5.5rem] hidden w-[calc((100%-72rem)/2+2.5rem)] flex-col items-center justify-center gap-2.5 min-[1360px]:flex";
   return (
     <div aria-hidden className="fade-in pointer-events-none absolute inset-0 z-10">
       {/* Top and centre, in the header's row */}
       <div className="absolute left-1/2 top-3.5 hidden -translate-x-1/2 items-center gap-2 md:flex lg:top-3 lg:gap-4">
         {topRow.map((b, i) => (
-          <Tile key={b.name} badge={b} i={i} size={b.name === "Olympics" ? "h-10 w-[3.75rem] lg:h-12 lg:w-[4.5rem]" : "h-10 w-10 lg:h-12 lg:w-12"} />
+          <Tile key={b.name} badge={b} i={i} size={tileSize(b)} />
         ))}
-      </div>
-      <div className={`${margin} left-0`}>
-        <Cities list={leftSide} />
-      </div>
-      <div className={`${margin} right-0`}>
-        <Cities list={rightSide} />
       </div>
     </div>
   );
