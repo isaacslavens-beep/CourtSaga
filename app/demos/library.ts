@@ -261,6 +261,20 @@ export function monthLabel(ym: string) {
   return `${months[Number(m) - 1]} ${y}`;
 }
 
+/**
+ * Every logged match is a page in the diary, numbered in the order you watched them (matches
+ * watched the same month go in the order they were played). Match id -> page number, from 1.
+ */
+export function diaryPages(log: Record<string, FanEntry>) {
+  const order = matches
+    .filter((m) => log[m.id])
+    .sort((a, b) => log[a.id].watchedDate.localeCompare(log[b.id].watchedDate) || a.date.localeCompare(b.date));
+  return new Map(order.map((m, i) => [m.id, i + 1]));
+}
+
+/** How you watched it, as a diary would put it: "in person", "on TV", "streamed" */
+export const watchedHow = (mode: WatchMode) => ({ Live: "in person", TV: "on TV", Stream: "streamed" })[mode];
+
 /** Watched at least a few months after it was played. */
 export function isRewatch(m: Match, fan: FanEntry) {
   const toMonths = (ym: string) => Number(ym.slice(0, 4)) * 12 + Number(ym.slice(5, 7));

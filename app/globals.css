@@ -120,6 +120,61 @@ html {
   }
 }
 
+/* ---------- The diary: pages you write, sort and read back ---------- */
+
+/* Notebook paper under the fan's own words: faint ruled lines and a margin line down the left. Set
+   line-height to --rule and leave no top padding, or the pattern repeats a line against the top edge. */
+.paper {
+  --margin: 1.75rem;
+  --margin-line: color-mix(in srgb, var(--fault) 45%, transparent);
+  background-image:
+    linear-gradient(
+      to right,
+      transparent calc(var(--margin) - 1px),
+      var(--margin-line) calc(var(--margin) - 1px),
+      var(--margin-line) var(--margin),
+      transparent var(--margin)
+    ),
+    linear-gradient(to bottom, transparent calc(var(--rule) - 1px), color-mix(in srgb, var(--hard) 22%, transparent) 0);
+  background-size:
+    100% 100%,
+    100% var(--rule);
+  background-repeat: no-repeat, repeat;
+  background-origin: border-box, content-box;
+  /* The lines scroll with the writing; the margin stays put */
+  background-attachment: scroll, local;
+  padding-left: calc(var(--margin) + 0.75rem);
+}
+
+/* A page lying on the rest of the diary: the edges of two more sheets show underneath */
+.page-stack {
+  box-shadow:
+    0 6px 0 -3px var(--surface),
+    0 6px 0 -2px var(--line),
+    0 12px 0 -6px var(--surface),
+    0 12px 0 -5px var(--line),
+    0 28px 44px -20px rgb(15 27 45 / 0.3);
+}
+
+/* Turning to another page */
+@keyframes page-turn {
+  from {
+    opacity: 0;
+    transform: perspective(1400px) rotateY(-12deg) translateX(-10px);
+  }
+}
+
+.page-turn {
+  transform-origin: left center;
+  animation: page-turn 0.5s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page-turn {
+    animation: none;
+  }
+}
+
 .nudge {
   animation: nudge 2.2s ease-out infinite;
 }
@@ -256,6 +311,30 @@ html {
 @media (min-width: 1024px) and (max-height: 700px) {
   .hero-title {
     font-size: 3rem;
+  }
+}
+
+/* The tournaments around the hero bob gently, each on its own beat: set --tilt, --dur and --d */
+@keyframes bob {
+  0%,
+  100% {
+    translate: 0 0;
+    rotate: var(--tilt, 0deg);
+  }
+  50% {
+    translate: 0 -7px;
+    rotate: calc(var(--tilt, 0deg) * -0.5);
+  }
+}
+
+.bob {
+  rotate: var(--tilt, 0deg);
+  animation: bob var(--dur, 6s) ease-in-out var(--d, 0s) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bob {
+    animation: none;
   }
 }
 

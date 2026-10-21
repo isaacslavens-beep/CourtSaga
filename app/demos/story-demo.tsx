@@ -15,8 +15,9 @@ import {
   type ShelfBook,
   type StripItem,
 } from "./books";
-import { Avatar, BallScore, CollectionIcon, CourtArt, IconArrowUp, chartStyles } from "./fun";
-import { eventLabel, matchById, monthLabel, parseSets } from "./library";
+import { Avatar, BallScore, CollectionIcon, CourtArt, IconArrowUp, PageArrow, chartStyles } from "./fun";
+import mastersLogo from "@/public/slams/masters-1000.png";
+import { diaryPages, eventLabel, matchById, monthLabel, parseSets } from "./library";
 import { HighlightsLink, SlamLogo } from "../match-ui";
 import { useLog } from "./log-store";
 import { glideTo } from "../glide";
@@ -56,6 +57,16 @@ function Stats({ rows, i = 0 }: { rows: [string, string][]; i?: number }) {
         </div>
       ))}
     </dl>
+  );
+}
+
+/** A tournament chapter's logo: the Slam's own, or the Masters 1000 badge for everything else. */
+function ChapterLogo({ event }: { event: string }) {
+  if (event !== "Other events") return <SlamLogo event={event} size="h-8 w-8" />;
+  return (
+    <span aria-hidden className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-white p-0.5 shadow-sm ring-1 ring-black/10">
+      <Image src={mastersLogo} alt="" className="h-full w-full object-contain" sizes="64px" />
+    </span>
   );
 }
 
@@ -108,7 +119,14 @@ function CoverPage({ book, catchUp, onJump }: { book: BookData; catchUp: CatchUp
                 onClick={() => onJump(i + 2)}
                 className="group flex w-full cursor-pointer items-baseline gap-3 rounded-2xl px-3 py-2 text-left transition-colors hover:bg-foreground/[0.07]"
               >
-                <span className="w-10 shrink-0 text-sm font-semibold tabular-nums text-muted">{c.year}</span>
+                {/* A year, or for Finals the tournament's logo */}
+                {/^\d{4}$/.test(c.year) ? (
+                  <span className="w-10 shrink-0 text-sm font-semibold tabular-nums text-muted">{c.year}</span>
+                ) : (
+                  <span className="w-10 shrink-0 self-center">
+                    <ChapterLogo event={c.year} />
+                  </span>
+                )}
                 <span className="min-w-0 flex-1 font-medium">{c.title}</span>
                 <span aria-hidden className="text-muted transition group-hover:translate-x-0.5 group-hover:text-court">
                   →
@@ -162,7 +180,7 @@ function ShapePage({
               {catchUp.missed.slice(0, 3).map((x) => (
                 <li key={x.key}>
                   <span className="flex items-center gap-1.5 font-semibold">
-                    <SlamLogo event={x.event} size="h-5 w-5" />
+                    <SlamLogo event={x.event} size="h-7 w-7" />
                     {x.event} {x.year}
                   </span>
                   <span className="mt-0.5 flex items-center justify-between gap-2 text-sm text-muted">
@@ -179,19 +197,21 @@ function ShapePage({
   );
 }
 
-function EditButton({ onClick, iconOnly = false }: { onClick: () => void; iconOnly?: boolean }) {
+/** Back up to a match's page in your diary, to read or change it. */
+function PageButton({ page, onClick, compact = false }: { page: number | undefined; onClick: () => void; compact?: boolean }) {
+  const label = `Open page ${page} of your diary in the log`;
   return (
     <button
       type="button"
       onClick={onClick}
-      title="Edit in your log"
-      aria-label="Edit in your log"
-      className={`inline-flex shrink-0 cursor-pointer items-center gap-1 rounded-full text-sm font-semibold text-court transition hover:bg-court/15 ${
-        iconOnly ? "h-7 w-7 justify-center" : "px-2 py-0.5"
+      title={label}
+      aria-label={label}
+      className={`inline-flex shrink-0 cursor-pointer items-center gap-1 whitespace-nowrap rounded-full font-semibold text-court transition hover:bg-court/15 ${
+        compact ? "px-1.5 py-0.5 text-xs" : "px-2 py-0.5 text-sm"
       }`}
     >
       <IconArrowUp className="h-3.5 w-3.5" />
-      {!iconOnly && "Edit"}
+      {compact ? `p. ${page}` : `Page ${page}`}
     </button>
   );
 }
@@ -202,6 +222,7 @@ function Mark({ children }: { children: ReactNode }) {
 
 function EntryRow({
   entry,
+  pages,
   compact,
   isEpigraph,
   spot,
@@ -209,6 +230,7 @@ function EntryRow({
   i,
 }: {
   entry: Entry;
+  pages: Pages;
   compact: boolean;
   isEpigraph: boolean;
   spot: { id: string; n: number } | null;
@@ -221,7 +243,9 @@ function EntryRow({
       <li className="rise flex flex-wrap items-center justify-between gap-x-3 gap-y-1 rounded-xl px-3 py-2 text-sm" style={beat(i)}>
         <span className="text-muted">{entry.head}</span>
         <span className="flex items-center gap-2 font-medium">
-          {entry.mark && <Mark>{entry.mark}</Mark>}
+          {entry.marks.map((t) => (
+            <Mark key={t}>{t}</Mark>
+          ))}
           {entry.line}
         </span>
       </li>
@@ -235,19 +259,19 @@ function EntryRow({
   if (compact) {
     return (
       <li data-beat={m.id} className={`rise flex items-center gap-3 rounded-xl px-3 py-1.5 ${flash}`} style={beat(i)}>
-        <Avatar name={m.winner} size="h-7 w-7 text-xs" />
+        <Avatar name={m.winner} size="h-10 w-10 text-sm" />
         <div className="min-w-0 flex-1">
-          <p className="flex min-w-0 items-center gap-1.5 font-semibold">
-            <SlamLogo event={m.event} size="h-5 w-5" />
+          <p className="flex min-w-0 items-center gap-2 font-semibold">
+            <SlamLogo event={m.event} size="h-7 w-7" />
             <span className="truncate">{title}</span>
           </p>
           <p className="text-sm text-muted">
             {m.winner} beat {m.loser}
-            {entry.mark && <span className="font-semibold text-court"> · {entry.mark}</span>}
+            {entry.marks.length > 0 && <span className="font-semibold text-court"> · {entry.marks.join(" · ")}</span>}
           </p>
         </div>
         <BallScore value={fan.rating} size="sm" />
-        <EditButton onClick={() => onEdit(m.id)} iconOnly />
+        <PageButton page={pages.get(m.id)} onClick={() => onEdit(m.id)} compact />
       </li>
     );
   }
@@ -255,36 +279,43 @@ function EntryRow({
   // Backing a player is your call that they'll win, so one chip says both
   const side = fan.cheering ?? fan.pick?.winner ?? null;
   return (
-    <li data-beat={m.id} className={`rise rounded-2xl bg-foreground/[0.05] px-4 py-3 ring-1 ring-foreground/[0.07] ${flash}`} style={beat(i)}>
-      <div className="flex items-center justify-between gap-3">
-        <p className="flex min-w-0 items-center gap-2 font-semibold">
-          <SlamLogo event={m.event} size="h-6 w-6" />
-          <span className="truncate">{title}</span>
-        </p>
-        <BallScore value={fan.rating} size="sm" />
-      </div>
-      <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1.5 text-sm">
-        <Avatar name={m.winner} size="h-5 w-5 text-[9px]" />
-        <span>
-          <span className="font-semibold">{m.winner}</span> <span className="text-muted">beat {m.loser}</span>
-        </span>
-        {entry.mark && <Mark>{entry.mark}</Mark>}
-        {side && (
-          <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${side === m.winner ? "bg-grass/15 text-grass" : "bg-fault/15 text-fault"}`}>
-            {side === m.winner ? "✓" : "✗"} Backed {side}
+    <li data-beat={m.id} className={`rise flex gap-3.5 rounded-2xl bg-foreground/[0.05] px-4 py-3 ring-1 ring-foreground/[0.07] ${flash}`} style={beat(i)}>
+      {/* The tournament's logo is the first thing to catch the eye */}
+      <SlamLogo event={m.event} size="h-12 w-12 rounded-xl p-1 sm:h-14 sm:w-14" />
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center justify-between gap-3">
+          <p className="truncate font-semibold">{title}</p>
+          <BallScore value={fan.rating} size="sm" />
+        </div>
+        <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1.5 text-sm">
+          <span className="flex shrink-0 -space-x-2.5">
+            <Avatar name={m.winner} size="h-9 w-9 text-sm ring-2 ring-surface" />
+            <Avatar name={m.loser} size="h-9 w-9 text-sm ring-2 ring-surface" />
           </span>
-        )}
-        <span className="ml-auto">
-          <EditButton onClick={() => onEdit(m.id)} />
-        </span>
+          <span>
+            <span className="font-semibold">{m.winner}</span> <span className="text-muted">beat {m.loser}</span>
+          </span>
+          {entry.marks.map((t) => (
+            <Mark key={t}>{t}</Mark>
+          ))}
+          {side && (
+            <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${side === m.winner ? "bg-grass/15 text-grass" : "bg-fault/15 text-fault"}`}>
+              {side === m.winner ? "✓" : "✗"} Backed {side}
+            </span>
+          )}
+          <span className="ml-auto">
+            <PageButton page={pages.get(m.id)} onClick={() => onEdit(m.id)} />
+          </span>
+        </div>
+        {entry.detail && <p className="mt-1 text-sm text-muted">{entry.detail}</p>}
+        {fan.note && !isEpigraph && <p className="mt-1.5 text-sm italic text-muted">&ldquo;{fan.note}&rdquo;</p>}
       </div>
-      {entry.detail && <p className="mt-1 text-sm text-muted">{entry.detail}</p>}
-      {fan.note && !isEpigraph && <p className="mt-1.5 text-sm italic text-muted">&ldquo;{fan.note}&rdquo;</p>}
     </li>
   );
 }
 
 type Tones = ReturnType<typeof chartStyles>;
+type Pages = ReturnType<typeof diaryPages>;
 
 /** Games per set for both players, the set's winner in bold, a tiebreak's points on the set's loser. */
 function MiniScore({ winner, loser, score, tones }: { winner: string; loser: string; score: string; tones: Tones }) {
@@ -297,7 +328,7 @@ function MiniScore({ winner, loser, score, tones }: { winner: string; loser: str
     <span className="block overflow-hidden rounded-xl bg-black/25 ring-1 ring-white/10">
       {[winner, loser].map((name, row) => (
         <span key={name} className={`flex items-center gap-2 px-2.5 py-1.5 ${row ? "border-t border-white/10" : ""}`}>
-          <Avatar name={name} size="h-6 w-6 text-[10px]" tone={tones.get(name)} />
+          <Avatar name={name} size="h-8 w-8 text-xs" tone={tones.get(name)} />
           <span className={`min-w-0 flex-1 truncate font-display font-bold ${row ? "text-muted" : ""}`}>{name}</span>
           {/* The sets packed close, so five of them still leave room for the name */}
           <span className="flex shrink-0">
@@ -324,6 +355,7 @@ function MiniScore({ winner, loser, score, tones }: { winner: string; loser: str
  */
 function MeetingCard({
   entry,
+  pages,
   tones,
   isEpigraph,
   flash,
@@ -331,6 +363,7 @@ function MeetingCard({
   i,
 }: {
   entry: Entry;
+  pages: Pages;
   tones: Tones;
   isEpigraph: boolean;
   flash: boolean;
@@ -382,7 +415,9 @@ function MeetingCard({
           </p>
         )}
         <div className="mt-auto flex flex-wrap items-center gap-x-2 gap-y-1.5 text-sm">
-          {entry.mark && <Mark>{entry.mark}</Mark>}
+          {entry.marks.map((t) => (
+            <Mark key={t}>{t}</Mark>
+          ))}
           {meet.retired && <span className="text-xs font-semibold text-muted">{meet.loser} retired</span>}
           {side && (
             <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${side === meet.winner ? "bg-grass/15 text-grass" : "bg-fault/15 text-fault"}`}>
@@ -391,7 +426,7 @@ function MeetingCard({
           )}
           <span className="ml-auto">
             {logged ? (
-              <EditButton onClick={() => onEdit(entry.id)} />
+              <PageButton page={pages.get(entry.id)} onClick={() => onEdit(entry.id)} />
             ) : (
               <HighlightsLink players={[meet.winner, meet.loser]} event={`${meet.event} ${meet.year} · ${meet.round}`} />
             )}
@@ -405,6 +440,7 @@ function MeetingCard({
 
 function ChapterPage({
   chapter,
+  pages,
   index,
   faces,
   rivalry,
@@ -413,6 +449,7 @@ function ChapterPage({
   onEdit,
 }: {
   chapter: BookChapter;
+  pages: Pages;
   index: number;
   faces: string[];
   rivalry: boolean;
@@ -425,6 +462,12 @@ function ChapterPage({
   return (
     <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)] lg:gap-12">
       <div className="flex flex-col">
+        {/* Where the last chapter left off, like the recap before an episode */}
+        {chapter.previously && (
+          <p className="rise mb-3 text-sm text-muted" style={beat(0)}>
+            <span className="font-semibold">Previously:</span> {chapter.previously}
+          </p>
+        )}
         <Kicker>
           Chapter {roman[index]} · {chapter.year}
         </Kicker>
@@ -432,9 +475,18 @@ function ChapterPage({
         <p className="rise mt-4 text-lg text-muted" style={beat(2)}>
           {chapter.side}
         </p>
+        {chapter.notes.length > 0 && (
+          <ul className="rise mt-3 flex flex-wrap gap-2" style={beat(2)}>
+            {chapter.notes.map((n) => (
+              <li key={n} className="rounded-full bg-foreground/[0.06] px-3 py-1 text-sm font-semibold ring-1 ring-foreground/10">
+                {n}
+              </li>
+            ))}
+          </ul>
+        )}
 
         {chapter.epigraph && (
-          <blockquote className="rise mt-7" style={beat(3)}>
+          <blockquote className="rise mt-7 border-l-2 border-fault/50 pl-5" style={beat(3)}>
             <p className="font-display text-2xl font-semibold leading-snug tracking-tight">
               <span className="text-court">&ldquo;</span>
               {chapter.epigraph.note}
@@ -442,10 +494,10 @@ function ChapterPage({
             </p>
             {/* Always say which match the words are about */}
             <footer className="mt-3 flex items-center gap-2 text-sm text-muted">
-              <SlamLogo event={matchById[chapter.epigraph.id].event} size="h-5 w-5" />
+              <SlamLogo event={matchById[chapter.epigraph.id].event} size="h-8 w-8" />
               <span>
-                Your words on <span className="font-semibold text-foreground">{eventLabel(matchById[chapter.epigraph.id])}</span>,{" "}
-                {monthLabel(chapter.epigraph.date)}
+                Your words, page {pages.get(chapter.epigraph.id)} ·{" "}
+                <span className="font-semibold text-foreground">{eventLabel(matchById[chapter.epigraph.id])}</span> · {monthLabel(chapter.epigraph.date)}
               </span>
             </footer>
           </blockquote>
@@ -488,6 +540,7 @@ function ChapterPage({
               <MeetingCard
                 key={flash ? `${id}-${spot?.n ?? 0}-${focus?.n ?? 0}` : id}
                 entry={e}
+                pages={pages}
                 tones={tones}
                 isEpigraph={e.kind === "logged" && chapter.epigraph?.id === e.id}
                 flash={flash}
@@ -503,6 +556,7 @@ function ChapterPage({
             <EntryRow
               key={e.kind === "logged" ? (spot?.id === e.id || focus?.key === e.id ? `${e.id}-${spot?.n ?? 0}-${focus?.n ?? 0}` : e.id) : e.key}
               entry={e}
+              pages={pages}
               compact={chapter.compact}
               isEpigraph={e.kind === "logged" && chapter.epigraph?.id === e.id}
               spot={focus && e.kind === "logged" && focus.key === e.id ? { id: e.id, n: focus.n } : spot}
@@ -619,46 +673,11 @@ function BookRing({ book, on, seen, count, onOpen }: { book: ShelfBook; on: bool
   );
 }
 
-/* ---------- Turning pages ---------- */
-
-/** A round arrow either side of the book. The forward one is filled; at the start the back one hides. */
-function PageArrow({
-  dir,
-  label,
-  disabled = false,
-  nudge = false,
-  onClick,
-  className = "",
-}: {
-  dir: 1 | -1;
-  label: string;
-  disabled?: boolean;
-  nudge?: boolean; // glow until the visitor turns a page
-  onClick: () => void;
-  className?: string;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      aria-label={label}
-      title={label}
-      className={`z-10 flex shrink-0 cursor-pointer items-center justify-center rounded-full shadow-xl shadow-black/40 transition-[scale,opacity] hover:scale-110 active:scale-95 disabled:pointer-events-none disabled:opacity-0 ${
-        dir > 0 ? "bg-foreground text-background" : "bg-surface text-foreground ring-1 ring-foreground/20"
-      } ${nudge ? "nudge" : ""} ${className}`}
-    >
-      <svg viewBox="0 0 16 16" aria-hidden className="h-1/2 w-1/2 fill-none stroke-current stroke-2" strokeLinecap="round" strokeLinejoin="round">
-        <path d={dir > 0 ? "M6 3l5 5-5 5" : "M10 3 5 8l5 5"} />
-      </svg>
-    </button>
-  );
-}
-
 /* ---------- The story ---------- */
 
 export function StoryDemo() {
   const { entries, order, setFocusId, spotlight } = useLog();
+  const diary = diaryPages(entries); // each match's page number
   const shelf = buildShelf(entries);
   const [bookId, setBookId] = useState(shelf[0]?.id ?? "seasons");
   const [pageIdx, setPageIdx] = useState(0);
@@ -756,7 +775,7 @@ export function StoryDemo() {
     },
     ...book.chapters.map((c, i) => ({
       label: `chapter ${roman[i]}, ${c.year}`,
-      node: <ChapterPage chapter={c} index={i} faces={book.faces} rivalry={rivalry} spot={spotId ? spot : null} focus={focus} onEdit={editInLog} />,
+      node: <ChapterPage chapter={c} pages={diary} index={i} faces={book.faces} rivalry={rivalry} spot={spotId ? spot : null} focus={focus} onEdit={editInLog} />,
     })),
     { label: "where it stands", node: <EpiloguePage book={book} next={{ title: nextBook.title, open: () => open(nextBook.id) }} /> },
   ];
@@ -796,6 +815,9 @@ export function StoryDemo() {
 
       {/* The open book, one page at a time, with an arrow either side to turn the pages */}
       <div className="relative mt-8">
+        {/* The rest of the diary's pages, their edges showing along the right and the bottom */}
+        <span aria-hidden className="absolute inset-0 translate-x-3 translate-y-2.5 rounded-[2rem] bg-[#222b3c] ring-1 ring-black/40" />
+        <span aria-hidden className="absolute inset-0 translate-x-1.5 translate-y-[5px] rounded-[2rem] bg-[#2a3447] ring-1 ring-black/40" />
         <div
           ref={bookRef}
           tabIndex={0}
@@ -807,6 +829,8 @@ export function StoryDemo() {
           style={tintVars(tintsOf(bookId, shelfBook.players))}
           className="glow relative scroll-mt-6 overflow-hidden rounded-[2rem] shadow-2xl shadow-black/60 ring-1 ring-foreground/10 outline-none focus-visible:ring-2 focus-visible:ring-court"
         >
+          {/* The spine down the left edge */}
+          <span aria-hidden className="pointer-events-none absolute inset-y-0 left-0 z-10 w-6 bg-gradient-to-r from-black/40 via-black/10 to-transparent" />
           {/* A rivalry's cover photo, behind its first page */}
           {atStart && photo && (
             <div
@@ -825,11 +849,11 @@ export function StoryDemo() {
               <PageArrow dir={-1} label={backLabel} disabled={atStart} onClick={() => turn(-1)} className="h-9 w-9 md:hidden" />
               <span className="flex min-w-0 flex-1 items-center gap-2 font-semibold">
                 {shelfBook.players.length ? (
-                  <span className="flex shrink-0 -space-x-1.5">
-                    <Faces names={shelfBook.players} size="h-6 w-6 text-[10px] ring-2 ring-surface" />
+                  <span className="flex shrink-0 -space-x-2.5">
+                    <Faces names={shelfBook.players} size="h-9 w-9 text-xs ring-2 ring-surface" />
                   </span>
                 ) : (
-                  <CollectionIcon id={shelfBook.id} className="h-5 w-5 shrink-0 text-court" />
+                  <CollectionIcon id={shelfBook.id} className="h-7 w-7 shrink-0 text-court" />
                 )}
                 <span className="truncate">{shelfBook.title}</span>
               </span>

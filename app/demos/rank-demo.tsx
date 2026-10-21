@@ -4,8 +4,9 @@ import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type 
 import Image from "next/image";
 import mastersLogo from "@/public/slams/masters-1000.png";
 import { SlamLogo, TournamentLabel } from "../match-ui";
+import { rivalryTitle } from "./books";
 import { Avatar, BallRating, BallScore, Burst, CourtArt, NextStep } from "./fun";
-import { eventLabel, matchById, matches, rivalryOf, tournamentOf, tournaments, type Match, type Tournament } from "./library";
+import { diaryPages, eventLabel, matchById, matches, rivalryOf, tournamentOf, tournaments, type Match, type Tournament } from "./library";
 import { useLog } from "./log-store";
 import { glideTo, glideToRow } from "../glide";
 
@@ -128,12 +129,27 @@ type ItemProps = {
   lifted: boolean; // being dragged: this is the gap it leaves
   flash: string;
   nudge: boolean;
+  page: number | undefined; // its page in your diary
 };
 
 const lift = (lifted: boolean) => (lifted ? "opacity-25 ring-2 ring-court" : "");
 
+/** The podium's three pages are bookmarked: a ribbon down from the top edge, in the medal's colour. */
+function Ribbon({ rank }: { rank: number }) {
+  return (
+    <span
+      aria-hidden
+      className={`absolute left-12 top-0 h-8 w-3.5 sm:left-14 sm:h-10 sm:w-4 ${medals[rank].split(" ")[0]}`}
+      style={{ clipPath: "polygon(0 0, 100% 0, 100% 100%, 50% 80%, 0 100%)" }}
+    />
+  );
+}
+
+/** "· p. 17": where a match sits in your diary */
+const PageRef = ({ page }: { page: number | undefined }) => <span className="whitespace-nowrap text-muted"> · p. {page}</span>;
+
 /** A match standing on the podium. */
-function PodiumCard({ m, rank, count, isSlam, rating, onRate, onMove, onGrab, lifted, flash, nudge }: ItemProps) {
+function PodiumCard({ m, rank, count, isSlam, rating, onRate, onMove, onGrab, lifted, flash, nudge, page }: ItemProps) {
   return (
     <article
       data-flip={m.id}
@@ -145,17 +161,21 @@ function PodiumCard({ m, rank, count, isSlam, rating, onRate, onMove, onGrab, li
       <div className="relative h-14 sm:h-20 lg:h-14">
         <CourtArt surface={m.surface} className="h-full w-full" />
         <span className="absolute left-2 top-2">
-          <SlamLogo event={m.event} size="h-6 w-6 sm:h-7 sm:w-7" />
+          <SlamLogo event={m.event} size="h-8 w-8 sm:h-10 sm:w-10 lg:h-10 lg:w-10" />
         </span>
         <span className="absolute bottom-1.5 right-2 flex -space-x-2">
-          <Avatar name={m.winner} size="h-6 w-6 text-[10px] ring-2 ring-white/70 sm:h-8 sm:w-8 sm:text-xs" />
-          <Avatar name={m.loser} size="h-6 w-6 text-[10px] ring-2 ring-white/70 sm:h-8 sm:w-8 sm:text-xs" />
+          <Avatar name={m.winner} size="h-8 w-8 text-xs ring-2 ring-white/70 sm:h-11 sm:w-11 sm:text-sm lg:h-10 lg:w-10" />
+          <Avatar name={m.loser} size="h-8 w-8 text-xs ring-2 ring-white/70 sm:h-11 sm:w-11 sm:text-sm lg:h-10 lg:w-10" />
         </span>
         <Grip className="absolute right-1 top-1 h-7 w-6 rounded-lg bg-black/30 text-white md:hidden" />
+        <Ribbon rank={rank} />
       </div>
       <div className="px-2.5 pb-2.5 pt-2 sm:px-4 sm:pb-4 sm:pt-3 lg:px-2 lg:pb-3 lg:pt-2 xl:px-3.5">
         <p className="font-display text-base font-bold leading-tight sm:text-2xl lg:text-xl">{isSlam ? m.date.slice(0, 4) : m.event}</p>
-        <p className="text-xs text-muted sm:text-sm">{m.round}</p>
+        <p className="text-xs text-muted sm:text-sm">
+          {m.round}
+          <PageRef page={page} />
+        </p>
         <p className="mt-1.5 hidden truncate text-sm sm:block lg:mt-1">
           <span className="font-semibold">{m.winner}</span> <span className="text-muted">beat {m.loser}</span>
         </p>
@@ -175,7 +195,7 @@ function PodiumCard({ m, rank, count, isSlam, rating, onRate, onMove, onGrab, li
 }
 
 /** A match from fourth place down. */
-function ListRow({ m, rank, count, isSlam, rating, onRate, onMove, onGrab, lifted, flash }: ItemProps) {
+function ListRow({ m, rank, count, isSlam, rating, onRate, onMove, onGrab, lifted, flash, page }: ItemProps) {
   return (
     <li
       data-flip={m.id}
@@ -191,7 +211,7 @@ function ListRow({ m, rank, count, isSlam, rating, onRate, onMove, onGrab, lifte
       <span className="relative hidden h-11 w-16 shrink-0 overflow-hidden rounded-lg sm:block lg:hidden">
         <CourtArt surface={m.surface} className="h-full w-full" />
         <span className="absolute left-1 top-1">
-          <SlamLogo event={m.event} size="h-5 w-5" />
+          <SlamLogo event={m.event} size="h-7 w-7" />
         </span>
       </span>
       <div className="min-w-0 flex-1">
@@ -199,14 +219,16 @@ function ListRow({ m, rank, count, isSlam, rating, onRate, onMove, onGrab, lifte
           <p className="font-semibold lg:truncate">
             <span className="font-display text-lg">{m.date.slice(0, 4)}</span>
             <span className="text-muted"> · {m.round}</span>
+            {/* Outside the Slams the event's long name fills this line, so only the Slams show the page */}
+            <PageRef page={page} />
           </p>
         ) : (
           <TournamentLabel event={eventLabel(m)} className="max-w-full" />
         )}
         <p className="mt-0.5 flex min-w-0 items-center gap-1.5 text-sm">
           <span className="flex shrink-0 -space-x-2 lg:max-xl:hidden">
-            <Avatar name={m.winner} size="h-6 w-6 text-[10px] ring-2 ring-surface" />
-            <Avatar name={m.loser} size="h-6 w-6 text-[10px] ring-2 ring-surface" />
+            <Avatar name={m.winner} size="h-9 w-9 text-xs ring-2 ring-surface" />
+            <Avatar name={m.loser} size="h-9 w-9 text-xs ring-2 ring-surface" />
           </span>
           <span className="truncate">
             <span className="font-semibold">{m.winner}</span> <span className="text-muted">beat {m.loser}</span>
@@ -235,6 +257,7 @@ export function RankDemo() {
   const [tournament, setTournament] = useState<Tournament>("Wimbledon");
   // Ratings and the fan's own order live in the shared log
   const { entries, order, update, reorder, spotlight, goTo } = useLog();
+  const pages = diaryPages(entries);
 
   // Until the visitor touches a control, the gold card's controls glow
   const [touched, setTouched] = useState(false);
@@ -359,6 +382,7 @@ export function RankDemo() {
     lifted: lifted?.id === m.id,
     flash: spot?.id === m.id ? "spot-flash" : "",
     nudge: !touched && rank === 0,
+    page: pages.get(m.id),
   });
   // A fresh key replays the arrival flash
   const keyOf = (m: Match) => (spot?.id === m.id ? `${m.id}-${spot.n}` : m.id);
@@ -491,7 +515,7 @@ export function RankDemo() {
             <span className="relative h-11 w-16 shrink-0 overflow-hidden rounded-lg">
               <CourtArt surface={held.surface} className="h-full w-full" />
               <span className="absolute left-1 top-1">
-                <SlamLogo event={held.event} size="h-5 w-5" />
+                <SlamLogo event={held.event} size="h-7 w-7" />
               </span>
             </span>
             <span className="min-w-0">
@@ -517,7 +541,7 @@ export function RankDemo() {
             {editedId ? "✓ Ranking updated. " : "Next: "}
             <span className="underline decoration-ball decoration-2 underline-offset-4">
               {nextRivalry
-                ? `Find it in your ${nextRivalry.players.join(" & ")} book`
+                ? `Find it in your ${rivalryTitle(nextRivalry.players)} book`
                 : "Find it in your saga"}
             </span>
           </>

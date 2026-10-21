@@ -8,8 +8,9 @@ import alcarazAo2026Final from "@/public/photos/alcaraz-ao-2026-final.jpg";
 import alcarazDjokovicAo2026 from "@/public/photos/alcaraz-djokovic-ao-2026-trophies.jpg";
 import rybakinaUso2026 from "@/public/photos/rybakina-uso-2026.jpg";
 import djokovicUso2015 from "@/public/photos/djokovic-uso-2015.jpg";
-import federerRolandGarros from "@/public/photos/federer-roland-garros.jpg";
+import alcarazRg2025Trophy from "@/public/photos/alcaraz-rg-2025-trophy.jpg";
 import nadalAo2022Final from "@/public/photos/nadal-ao-2022-final.jpg";
+import nadalFedererAo2009Final from "@/public/photos/nadal-federer-ao-2009-final.jpg";
 import sinnerWimbledon2025 from "@/public/photos/sinner-wimbledon-2025.jpg";
 import type { BookData, StripItem } from "./books";
 import { Avatar, chartStyles } from "./fun";
@@ -40,16 +41,22 @@ export const coverPhotos: Record<string, { src: StaticImageData; alt: string; po
     alt: "Rafael Nadal roaring with both fists raised after winning the five-set 2022 Australian Open final",
     position: "object-[50%_30%]",
   },
+  finals: {
+    src: nadalFedererAo2009Final,
+    alt: "Rafael Nadal with an arm around Roger Federer beside the trophy after the 2009 Australian Open final",
+    position: "object-[50%_30%]",
+  },
   calls: {
     src: djokovicUso2015,
     alt: "Novak Djokovic tapping his temple at the 2015 US Open final",
     position: "object-[45%_30%]",
   },
   comebacks: {
-    src: federerRolandGarros,
-    alt: "Roger Federer raising a finger as he celebrates on the clay at Roland Garros",
-    position: "object-[50%_18%]",
+    src: alcarazRg2025Trophy,
+    alt: "Carlos Alcaraz kissing the Roland Garros trophy after coming back from two sets down in the 2025 final",
+    position: "object-[60%_30%]",
   },
+
   seasons: {
     src: alcarazAo2026Final,
     alt: "Carlos Alcaraz lying on the court smiling after winning the 2026 Australian Open final",
@@ -62,6 +69,7 @@ const collectionTints: Record<string, [string, string]> = {
   five: ["var(--p-sinner)", "var(--fault)"],
   comebacks: ["var(--grass)", "var(--ball)"],
   calls: ["var(--p-rybakina)", "var(--grass)"],
+  finals: ["var(--clay)", "var(--p-rybakina)"],
 };
 
 /** A rivalry glows in its two players' colours; a collection in its own pair. */
@@ -245,7 +253,7 @@ function RowsChart({ book, players, spotId, hover }: { book: BookData; players: 
         return (
           <div key={g} className="grid gap-1.5 sm:grid-cols-[11rem_minmax(0,1fr)] sm:items-center sm:gap-4">
             <dt className="flex min-w-0 items-center gap-2 text-sm font-semibold">
-              {slamNames.includes(g) && <SlamLogo event={g} size="h-5 w-5" />}
+              {slamNames.includes(g) && <SlamLogo event={g} size="h-8 w-8" />}
               <span className="truncate">{g}</span>
             </dt>
             <dd className="flex min-w-0 items-center gap-2.5">

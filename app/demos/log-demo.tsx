@@ -6,8 +6,8 @@ import alcarazDjokovicAo2026 from "@/public/photos/alcaraz-djokovic-ao-2026-trop
 import rybakinaUso2026Trophy from "@/public/photos/rybakina-uso-2026-trophy.jpg";
 import sinnerWimbledon2025Trophy from "@/public/photos/sinner-wimbledon-2025-trophy.jpg";
 import { HighlightsLink, SlamLogo, TournamentLabel } from "../match-ui";
-import { Avatar, BallRating, BallScore, Burst, CourtArt, IconHeart, NextStep, playerStyle } from "./fun";
-import { eventLabel, highlightVideos, matchById, matches, parseSets, tournamentOf, type FanEntry, type Match } from "./library";
+import { Avatar, BallRating, BallScore, Burst, CourtArt, IconHeart, NextStep, PageArrow, playerStyle } from "./fun";
+import { diaryPages, eventLabel, highlightVideos, matchById, matches, monthLabel, parseSets, tournamentOf, watchedHow, type FanEntry, type Match } from "./library";
 import { useLog } from "./log-store";
 
 // Photos for a few matches; the rest get a drawing of their court
@@ -98,11 +98,17 @@ export function LogDemo() {
   const match = matchById[focusId];
   const event = eventLabel(match);
   const log = entries[focusId];
+  const pages = diaryPages(entries);
+  const page = pages.get(focusId);
   const photo = photos[focusId];
 
   // Key controls glow until the visitor tries something
   const [touched, setTouched] = useState(false);
-  const [burst, setBurst] = useState({ call: 0, rating: 0 });
+  // Celebrations belong to the page they happened on. Turning to another page redraws it, so each new
+  // page starts with none, or an old one would replay (React's pattern for resetting state on a prop change).
+  const [burst, setBurst] = useState({ id: focusId, call: 0, rating: 0 });
+  if (burst.id !== focusId) setBurst({ id: focusId, call: 0, rating: 0 });
+  const celebrate = (kind: "call" | "rating") => setBurst((b) => ({ ...b, [kind]: b[kind] + 1 }));
   // The match you last changed, so the next step can show where it landed
   const [editedId, setEditedId] = useState<string | null>(null);
   const set = (patch: Partial<FanEntry>) => {
@@ -122,6 +128,21 @@ export function LogDemo() {
     });
   }, [focusId]);
 
+  // Which arrows to show: none back at the start, none forward at the end
+  const [edges, setEdges] = useState({ back: false, forward: true });
+  const readEdges = () => {
+    const s = strip.current;
+    if (!s) return;
+    setEdges({ back: s.scrollLeft > 8, forward: s.scrollLeft + s.clientWidth < s.scrollWidth - 8 });
+  };
+  useEffect(() => {
+    readEdges();
+    window.addEventListener("resize", readEdges);
+    return () => window.removeEventListener("resize", readEdges);
+  }, []);
+  const scrollStrip = (dir: 1 | -1) =>
+    strip.current?.scrollBy({ left: dir * strip.current.clientWidth * 0.75, behavior: "smooth" });
+
   const sets = parseSets(match.score);
   const players = [match.winner, match.loser];
   const setOptions = match.bestOf === 5 ? [3, 4, 5] : [2, 3];
@@ -134,7 +155,7 @@ export function LogDemo() {
 
   const choosePick = (next: { winner: string; sets: number }) => {
     set({ pick: next });
-    if (next.winner === match.winner && next.sets === sets.length) setBurst((b) => ({ ...b, call: b.call + 1 }));
+    if (next.winner === match.winner && next.sets === sets.length) celebrate("call");
   };
 
   return (
@@ -153,53 +174,76 @@ export function LogDemo() {
           </g>
         </svg>
         <p className="relative px-4 text-sm font-semibold sm:px-5">
-          Pick a match <span className="font-normal text-white/70">· {matches.length} in this log, scroll for more</span>
+          Pick a match <span className="font-normal text-white/70">· {matches.length} pages in this diary, scroll for more</span>
         </p>
-        <div ref={strip} className="relative mt-2 flex gap-2.5 overflow-x-auto px-4 pb-2 pt-1.5 sm:px-5" role="listbox" aria-label="Pick a match">
-          {byYear.map(([y, ms]) => (
-            <div key={y} className="flex shrink-0 gap-2.5">
-              <span className="flex w-6 shrink-0 items-center justify-center">
-                <span className="-rotate-90 whitespace-nowrap font-display text-sm font-bold text-white/70">{y}</span>
-              </span>
-              {ms.map((m) => {
-                const selected = m.id === focusId;
-                return (
-                  <button
-                    key={m.id}
-                    data-ticket={m.id}
-                    type="button"
-                    role="option"
-                    aria-selected={selected}
-                    onClick={() => {
-                      setTouched(true);
-                      setFocusId(m.id);
-                    }}
-                    className={`relative w-48 shrink-0 cursor-pointer overflow-hidden rounded-xl bg-surface text-left text-foreground shadow-md transition duration-200 ${
-                      selected ? "-translate-y-1 shadow-xl ring-4 ring-ball" : "opacity-90 hover:-translate-y-1 hover:opacity-100 hover:shadow-lg"
-                    }`}
-                  >
-                    <span className="relative block h-12">
-                      <CourtArt surface={m.surface} className="h-full w-full" />
-                      <span className="absolute left-2 top-2">
-                        <SlamLogo event={m.event} size="h-6 w-6" />
+        <div className="relative mt-2">
+          {/* Arrows either side, so it's clear there's more to scroll to */}
+          <PageArrow
+            dir={-1}
+            label="Earlier matches"
+            disabled={!edges.back}
+            onClick={() => scrollStrip(-1)}
+            className="absolute left-2 top-1/2 h-10 w-10 -translate-y-1/2 sm:left-3"
+          />
+          <PageArrow
+            dir={1}
+            label="Later matches"
+            disabled={!edges.forward}
+            onClick={() => scrollStrip(1)}
+            className="absolute right-2 top-1/2 h-10 w-10 -translate-y-1/2 sm:right-3"
+          />
+          <div
+            ref={strip}
+            onScroll={readEdges}
+            className="relative flex gap-2.5 overflow-x-auto px-4 pb-2 pt-1.5 sm:px-5"
+            role="listbox"
+            aria-label="Pick a match"
+          >
+            {byYear.map(([y, ms]) => (
+              <div key={y} className="flex shrink-0 gap-2.5">
+                <span className="flex w-6 shrink-0 items-center justify-center">
+                  <span className="-rotate-90 whitespace-nowrap font-display text-sm font-bold text-white/70">{y}</span>
+                </span>
+                {ms.map((m) => {
+                  const selected = m.id === focusId;
+                  return (
+                    <button
+                      key={m.id}
+                      data-ticket={m.id}
+                      type="button"
+                      role="option"
+                      aria-selected={selected}
+                      onClick={() => {
+                        setTouched(true);
+                        setFocusId(m.id);
+                      }}
+                      className={`relative w-48 shrink-0 cursor-pointer overflow-hidden rounded-xl bg-surface text-left text-foreground shadow-md transition duration-200 ${
+                        selected ? "-translate-y-1 shadow-xl ring-4 ring-ball" : "opacity-90 hover:-translate-y-1 hover:opacity-100 hover:shadow-lg"
+                      }`}
+                    >
+                      <span className="relative block h-16">
+                        <CourtArt surface={m.surface} className="h-full w-full" />
+                        <span className="absolute left-2 top-2">
+                          <SlamLogo event={m.event} size="h-9 w-9" />
+                        </span>
+                        <span className="absolute bottom-1.5 right-2 flex -space-x-2">
+                          <Avatar name={m.winner} size="h-10 w-10 text-sm ring-2 ring-white/70" />
+                          <Avatar name={m.loser} size="h-10 w-10 text-sm ring-2 ring-white/70" />
+                        </span>
                       </span>
-                      <span className="absolute bottom-1.5 right-2 flex -space-x-2">
-                        <Avatar name={m.winner} size="h-7 w-7 text-xs ring-2 ring-white/70" />
-                        <Avatar name={m.loser} size="h-7 w-7 text-xs ring-2 ring-white/70" />
+                      <span className="block px-3 py-2">
+                        <span className="block truncate text-sm font-semibold">{m.event}</span>
+                        <span className="mt-0.5 flex items-center justify-between gap-2">
+                          <span className="truncate text-sm text-muted">{m.round}</span>
+                          <BallScore value={entries[m.id].rating} size="xs" />
+                        </span>
                       </span>
-                    </span>
-                    <span className="block px-3 py-2">
-                      <span className="block truncate text-sm font-semibold">{m.event}</span>
-                      <span className="mt-0.5 flex items-center justify-between gap-2">
-                        <span className="truncate text-sm text-muted">{m.round}</span>
-                        <BallScore value={entries[m.id].rating} size="xs" />
-                      </span>
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          ))}
+                    </button>
+                  );
+                })}
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -213,7 +257,7 @@ export function LogDemo() {
                 size="lg"
                 onChange={(rating) => {
                   set({ rating });
-                  if (rating === 5) setBurst((b) => ({ ...b, rating: b.rating + 1 }));
+                  if (rating === 5) celebrate("rating");
                 }}
                 nudge={!touched}
               />
@@ -233,7 +277,7 @@ export function LogDemo() {
                   onClick={() => {
                     // Backing someone is your call that they'll win
                     set({ cheering: p, pick: p ? { winner: p, sets: pick?.sets || setOptions[0] } : null });
-                    if (p === match.winner && (pick?.sets || setOptions[0]) === sets.length) setBurst((b) => ({ ...b, call: b.call + 1 }));
+                    if (p === match.winner && (pick?.sets || setOptions[0]) === sets.length) celebrate("call");
                   }}
                   style={!touched && !on && p ? { animationDelay: "1.2s" } : undefined}
                   className={`relative flex cursor-pointer flex-col items-center gap-2 rounded-2xl border-2 px-2 pb-3 pt-4 sm:px-3 font-semibold transition duration-200 ${
@@ -291,17 +335,26 @@ export function LogDemo() {
             <textarea
               value={log.note}
               onChange={(e) => set({ note: e.target.value })}
-              rows={2}
+              rows={3}
               placeholder="Where you watched, who with, how it felt…"
-              className="mt-2.5 w-full resize-none rounded-xl border-2 border-dashed border-ball bg-ball/10 px-3 py-2 leading-7 placeholder:text-muted/70 focus:border-solid focus:outline-none"
+              className="paper mt-2.5 w-full resize-none rounded-xl border border-line bg-surface pb-1 pr-3 pt-0 leading-[var(--rule)] shadow-sm [--rule:1.75rem] placeholder:text-muted/70 focus:border-court focus:outline-none focus:ring-2 focus:ring-court/20"
             />
           </label>
         </div>
 
-        {/* What lands in the log. Each part pops when the answer that drives it changes. */}
-        <div className="min-w-0 lg:sticky lg:top-8 lg:self-start">
-          <p className="text-sm font-semibold text-muted">Your log entry</p>
-          <div className="mt-2 overflow-hidden rounded-3xl border border-line bg-background shadow-xl">
+        {/* What lands in the log: this match's page in your diary, on top of the rest. It turns when you
+            pick another match, and each part pops when the answer that drives it changes. */}
+        <div className="min-w-0 pb-3 lg:sticky lg:top-8 lg:self-start">
+          <div key={focusId} className="page-turn page-stack overflow-hidden rounded-3xl border border-line bg-surface">
+            {/* The page's heading: its number, and when and how you watched */}
+            <p className="flex items-baseline justify-between gap-3 border-b border-line px-4 py-2.5 text-sm">
+              <span className="font-semibold">
+                Page {page} <span className="font-normal text-muted">of your diary</span>
+              </span>
+              <span className="text-muted">
+                {monthLabel(log.watchedDate)}, {watchedHow(log.watchedOn)}
+              </span>
+            </p>
             <div className="relative">
               {photo ? (
                 <Image
@@ -326,7 +379,7 @@ export function LogDemo() {
               </div>
             </div>
 
-            <div className="relative -mt-14 space-y-4 px-4 pb-5">
+            <div className="relative -mt-14 space-y-4 px-4 pb-4">
               <Scoreboard key={focusId} match={match} seen={log.setsSeen} />
 
               <div className="flex flex-wrap gap-2">
@@ -359,11 +412,12 @@ export function LogDemo() {
                   </span>
                 )}
               </div>
-
-              {log.note && (
-                <p className="rounded-xl bg-ball/15 px-4 py-3 font-medium italic leading-relaxed">&ldquo;{log.note}&rdquo;</p>
-              )}
             </div>
+
+            {/* Your words, written on the page's lines as you type them */}
+            <p className="paper min-h-[calc(var(--rule)*2+0.5rem)] border-t border-line pb-2 pr-4 font-medium leading-[var(--rule)] [--rule:1.75rem]">
+              {log.note}
+            </p>
           </div>
         </div>
       </div>
@@ -378,7 +432,7 @@ export function LogDemo() {
         }
         done={
           <>
-            ✓ Logged {eventLabel(matchById[editedId ?? focusId])}.{" "}
+            ✓ Saved to page {pages.get(editedId ?? focusId)} of your diary.{" "}
             <span className="underline decoration-ball decoration-2 underline-offset-4">
               See where it ranks among your {tournamentOf(matchById[editedId ?? focusId]).replace("Other events", "other")} favourites
             </span>

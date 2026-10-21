@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { HeroBadges } from "./hero-badges";
 import { HeroShowcase } from "./hero-showcase";
 
 /* The hero is one half of a hard court seen from above: baseline on the left and net on the right (on a
@@ -29,7 +30,8 @@ function Net() {
 export function Hero() {
   return (
     <div className="hero-court relative isolate overflow-hidden bg-[var(--hc-surround)] text-white">
-      <header className="relative mx-auto flex w-full max-w-6xl items-center justify-between px-4 py-4 sm:px-8">
+      <HeroBadges />
+      <header className="relative mx-auto flex w-full max-w-6xl items-center justify-between px-4 py-4 sm:px-8 md:py-5">
         <Link href="/" className="flex items-center gap-2">
           <span aria-hidden className="text-2xl leading-none">🎾</span>
           <span className="font-display text-xl font-bold tracking-tight">CourtSaga</span>

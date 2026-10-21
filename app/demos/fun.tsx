@@ -4,7 +4,11 @@ import Image, { type StaticImageData } from "next/image";
 import { useState, type CSSProperties, type ReactNode } from "react";
 import alcarazHead from "@/public/players/alcaraz.png";
 import djokovicHead from "@/public/players/djokovic.png";
+import federerHead from "@/public/players/federer.png";
+import nadalHead from "@/public/players/nadal.png";
 import rybakinaHead from "@/public/players/rybakina.png";
+import sabalenkaHead from "@/public/players/sabalenka.png";
+import sheltonHead from "@/public/players/shelton.png";
 import sinnerHead from "@/public/players/sinner.png";
 import zverevHead from "@/public/players/zverev.png";
 import type { Surface } from "./library";
@@ -39,6 +43,10 @@ const headshots: Record<string, StaticImageData> = {
   Sinner: sinnerHead,
   Djokovic: djokovicHead,
   Rybakina: rybakinaHead,
+  Sabalenka: sabalenkaHead,
+  Federer: federerHead,
+  Nadal: nadalHead,
+  Shelton: sheltonHead,
   Zverev: zverevHead,
 };
 
@@ -326,6 +334,8 @@ const collectionPaths: Record<string, ReactNode> = {
   five: <path d="M6 5v14M10 5v14M14 5v14M18 5v14M3.5 15.5 20.5 8.5" />,
   // an arrow dipping, then turning back up
   comebacks: <path d="M3 7c3 0 4 9 8 9s5-7 9-11M20 5h-4.5M20 5v4.5" />,
+  // a trophy
+  finals: <path d="M8 4h8v5a4 4 0 0 1-8 0V4ZM8 6H5a3 3 0 0 0 3 4M16 6h3a3 3 0 0 1-3 4M12 13v4M8.5 20h7M10 17h4v3h-4z" />,
   // a bullseye
   calls: (
     <>
@@ -340,4 +350,38 @@ export function CollectionIcon({ id, className = "h-6 w-6" }: { id: string; clas
   const path = collectionPaths[id];
   if (!path) return null;
   return <Icon className={className}>{path}</Icon>;
+}
+
+/** A round arrow to turn a page or scroll a strip. The forward one is filled; a disabled one hides. */
+export function PageArrow({
+  dir,
+  label,
+  disabled = false,
+  nudge = false,
+  onClick,
+  className = "",
+}: {
+  dir: 1 | -1;
+  label: string;
+  disabled?: boolean;
+  nudge?: boolean; // glow until the visitor turns a page
+  onClick: () => void;
+  className?: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={label}
+      title={label}
+      className={`z-10 flex shrink-0 cursor-pointer items-center justify-center rounded-full shadow-xl shadow-black/40 transition-[scale,opacity] hover:scale-110 active:scale-95 disabled:pointer-events-none disabled:opacity-0 ${
+        dir > 0 ? "bg-foreground text-background" : "bg-surface text-foreground ring-1 ring-foreground/20"
+      } ${nudge ? "nudge" : ""} ${className}`}
+    >
+      <svg viewBox="0 0 16 16" aria-hidden className="h-1/2 w-1/2 fill-none stroke-current stroke-2" strokeLinecap="round" strokeLinejoin="round">
+        <path d={dir > 0 ? "M6 3l5 5-5 5" : "M10 3 5 8l5 5"} />
+      </svg>
+    </button>
+  );
 }

@@ -11,13 +11,15 @@ const steps = [
   {
     id: "log",
     demo: <LogDemo />,
+    verb: "Write",
     title: "Log a match",
-    body: "Rate it, say who you were backing, and add a few words if you like.",
+    body: "Every match you log is a page in your diary. Rate it, say who you were backing, and add a few words if you like.",
     hint: "Pick any match below and change the answers.",
   },
   {
     id: "rank",
     demo: <RankDemo />,
+    verb: "Sort",
     title: "Rank your favourites",
     body: "Your best matches at each tournament, in your own order.",
     hint: "Pick a tournament, then drag the matches around.",
@@ -25,11 +27,27 @@ const steps = [
   {
     id: "story",
     demo: <StoryDemo />,
+    verb: "Read back",
     title: "Explore your saga",
-    body: "It builds itself from the matches you log: your rivalries, your five-setters, the calls you got right, and the meetings you missed.",
+    body: "Your diary, read back to you. It builds itself from the matches you log: your rivalries, your five-setters, the calls you got right, and the meetings you missed.",
     hint: "Pick a rivalry or a collection, then turn the pages.",
     stage: true,
   },
+];
+
+// Every photo on the page and where it's from, in the order they appear
+const photoCredits = [
+  ["Rybakina, US Open 2026", "Just Women's Sports"],
+  ["Alcaraz, Australian Open 2026", "ATP Tour"],
+  ["Sinner with the Wimbledon trophy, 2025", "Olympics.com"],
+  ["Alcaraz and Djokovic, Australian Open 2026", "Olympics.com"],
+  ["Rybakina with the US Open trophy, 2026", "The Guardian"],
+  ["Sinner at Wimbledon, 2025", "ATP Tour"],
+  ["Nadal and Federer, Australian Open 2009", "Tennis365"],
+  ["Nadal, Australian Open 2022", "Axios"],
+  ["Alcaraz with the Roland Garros trophy, 2025", "Britwatch Sports"],
+  ["Djokovic, US Open 2015", "Sky Sports"],
+  ["Djokovic on Centre Court", "Reuters"],
 ];
 
 const DownArrow = ({ className }: { className: string }) => (
@@ -57,7 +75,11 @@ export default function Home() {
             >
               <div className="mx-auto w-full max-w-6xl px-4 sm:px-8">
                 <div className="max-w-2xl">
-                  <span className="flex h-10 w-10 items-center justify-center rounded-full bg-court font-bold text-court-ink">{i + 1}</span>
+                  {/* The diary's three parts: write it, sort it, read it back */}
+                  <p className="flex items-center gap-3">
+                    <span className="flex h-10 w-10 items-center justify-center rounded-full bg-court font-bold text-court-ink">{i + 1}</span>
+                    <span className="text-sm font-semibold uppercase tracking-[0.16em] text-muted">{s.verb}</span>
+                  </p>
                   <h2 id={`${s.id}-title`} className="mt-5 font-display text-4xl font-bold tracking-tight sm:text-5xl">
                     {s.title}
                   </h2>
@@ -73,7 +95,7 @@ export default function Home() {
           ))}
 
           {/* Closing banner */}
-          <section className="pb-20 pt-8">
+          <section className="pb-16 pt-8">
             <Image
               src={djokovicCentreCourt}
               alt="Novak Djokovic stretching for a forehand on Centre Court at Wimbledon, his shadow long across the grass"
@@ -89,6 +111,18 @@ export default function Home() {
             </p>
           </section>
         </main>
+
+        {/* Photo credits, quietly at the very end */}
+        <footer className="border-t border-line">
+          <p className="mx-auto max-w-6xl px-4 py-6 text-xs leading-relaxed text-muted sm:px-8">
+            <span className="font-semibold">Photos:</span>{" "}
+            {photoCredits.map(([photo, source], i) => (
+              <span key={photo}>
+                {photo} ({source}){i < photoCredits.length - 1 && " · "}
+              </span>
+            ))}
+          </p>
+        </footer>
       </LogProvider>
     </div>
   );

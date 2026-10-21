@@ -101,8 +101,8 @@ export function TournamentLabel({
 
   return (
     <span className={`inline-flex min-w-0 items-center gap-2 font-semibold ${onPhoto ? "text-white" : style.text} ${className}`}>
-      <SlamLogo event={event} size="h-6 w-6" /> {/* the Slams show their logo, other events a surface dot */}
-      {!slamLogos.some(([prefix]) => event.startsWith(prefix)) && !mastersFlag(event) && <span aria-hidden className={`h-3.5 w-3.5 shrink-0 rounded-full ${style.dot}`} />}
+      <SlamLogo event={event} size="h-8 w-8" /> {/* the Slams show their logo, other events a surface dot */}
+      {!slamLogos.some(([prefix]) => event.startsWith(prefix)) && !mastersFlag(event) && <span aria-hidden className={`h-4 w-4 shrink-0 rounded-full ${style.dot}`} />}
       <span className={wrap ? "" : "truncate"}>{event}</span>
     </span>
   );

@@ -5,7 +5,7 @@ import type { ReactNode } from "react";
 import alcarazAo2026Final from "@/public/photos/alcaraz-ao-2026-final.jpg";
 import rybakinaUso2026 from "@/public/photos/rybakina-uso-2026.jpg";
 import { Avatar, BallScore, TennisBall } from "./demos/fun";
-import { matchById, monthLabel, parseSets } from "./demos/library";
+import { diaryPages, matchById, monthLabel, parseSets } from "./demos/library";
 import { useLog } from "./demos/log-store";
 import { glideTo } from "./glide";
 import { SlamLogo } from "./match-ui";
@@ -66,6 +66,7 @@ function ExampleCard({ ex, onOpen, className = "", children }: { ex: Example; on
   const { entries } = useLog();
   const m = matchById[ex.id];
   const fan = entries[ex.id];
+  const page = diaryPages(entries).get(ex.id);
   const sets = parseSets(m.score);
   const pick = fan.pick;
   const call = !pick
@@ -97,9 +98,11 @@ function ExampleCard({ ex, onOpen, className = "", children }: { ex: Example; on
         />
       </span>
       <span className="block p-3 sm:p-3.5">
-        <span className="block text-xs text-muted">In your log, {monthLabel(fan.watchedDate)}</span>
+        <span className="block text-xs text-muted">
+          <span className="font-semibold text-foreground">Page {page}</span> · {monthLabel(fan.watchedDate)}
+        </span>
         <span className="mt-1.5 flex items-center gap-2">
-          <SlamLogo event={m.event} size="h-6 w-6" />
+          <SlamLogo event={m.event} size="h-9 w-9" />
           <span className="min-w-0 leading-tight">
             <span className="block text-sm font-semibold">{m.event}</span>
             <span className="block truncate text-xs text-muted">{m.round}</span>
@@ -110,7 +113,7 @@ function ExampleCard({ ex, onOpen, className = "", children }: { ex: Example; on
           {[m.winner, m.loser].map((name, row) => (
             <span key={name} className={`flex items-center gap-1.5 px-2 py-1 ${row ? "border-t border-white/10" : ""}`}>
               {/* On the narrowest wide screens the names need the room more than the faces */}
-              <Avatar name={name} size="h-5 w-5 text-[9px] lg:max-xl:hidden" />
+              <Avatar name={name} size="h-7 w-7 text-[10px] lg:max-xl:hidden" />
               <span className={`min-w-0 flex-1 truncate font-display font-bold ${row ? "text-white/65" : ""}`}>{name}</span>
               {sets.map((set, i) => {
                 const took = row ? set.l > set.w : set.w > set.l;
@@ -131,8 +134,11 @@ function ExampleCard({ ex, onOpen, className = "", children }: { ex: Example; on
             </span>
           )}
         </span>
+        {/* The fan's words, on the page's lines */}
         {fan.note && (
-          <span className="mt-2 hidden rounded-lg bg-ball/15 px-2.5 py-1.5 text-sm font-medium italic leading-snug sm:block">&ldquo;{fan.note}&rdquo;</span>
+          <span className="paper -mx-3 mt-2.5 hidden border-t border-line pr-3 text-sm font-medium leading-[var(--rule)] [--margin:1.25rem] [--rule:1.5rem] sm:-mx-3.5 sm:block">
+            {fan.note}
+          </span>
         )}
         <span className="mt-2.5 block text-sm font-semibold text-court transition group-hover:translate-y-0.5">
           {ex.opensIn === "log" ? "Open in the log ↓" : "Open in the saga ↓"}
