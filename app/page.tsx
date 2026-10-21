@@ -107,7 +107,7 @@ export default function Home() {
             />
             <p className="mx-auto mt-12 max-w-6xl text-balance px-4 text-center font-display text-2xl font-bold tracking-tight sm:px-8 sm:text-3xl">
               <span aria-hidden className="mr-3 inline-block h-3 w-3 rounded-full bg-ball align-middle ring-1 ring-black/10" />
-              CourtSaga is free, and arrives before the 2027 season begins.
+              CourtSaga is free, and launching before the 2027 Australian Open.
             </p>
           </section>
         </main>
