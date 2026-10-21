@@ -79,10 +79,11 @@ function Faces({ names, size }: { names: string[]; size: string }) {
 
 type CatchUp = ReturnType<typeof missedMeetings>;
 
-function CoverPage({ book, catchUp, onJump }: { book: BookData; catchUp: CatchUp | null; onJump: (page: number) => void }) {
+function CoverPage({ book, catchUp, photo, onJump }: { book: BookData; catchUp: CatchUp | null; photo: boolean; onJump: (page: number) => void }) {
   const missed = catchUp?.missed.length ?? 0;
   return (
-    <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,22rem)] lg:items-end lg:gap-12">
+    // On a phone the cover photo is a band across the top, so the words start below it
+    <div className={`grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,22rem)] lg:items-end lg:gap-12 ${photo ? "max-lg:pt-40" : ""}`}>
       <div>
         <Kicker>{book.kind === "rivalry" ? "A rivalry" : "A collection"}</Kicker>
         <Title big>{book.title}</Title>
@@ -325,9 +326,9 @@ function MiniScore({ winner, loser, score, tones }: { winner: string; loser: str
     return { w, l, tb: tb ? (tb[2] ?? tb[1]) : null };
   });
   return (
-    <span className="block overflow-hidden rounded-xl bg-black/25 ring-1 ring-white/10">
+    <span className="block overflow-hidden rounded-xl bg-surface ring-1 ring-foreground/10">
       {[winner, loser].map((name, row) => (
-        <span key={name} className={`flex items-center gap-2 px-2.5 py-1.5 ${row ? "border-t border-white/10" : ""}`}>
+        <span key={name} className={`flex items-center gap-2 px-2.5 py-1.5 ${row ? "border-t border-foreground/10" : ""}`}>
           <Avatar name={name} size="h-8 w-8 text-xs" tone={tones.get(name)} />
           <span className={`min-w-0 flex-1 truncate font-display font-bold ${row ? "text-muted" : ""}`}>{name}</span>
           {/* The sets packed close, so five of them still leave room for the name */}
@@ -755,7 +756,7 @@ export function StoryDemo() {
   };
 
   const pages: { label: string; node: ReactNode }[] = [
-    { label: "the cover", node: <CoverPage book={book} catchUp={catchUp} onJump={(p) => goTo(p)} /> },
+    { label: "the cover", node: <CoverPage book={book} catchUp={catchUp} photo={!!photo} onJump={(p) => goTo(p)} /> },
     {
       label: "at a glance",
       node: (
@@ -816,8 +817,8 @@ export function StoryDemo() {
       {/* The open book, one page at a time, with an arrow either side to turn the pages */}
       <div className="relative mt-8">
         {/* The rest of the diary's pages, their edges showing along the right and the bottom */}
-        <span aria-hidden className="absolute inset-0 translate-x-3 translate-y-2.5 rounded-[2rem] bg-[#222b3c] ring-1 ring-black/40" />
-        <span aria-hidden className="absolute inset-0 translate-x-1.5 translate-y-[5px] rounded-[2rem] bg-[#2a3447] ring-1 ring-black/40" />
+        <span aria-hidden className="absolute inset-0 translate-x-3 translate-y-2.5 rounded-[2rem] bg-surface shadow-[0_30px_50px_-24px_rgb(15_27_45/0.35)] ring-1 ring-line" />
+        <span aria-hidden className="absolute inset-0 translate-x-1.5 translate-y-[5px] rounded-[2rem] bg-surface ring-1 ring-line" />
         <div
           ref={bookRef}
           tabIndex={0}
@@ -827,16 +828,16 @@ export function StoryDemo() {
             if (e.key === "ArrowLeft") turn(-1);
           }}
           style={tintVars(tintsOf(bookId, shelfBook.players))}
-          className="glow relative scroll-mt-6 overflow-hidden rounded-[2rem] shadow-2xl shadow-black/60 ring-1 ring-foreground/10 outline-none focus-visible:ring-2 focus-visible:ring-court"
+          className="glow relative scroll-mt-6 overflow-hidden rounded-[2rem] shadow-lg shadow-black/5 ring-1 ring-foreground/10 outline-none focus-visible:ring-2 focus-visible:ring-court"
         >
           {/* The spine down the left edge */}
-          <span aria-hidden className="pointer-events-none absolute inset-y-0 left-0 z-10 w-6 bg-gradient-to-r from-black/40 via-black/10 to-transparent" />
+          <span aria-hidden className="pointer-events-none absolute inset-y-0 left-0 z-10 w-6 bg-gradient-to-r from-black/[0.09] via-black/[0.03] to-transparent" />
           {/* A rivalry's cover photo, behind its first page */}
           {atStart && photo && (
             <div
               key={bookId}
               aria-hidden
-              className="fade-in pointer-events-none absolute inset-x-0 top-0 h-[60%] opacity-55 [mask-image:linear-gradient(to_bottom,black_20%,transparent)] lg:inset-y-0 lg:left-auto lg:h-full lg:w-[68%] lg:[mask-image:linear-gradient(to_left,black_30%,transparent)]"
+              className="fade-in pointer-events-none absolute inset-x-0 top-0 h-80 opacity-90 [mask-image:linear-gradient(to_bottom,black_45%,transparent)] lg:inset-y-0 lg:left-auto lg:h-full lg:w-[68%] lg:[mask-image:linear-gradient(to_left,black_30%,transparent)]"
             >
               <Image src={photo.src} alt="" fill placeholder="blur" sizes="(min-width: 1024px) 760px, 100vw" className={`object-cover ${photo.position}`} />
             </div>
@@ -855,9 +856,9 @@ export function StoryDemo() {
                 ) : (
                   <CollectionIcon id={shelfBook.id} className="h-7 w-7 shrink-0 text-court" />
                 )}
-                <span className="truncate">{shelfBook.title}</span>
+                <span className="truncate rounded-full bg-surface/80 px-2.5 py-0.5 backdrop-blur-sm">{shelfBook.title}</span>
               </span>
-              <span className="shrink-0 tabular-nums text-muted">
+              <span className="shrink-0 rounded-full bg-surface/80 px-2.5 py-0.5 tabular-nums text-muted backdrop-blur-sm">
                 {current + 1} / {pages.length}
               </span>
               <PageArrow dir={1} label={forwardLabel} nudge={!touched} onClick={forward} className="h-9 w-9 md:hidden" />

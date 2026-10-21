@@ -2,10 +2,9 @@
 
 :root {
   /* US Open hard court: navy ink, court blue, outer-court green, white lines, a touch of ball yellow */
+  /* One light theme, whatever the visitor's system is set to */
+  color-scheme: light;
   --background: #f5f7fa;
-  /* The page behind every section, for sections that fade into it */
-  --page: #f5f7fa;
-  --page-surface: #ffffff;
   --foreground: #0f1b2d;
   --muted: #4b5a6e;
   --surface: #ffffff;
@@ -60,38 +59,14 @@
   --font-display: var(--font-bricolage);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a1220;
-    --page: #0a1220;
-    --page-surface: #111c2e;
-    --foreground: #eef2f7;
-    --muted: #a7b3c4;
-    --surface: #111c2e;
-    --line: #23324a;
-    --court: #7aa8e8;
-    --court-ink: #08111f;
-    --grass: #6cc39b;
-    --fault: #f08b7e;
-    --ball: #d4e157;
-    --clay: #e8909c;
-    --hard: #5aa2f0;
-    --lawn: #6fcf8f;
-    --p-alcaraz: #3987e5;
-    --p-sinner: #d95926;
-    --p-djokovic: #199e70;
-    --p-rybakina: #c98500;
-    --rate-1: #184f95;
-    --rate-2: #256abf;
-    --rate-3: #3987e5;
-    --rate-4: #6da7ec;
-    --rate-5: #9ec5f4;
-  }
-}
-
 body {
   background: var(--background);
   color: var(--foreground);
+}
+
+::selection {
+  background: var(--ball);
+  color: #0b0d12;
 }
 
 dialog::backdrop {
@@ -479,35 +454,21 @@ html {
   }
 }
 
-/* ---------- The saga: a night session, dark in both themes so it stands apart from steps 1 and 2 ---------- */
+/* ---------- The saga: the diary laid open on tennis-ball felt, so it stands apart from steps 1 and 2 ---------- */
 
 .stage {
-  --background: #182030;
-  --surface: #202a3c;
-  --foreground: #f2f4f7;
-  --muted: #a3adbd;
-  --line: #313b50;
-  --court: #d4e157;
-  --court-ink: #0b0d12;
-  --grass: #6cc39b;
-  --fault: #f08b7e;
-  --ball: #d4e157;
-  --clay: #e8909c;
-  --hard: #5aa2f0;
-  --lawn: #6fcf8f;
-  --p-alcaraz: #3987e5;
-  --p-sinner: #d95926;
-  --p-djokovic: #199e70;
-  --p-rybakina: #c98500;
-  color-scheme: dark;
-  /* Fades in from step 2 above (its surface tint over the page) and back out into the page below */
-  background: linear-gradient(
-    to bottom,
-    color-mix(in srgb, var(--page-surface) 60%, var(--page)),
-    var(--background) 10rem,
-    var(--background) calc(100% - 10rem),
-    var(--page)
-  );
+  --background: #f3f6df;
+  --muted: #535c4c;
+  --line: #dbe2bf;
+  /* Ball yellow is too pale for text, so the saga's accent is the ball's shade */
+  --court: #4d6a0d;
+  --court-ink: #ffffff;
+  /* A ball's seam, sweeping across the top corner of the felt */
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1000 600' fill='none' stroke='white' stroke-width='9'%3E%3Cpath d='M300 -10C340 300 640 470 1010 450'/%3E%3C/svg%3E")
+      right top / min(46rem, 66%) auto no-repeat,
+    var(--background);
+  border-top: 1px solid var(--line);
   color: var(--foreground);
 }
 
@@ -601,13 +562,3 @@ html {
   background-color: color-mix(in srgb, var(--t-accent) 5%, #ffffff);
 }
 
-@media (prefers-color-scheme: dark) {
-  .t-theme {
-    --court: color-mix(in srgb, var(--t-accent) 55%, white);
-    --court-ink: #0a1220;
-  }
-  .t-panel {
-    --background: color-mix(in srgb, var(--t-accent) 22%, #111c2e);
-    background-color: color-mix(in srgb, var(--t-accent) 12%, #111c2e);
-  }
-}

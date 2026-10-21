@@ -71,21 +71,23 @@ export default function Home() {
               key={s.id}
               id={s.id}
               aria-labelledby={`${s.id}-title`}
-              className={"stage" in s ? "stage py-32" : `border-t border-line py-20 ${i % 2 ? "bg-surface/60" : ""}`}
+              className={"stage" in s ? "stage py-24" : `border-t border-line py-20 ${i % 2 ? "bg-surface/60" : ""}`}
             >
               <div className="mx-auto w-full max-w-6xl px-4 sm:px-8">
                 <div className="max-w-2xl">
                   {/* The diary's three parts: write it, sort it, read it back */}
                   <p className="flex items-center gap-3">
-                    <span className="flex h-10 w-10 items-center justify-center rounded-full bg-court font-bold text-court-ink">{i + 1}</span>
+                    <span className="flex h-10 w-10 items-center justify-center rounded-full bg-ball font-bold text-[#0b0d12] ring-1 ring-black/10">{i + 1}</span>
                     <span className="text-sm font-semibold uppercase tracking-[0.16em] text-muted">{s.verb}</span>
                   </p>
                   <h2 id={`${s.id}-title`} className="mt-5 font-display text-4xl font-bold tracking-tight sm:text-5xl">
                     {s.title}
                   </h2>
                   <p className="mt-4 text-xl font-medium leading-relaxed text-muted">{s.body}</p>
-                  <p className="mt-4 inline-flex items-center gap-2 text-lg font-semibold text-court">
-                    <DownArrow className="h-4 w-4 shrink-0 stroke-2 motion-safe:animate-bounce" />
+                  <p className="mt-4 inline-flex items-center gap-2.5 text-lg font-semibold text-court">
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-ball text-[#0b0d12] ring-1 ring-black/10">
+                      <DownArrow className="h-4 w-4 stroke-2 motion-safe:animate-bounce" />
+                    </span>
                     {s.hint}
                   </p>
                 </div>
@@ -95,7 +97,7 @@ export default function Home() {
           ))}
 
           {/* Closing banner */}
-          <section className="pb-16 pt-8">
+          <section className="pb-16">
             <Image
               src={djokovicCentreCourt}
               alt="Novak Djokovic stretching for a forehand on Centre Court at Wimbledon, his shadow long across the grass"
