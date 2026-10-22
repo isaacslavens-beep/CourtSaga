@@ -21,7 +21,7 @@ import { diaryPages, endingOf, eventLabel, monthLabel, roundName, scoreText } fr
 import { HighlightsLink, SlamLogo } from "../match-ui";
 import { useLog } from "./store";
 import { glideTo } from "../glide";
-import { ShapeChart, coverPhotos, roman, tintVars, tintsOf } from "./saga-ui";
+import { ShapeChart, coverPhotoOf, coverPhotos, roman, tintVars, tintsOf } from "./saga-ui";
 
 /* Step 3: the log read back as books. They float in a reading room; pick one and it opens like a real
    book, its cover swinging round the spine onto a spread of two pages, and every page turning over to
@@ -162,7 +162,7 @@ function Shelf({ shelf, bookId, counts, progress, onOpen }: { shelf: ShelfBook[]
                   <span aria-hidden className="lib-pages" />
                   {on && <span aria-hidden className="lib-ribbon" />}
                   <span aria-hidden className="lib-face">
-                    <CoverArt id={b.id} kind={b.kind} title={b.title} faces={b.players} photo={coverPhotos[b.id]} />
+                    <CoverArt id={b.id} kind={b.kind} title={b.title} faces={b.players} photo={coverPhotoOf(b)} />
                   </span>
                 </span>
               </span>
@@ -209,14 +209,15 @@ function Shelf({ shelf, bookId, counts, progress, onOpen }: { shelf: ShelfBook[]
 function Paper({ side, number, head, children }: { side: "left" | "right"; number: number | null; head: string; children: ReactNode }) {
   const left = side === "left";
   return (
-    <div className={`relative flex h-full flex-col bg-[var(--paper)] px-7 pb-7 pt-6 text-[var(--ink)] sm:px-10 lg:min-h-[38rem] lg:px-12 ${left ? "rounded-t-2xl lg:rounded-l-2xl lg:rounded-tr-none" : "max-lg:border-t max-lg:border-[var(--paper-edge)] lg:rounded-r-2xl"}`}>
+    <div className={`relative flex h-full flex-col bg-[var(--paper)] px-7 pb-7 pt-6 text-[var(--ink)] sm:px-10 lg:h-[40rem] lg:px-12 ${left ? "rounded-t-2xl lg:rounded-l-2xl lg:rounded-tr-none" : "max-lg:border-t max-lg:border-[var(--paper-edge)] lg:rounded-r-2xl"}`}>
       <span
         aria-hidden
         className={`pointer-events-none absolute inset-y-0 w-14 max-lg:hidden ${left ? "right-0 bg-gradient-to-l" : "left-0 bg-gradient-to-r"} from-black/[0.08] to-transparent`}
       />
       {/* Title pages go without, as in a printed book */}
       <p className={`relative truncate text-[0.7rem] font-semibold uppercase tracking-[0.22em] text-muted ${left ? "" : "lg:text-right"}`}>{head || "\u00a0"}</p>
-      <div className="relative isolate mt-7 flex flex-1 flex-col">{children}</div>
+      {/* Every page is the same size on wider screens: a long one scrolls within itself */}
+      <div className="relative isolate mt-7 flex flex-1 lg:mt-4 flex-col [scrollbar-width:thin] lg:-mx-3 lg:min-h-0 lg:overflow-y-auto lg:overflow-x-hidden lg:px-3 lg:pt-3">{children}</div>
       {number !== null && <p className={`relative mt-8 font-mono text-xs text-muted ${left ? "" : "text-right"}`}>{number}</p>}
     </div>
   );
@@ -419,7 +420,7 @@ function ChapterStory({ chapter, index, book, pages }: { chapter: BookChapter; i
       {/* The chapter's year, large and faint behind it */}
       <span
         aria-hidden
-        className="pointer-events-none absolute -right-1 -top-9 -z-10 select-none font-display text-[8.5rem] font-bold leading-none tracking-tighter text-[color-mix(in_srgb,var(--tint-a)_10%,transparent)]"
+        className="pointer-events-none absolute -top-2 right-0 -z-10 select-none font-display text-[8.5rem] font-bold leading-none tracking-tighter text-[color-mix(in_srgb,var(--tint-a)_10%,transparent)]"
       >
         {year ? `\u2019${chapter.year.slice(2)}` : roman(index + 1)}
       </span>
@@ -743,7 +744,7 @@ export function SagaSection() {
   const shelfBook = shelf.find((b) => b.id === bookId) ?? shelf[0];
   const book = buildBook(shelfBook.id, log);
   const rivalry = book.kind === "rivalry";
-  const photo = coverPhotos[shelfBook.id];
+  const photo = coverPhotoOf(shelfBook);
   const tints = tintsOf(shelfBook.id, shelfBook.players);
   const catchUp = rivalry ? missedMeetings(shelfBook.id, log) : null;
   const nextBook = shelf[(shelf.findIndex((b) => b.id === shelfBook.id) + 1) % shelf.length];
@@ -926,7 +927,7 @@ export function SagaSection() {
 
   const coverArt = <CoverArt id={shelfBook.id} kind={book.kind} title={book.title} faces={book.faces} photo={photo} big />;
   const cover = (
-    <button type="button" onClick={() => go(0)} aria-label={`Open ${book.title}`} className="cover-peek relative flex h-full min-h-[26rem] w-full cursor-pointer flex-col text-left lg:min-h-[38rem]">
+    <button type="button" onClick={() => go(0)} aria-label={`Open ${book.title}`} className="cover-peek relative flex h-full min-h-[26rem] w-full cursor-pointer flex-col text-left lg:min-h-[40rem]">
       {coverArt}
       <span aria-hidden className="nudge absolute right-5 top-5 rounded-full bg-white/90 px-3.5 py-1.5 text-sm font-semibold text-[#0e1520] shadow-lg">
         Open the book ›

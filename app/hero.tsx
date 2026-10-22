@@ -59,7 +59,7 @@ export function Hero() {
               Remember every match you watch.
             </h1>
             <p className="mt-6 max-w-lg text-lg font-medium leading-relaxed text-white/90 sm:text-xl">
-              CourtSaga is a free, simple diary for the tennis you watch. Log any match since Wimbledon 2003, rank your
+              CourtSaga is a free, simple diary for the tennis you watch. Log any match since 2003, rank your
               favourites, and your saga builds itself from there.
             </p>
             <div className="mt-8 flex flex-wrap items-center gap-x-5 gap-y-3">

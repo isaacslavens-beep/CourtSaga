@@ -73,7 +73,7 @@ export function MatchFinder({ seasons }: { seasons: [number, number] | null }) {
           </span>
         )}
       </label>
-      {seasons && <p className="mt-0.5 text-sm text-muted">{seasons[1] + 1} matches will be added once the {seasons[1] + 1} season ends.</p>}
+      {seasons && <p className="mt-0.5 text-sm text-muted">{seasons[1]} matches may not be fully up to date.</p>}
       <div className="relative mt-3">
         <svg viewBox="0 0 20 20" aria-hidden className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 fill-none stroke-current stroke-2 text-muted" strokeLinecap="round">
           <circle cx="8.5" cy="8.5" r="5.5" />
@@ -117,7 +117,7 @@ export function MatchFinder({ seasons }: { seasons: [number, number] | null }) {
             <p className="rounded-2xl bg-background px-4 py-3 text-muted">
               No matches for &ldquo;{shown.query}&rdquo;.{" "}
               {seasons && notInYet(shown.query, seasons[1])
-                ? `Matches from ${seasons[1] + 1} aren't in yet: they'll be added once that season ends.`
+                ? `Matches from ${seasons[1] + 1} aren't in yet.`
                 : "Try a player's surname, a tournament and a year, like \u201cfederer wimbledon 2007\u201d."}
             </p>
           ) : (

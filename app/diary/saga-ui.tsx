@@ -71,6 +71,11 @@ export const coverPhotos: Record<string, { src: StaticImageData; alt: string; po
   },
 };
 
+/** A book's photo. A rivalry's id puts whoever is in your log more first, so its photo is filed under
+    the two players in alphabetical order. */
+export const coverPhotoOf = (book: { id: string; players: string[] }) =>
+  coverPhotos[book.players.length > 1 ? [...book.players].sort().join("-") : book.id];
+
 const collectionTints: Record<string, [string, string]> = {
   seasons: ["var(--hard)", "var(--ball)"],
   five: ["var(--p-sinner)", "var(--fault)"],

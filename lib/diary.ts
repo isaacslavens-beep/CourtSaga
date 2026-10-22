@@ -6,7 +6,7 @@ import { cache } from "react";
 import { alias } from "drizzle-orm/pg-core";
 import { getDb } from "@/db";
 import { diaryEntries, matches, players, sagaShares, user } from "@/db/schema";
-import { buildShelf } from "@/app/diary/books";
+import { buildShelf, shelfCount } from "@/app/diary/books";
 import { vocabulary } from "./search-words";
 import {
   diaryPages,
@@ -186,13 +186,25 @@ async function rivalryRecords(rows: MatchRow[], entries: Record<string, StoredEn
 }
 
 /** What a saga's cover says about it: how many matches, the seasons they span, and its rivalries */
-export function coverLines({ rows, entries, order, records }: DiaryData) {
+// The diary as the saga's books read it: matches with players' display names, and the fan's entries
+function sagaLog({ rows, entries, order, records }: DiaryData) {
+  const named = toMatches(rows);
+  const fans = Object.fromEntries(Object.entries(entries).map(([id, e]) => [id, toFanEntry(e, named[id])]));
+  return { matches: named, entries: fans, order, records: records ?? {} };
+}
+
+/** The books on a saga's shelf, each with how many matches it holds: for the card its shared link shows */
+export function shelfOf(diary: DiaryData) {
+  const log = sagaLog(diary);
+  return buildShelf(log).map((b) => ({ ...b, count: shelfCount(b.id, log) }));
+}
+
+export function coverLines(diary: DiaryData) {
+  const { rows } = diary;
   if (!rows.length) return [];
   const seasons = rows.map((r) => r.season);
   const [first, last] = [Math.min(...seasons), Math.max(...seasons)];
-  const named = toMatches(rows);
-  const fans = Object.fromEntries(Object.entries(entries).map(([id, e]) => [id, toFanEntry(e, named[id])]));
-  const rivalries = buildShelf({ matches: named, entries: fans, order, records: records ?? {} }).filter((b) => b.kind === "rivalry").length;
+  const rivalries = buildShelf(sagaLog(diary)).filter((b) => b.kind === "rivalry").length;
   return [
     rows.length === 1 ? "1 match" : `${rows.length} matches`,
     first === last ? `played in ${first}` : `played ${first} to ${last}`,

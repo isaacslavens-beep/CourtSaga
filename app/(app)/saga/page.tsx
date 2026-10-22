@@ -14,7 +14,7 @@ import { ShareSaga } from "./share";
 
 export const metadata: Metadata = { title: "Your saga · CourtSaga" };
 
-const body = "Your matches, read back to you. It builds itself from what you log and rank: your rivalries, your five-setters, the calls you got right, and the meetings you missed.";
+const body = "Your matches, turned into a story. Automatically built from what you log and rank: look through your tennis Saga anytime or share it with friends.";
 
 export default function SagaPage({ searchParams }: PageProps<"/saga">) {
   return (

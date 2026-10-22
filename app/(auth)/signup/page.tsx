@@ -8,14 +8,14 @@ import { AuthPage } from "../heading";
 
 export const metadata: Metadata = { title: "Sign up · CourtSaga" };
 
-/** Which seasons are in, and when the next one comes: "Every tour-level match from 2003 to 2025 …" */
+/** Which seasons are in: "Every tour-level match from 2003 to 2026 …", the latest still being added to */
 async function Seasons() {
   await connection();
   const range = accountsReady() ? await seasonRange() : null;
   if (!range) return null;
   return (
     <p className="-mt-3 text-muted">
-      Every tour-level singles match from {range[0]} to {range[1]} is ready to log. {range[1] + 1} matches will be added once that season ends.
+      Every tour-level singles match from {range[0]} to {range[1]} is ready to log. {range[1]} matches may not be fully up to date.
     </p>
   );
 }
