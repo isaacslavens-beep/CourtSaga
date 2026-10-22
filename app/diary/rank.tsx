@@ -6,8 +6,8 @@ import mastersLogo from "@/public/slams/masters-1000.png";
 import { SlamLogo, TournamentLabel } from "../match-ui";
 import { rivalryTitle } from "./books";
 import { Avatar, BallRating, BallScore, Burst, CourtArt, NextStep } from "./fun";
-import { diaryPages, eventLabel, matchById, matches, rivalryOf, tournamentOf, tournaments, type Match, type Tournament } from "./library";
-import { useLog } from "./log-store";
+import { diaryPages, eventLabel, rivalryOf, roundName, tournamentOf, tournaments, type Match, type Tournament } from "./library";
+import { useLog } from "./store";
 import { glideTo, glideToRow } from "../glide";
 
 // Each tournament's own colours: main, then second. Used for its tile, its podium and its whole panel.
@@ -173,7 +173,7 @@ function PodiumCard({ m, rank, count, isSlam, rating, onRate, onMove, onGrab, li
       <div className="px-2.5 pb-2.5 pt-2 sm:px-4 sm:pb-4 sm:pt-3 lg:px-2 lg:pb-3 lg:pt-2 xl:px-3.5">
         <p className="font-display text-base font-bold leading-tight sm:text-2xl lg:text-xl">{isSlam ? m.date.slice(0, 4) : m.event}</p>
         <p className="text-xs text-muted sm:text-sm">
-          {m.round}
+          {roundName(m)}
           <PageRef page={page} />
         </p>
         <p className="mt-1.5 hidden truncate text-sm sm:block lg:mt-1">
@@ -218,7 +218,7 @@ function ListRow({ m, rank, count, isSlam, rating, onRate, onMove, onGrab, lifte
         {isSlam ? (
           <p className="font-semibold lg:truncate">
             <span className="font-display text-lg">{m.date.slice(0, 4)}</span>
-            <span className="text-muted"> · {m.round}</span>
+            <span className="text-muted"> · {roundName(m)}</span>
             {/* Outside the Slams the event's long name fills this line, so only the Slams show the page */}
             <PageRef page={page} />
           </p>
@@ -253,11 +253,16 @@ function ListRow({ m, rank, count, isSlam, rating, onRate, onMove, onGrab, lifte
 
 type Drag = { id: string; offX: number; offY: number; x0: number; y0: number; live: boolean };
 
-export function RankDemo() {
-  const [tournament, setTournament] = useState<Tournament>("Wimbledon");
+export function RankSection() {
   // Ratings and the fan's own order live in the shared log
-  const { entries, order, update, reorder, spotlight, goTo } = useLog();
-  const pages = diaryPages(entries);
+  const { matches, entries, order, rivalries, update, reorder, spotlight, goTo } = useLog();
+  const pages = diaryPages(entries, matches);
+  const logged = Object.values(matches).filter((m) => entries[m.id]);
+  const countIn = (t: Tournament) => logged.filter((m) => tournamentOf(m) === t).length;
+  // Opens on Wimbledon, or wherever most of the diary is if Wimbledon has nothing yet
+  const [tournament, setTournament] = useState<Tournament>(() =>
+    countIn("Wimbledon") || !logged.length ? "Wimbledon" : [...tournaments].sort((a, b) => countIn(b) - countIn(a))[0],
+  );
 
   // Until the visitor touches a control, the gold card's controls glow
   const [touched, setTouched] = useState(false);
@@ -270,7 +275,7 @@ export function RankDemo() {
   const [seenSpot, setSeenSpot] = useState(0);
   if (spotlight?.target === "rank" && spotlight.n !== seenSpot) {
     setSeenSpot(spotlight.n);
-    setTournament(tournamentOf(matchById[spotlight.id]));
+    if (matches[spotlight.id]) setTournament(tournamentOf(matches[spotlight.id]));
   }
   const spot = spotlight?.target === "rank" ? spotlight : null;
   // What the next step should show: what you changed here, or the match you arrived with
@@ -292,9 +297,9 @@ export function RankDemo() {
   const drag = useRef<Drag | null>(null);
   const ghost = useRef<HTMLDivElement>(null);
 
-  const ranked = order.filter((id) => tournamentOf(matchById[id]) === tournament);
+  const ranked = order.filter((id) => matches[id] && entries[id] && tournamentOf(matches[id]) === tournament);
   const ids = preview ?? ranked;
-  const rows = ids.map((id) => matchById[id]);
+  const rows = ids.map((id) => matches[id]);
   const isSlam = tournament !== "Other events";
   const slots = useSlide(root, `${tournament}:${ids.join()}`);
 
@@ -389,9 +394,9 @@ export function RankDemo() {
 
   const ratings = rows.map((m) => entries[m.id].rating);
   const average = ratings.length ? ratings.reduce((a, b) => a + b, 0) / ratings.length : 0;
-  const nextMatch = matchById[nextId ?? rows[0].id];
-  const nextRivalry = rivalryOf(nextMatch);
-  const held = lifted ? matchById[lifted.id] : null;
+  const nextMatch: Match | undefined = matches[nextId ?? rows[0]?.id ?? ""];
+  const nextRivalry = nextMatch && rivalryOf(nextMatch, rivalries);
+  const held = lifted ? matches[lifted.id] : null;
 
   return (
     <div style={themeVars(tournament)} className="t-theme t-panel scroll-mt-6 overflow-hidden rounded-3xl border-2 border-court/40 shadow-xl shadow-court/10">
@@ -428,7 +433,7 @@ export function RankDemo() {
               <span className="flex min-w-0 flex-col items-center gap-2 lg:items-start lg:gap-0">
                 <span className="text-center leading-tight lg:text-left lg:text-sm">{t}</span>
                 <span className={`text-sm font-medium lg:text-xs ${on ? "text-court-ink/85" : "text-muted"}`}>
-                  {matches.filter((m) => tournamentOf(m) === t).length} matches
+                  {countIn(t) === 1 ? "1 match" : `${countIn(t)} matches`}
                 </span>
               </span>
             </button>
@@ -519,7 +524,7 @@ export function RankDemo() {
               </span>
             </span>
             <span className="min-w-0">
-              <span className="block truncate font-semibold">{isSlam ? `${held.date.slice(0, 4)} · ${held.round}` : eventLabel(held)}</span>
+              <span className="block truncate font-semibold">{isSlam ? `${held.date.slice(0, 4)} · ${roundName(held)}` : eventLabel(held)}</span>
               <span className="block truncate text-sm text-muted">
                 {held.winner} beat {held.loser}
               </span>
@@ -528,25 +533,27 @@ export function RankDemo() {
         </div>
       )}
 
-      <NextStep
-        active={nextId !== null}
-        onClick={() => goTo("story", nextMatch.id)}
-        idle={
-          <>
-            Next: <span className="font-bold">3 · Explore your saga</span>
-          </>
-        }
-        done={
-          <>
-            {editedId ? "✓ Ranking updated. " : "Next: "}
-            <span className="font-bold underline decoration-2 underline-offset-4">
-              {nextRivalry
-                ? `Find it in your ${rivalryTitle(nextRivalry.players)} book`
-                : "Find it in your saga"}
-            </span>
-          </>
-        }
-      />
+      {nextMatch && (
+        <NextStep
+          active={nextId !== null}
+          onClick={() => goTo("story", nextMatch.id)}
+          idle={
+            <>
+              Next: <span className="font-bold">3 · Explore your saga</span>
+            </>
+          }
+          done={
+            <>
+              {editedId ? "✓ Ranking updated. " : "Next: "}
+              <span className="font-bold underline decoration-2 underline-offset-4">
+                {nextRivalry
+                  ? `Find it in your ${rivalryTitle(nextRivalry.players)} book`
+                  : "Find it in your saga"}
+              </span>
+            </>
+          }
+        />
+      )}
     </div>
   );
 }

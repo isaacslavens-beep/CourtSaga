@@ -4,9 +4,9 @@ import Image, { type StaticImageData } from "next/image";
 import type { ReactNode } from "react";
 import alcarazAo2026Final from "@/public/photos/alcaraz-ao-2026-final.jpg";
 import rybakinaUso2026 from "@/public/photos/rybakina-uso-2026.jpg";
-import { Avatar, BallScore, TennisBall } from "./demos/fun";
-import { diaryPages, matchById, monthLabel, parseSets } from "./demos/library";
-import { useLog } from "./demos/log-store";
+import { Avatar, BallScore, TennisBall } from "./diary/fun";
+import { diaryPages, monthLabel, parseSets, roundName } from "./diary/library";
+import { useLog } from "./diary/store";
 import { glideTo } from "./glide";
 import { SlamLogo } from "./match-ui";
 
@@ -63,10 +63,10 @@ function Rally() {
 
 /** One example: the photo, and the match as it sits in the fan's log. The whole card opens it. */
 function ExampleCard({ ex, onOpen, className = "", children }: { ex: Example; onOpen: () => void; className?: string; children?: ReactNode }) {
-  const { entries } = useLog();
-  const m = matchById[ex.id];
+  const { matches, entries } = useLog();
+  const m = matches[ex.id];
   const fan = entries[ex.id];
-  const page = diaryPages(entries).get(ex.id);
+  const page = diaryPages(entries, matches).get(ex.id);
   const sets = parseSets(m.score);
   const pick = fan.pick;
   const call = !pick
@@ -105,7 +105,7 @@ function ExampleCard({ ex, onOpen, className = "", children }: { ex: Example; on
           <SlamLogo event={m.event} size="h-9 w-9" />
           <span className="min-w-0 leading-tight">
             <span className="block text-sm font-semibold">{m.event}</span>
-            <span className="block truncate text-xs text-muted">{m.round}</span>
+            <span className="block truncate text-xs text-muted">{roundName(m)}</span>
           </span>
         </span>
         {/* The score, from a little wider than a phone */}

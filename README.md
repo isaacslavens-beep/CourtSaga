@@ -1,36 +1,79 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# CourtSaga
 
-## Getting Started
+A free, simple diary for the tennis you watch: log any tour-level singles match since 2003, rank your
+favourites, and read your saga back. Live at [courtsaga.com](https://www.courtsaga.com).
 
-First, run the development server:
+## How it's built
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+- **Next.js 16** (App Router with Cache Components) and Tailwind 4, deployed by Vercel from `main`.
+- **Postgres on Neon**, through the Vercel Marketplace, with **Drizzle ORM**. Migrations are in `drizzle/`.
+- **Better Auth**: email and password only. No email check at sign-up, no social logins, magic links or 2FA.
+  Forgotten passwords are reset by an email sent through **Resend** from courtsaga.com.
+- **Match data**: TML-Database (Jeff Sackmann's format), loaded by `scripts/import-matches.ts`.
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Where things are
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+| Path | What it is |
+| --- | --- |
+| `app/page.tsx`, `app/hero*.tsx` | The landing page. Its demos run on a sample log and save nothing. |
+| `app/demos/` | The sample log and its hand-checked rivalry records, for the demos only. |
+| `app/diary/` | The log, ranking and saga, used by both the demos and real diaries. `library.ts` holds the shared types and rules, `books.ts` the saga's rules, `store.tsx` the state and saving, and `finder.tsx` match search. |
+| `app/(app)/` | Signed-in pages (`/log`, `/rank`, `/saga`, `/account`) and the server actions that keep a diary. |
+| `app/(auth)/` | Sign up, log in, forgotten and reset password. |
+| `app/s/[slug]/` | A shared saga: read-only, kept out of search engines. |
+| `app/api/` | Better Auth's endpoints, and `GET /api/search`. |
+| `lib/` | Accounts (`auth.ts`), diary and search queries (`diary.ts`), email (`email.ts`). |
+| `db/`, `drizzle/` | The schema and database client, and the migrations generated from them. |
+| `scripts/` | `migrate.ts` and `import-matches.ts`. |
+| `proxy.ts` | Sends signed-in fans from `/` to their log, and everyone else from diary pages to log in. |
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Running it locally
 
-## Learn More
+1. `npm install`
+2. Get a Postgres database with the `unaccent` and `pg_trgm` extensions. A Neon branch works, and so does
+   local Postgres 15 or later.
+3. Copy `.env.example` to `.env.local` and set `DATABASE_URL` and `BETTER_AUTH_SECRET`
+   (`openssl rand -base64 32`).
+4. `npm run db:migrate` creates the tables.
+5. `npm run import:matches -- ~/Desktop/courtsaga/tml-data` loads the matches, in about ten seconds.
+6. `npm run dev`, then open http://localhost:3000.
 
-To learn more about Next.js, take a look at the following resources:
+Without `RESEND_API_KEY`, password reset links are printed in the terminal instead of emailed.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## The match data
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+The import reads `YYYY.csv` (ATP) and `YYYY_wta.csv` (WTA) from a folder, every row of every year it
+finds. The CSVs are never committed.
 
-## Deploy on Vercel
+- **Run it again any time.** Players and matches are upserted, so a re-run changes nothing unless the
+  files did. Nothing is ever deleted; matches a run no longer finds are reported and kept.
+- **2026 and later.** Put `2026.csv` and `2026_wta.csv` in the folder and run the import again. No code
+  changes.
+- **Match ids** are `tour_tourneyId_round_winnerId_loserId` (for example `atp_2025-540_F_S0AG_A0E2`). They
+  never change between imports, because diary entries point at them.
+- **Fixes it makes:** two rows give Harshana Godamanna the id G793 (Juan-Andres Gomez's) and one gives
+  Marc-Andrea Huesler MH30 (John Millman's). Those rows move to 104631 and HH06; Gomez and Millman keep
+  their own. Names are trimmed and use their most recent spelling. A match listed twice is merged. A few
+  ordinary events filed under the wrong level are put back in their tier.
+- **What it keeps:** walkovers, defaults with no games played (2014 WTA rows record walkovers that way) and
+  empty scores are imported but never shown in search, because they never happened. Retirements, defaults
+  and abandoned matches are searchable and show how they ended.
+- **Dates:** `tourney_date` is a tournament's first day, so a match's month is estimated from how far into
+  the event its round falls. The season always comes from the file name.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+The data is TML-Database (non-commercial use) built on Jeff Sackmann's tennis data (CC BY-NC-SA 4.0).
+CourtSaga credits both in its footers. Keep the site non-commercial (no ads, no paid tier) unless you get
+permission, and don't publish the raw data.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Deploying
+
+A push to `main` deploys to production. Vercel runs `npm run vercel-build`, which applies any new
+migrations before `next build`. That only happens on production builds; previews skip it, so a branch's
+migrations never reach the production database before it's merged. Every setting is in `.env.example`.
+
+| Script | What it does |
+| --- | --- |
+| `npm run dev` / `build` / `start` / `lint` | The usual Next.js commands. `build` needs no database. |
+| `npm run db:generate` | Writes a new migration to `drizzle/` after a change to `db/schema.ts`. |
+| `npm run db:migrate` | Applies migrations to `DATABASE_URL_UNPOOLED` (or `DATABASE_URL`). |
+| `npm run import:matches -- <folder>` | Loads or refreshes the match data. |

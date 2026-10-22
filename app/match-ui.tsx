@@ -1,6 +1,7 @@
 // Small visual pieces shared by the step demos.
 
 import Image, { type StaticImageData } from "next/image";
+import type { Surface as CourtSurface } from "./diary/library";
 import aoLogo from "@/public/slams/australian-open.png";
 import rgLogo from "@/public/slams/roland-garros.png";
 import usoLogo from "@/public/slams/us-open.png";
@@ -15,8 +16,10 @@ const slamLogos: [string, StaticImageData][] = [
   ["Olympics", olympicsLogo],
 ];
 
-// Masters 1000s (and Beijing) show their host country's flag instead of a logo
+// Masters 1000s (and Beijing, and the WTA's other 1000s) show their host country's flag instead of a logo
 const mastersFlags: [string, string][] = [
+  ["Doha", "🇶🇦"],
+  ["Dubai", "🇦🇪"],
   ["Indian Wells", "🇺🇸"],
   ["Miami", "🇺🇸"],
   ["Monte Carlo", "🇲🇨"],
@@ -24,8 +27,11 @@ const mastersFlags: [string, string][] = [
   ["Madrid", "🇪🇸"],
   ["Rome", "🇮🇹"],
   ["Canada", "🇨🇦"],
+  ["Toronto", "🇨🇦"],
+  ["Montreal", "🇨🇦"],
   ["Cincinnati", "🇺🇸"],
   ["Shanghai", "🇨🇳"],
+  ["Wuhan", "🇨🇳"],
   ["Paris Masters", "🇫🇷"],
   // Not a Masters, but flagged the same way
   ["Beijing", "🇨🇳"],
@@ -50,7 +56,7 @@ export function SlamLogo({ event, size = "h-7 w-7" }: { event: string; size?: st
   );
 }
 
-type Surface = "clay" | "hard" | "grass" | "olympics";
+type Surface = CourtSurface | "olympics";
 
 // Tournament name prefixes by surface: the Slams, the Masters 1000s, the ATP Finals and Beijing.
 const surfaceByEvent: [string, Surface][] = [
@@ -77,6 +83,8 @@ const surfaceStyles: Record<Surface, { text: string; dot: string }> = {
   clay: { text: "text-clay", dot: "bg-clay" },
   hard: { text: "text-hard", dot: "bg-hard" },
   grass: { text: "text-lawn", dot: "bg-lawn" },
+  carpet: { text: "text-carpet", dot: "bg-carpet" },
+  unknown: { text: "", dot: "bg-muted" },
   // The five ring colours, as a swirl rather than the rings themselves
   olympics: {
     text: "",
@@ -87,16 +95,18 @@ const surfaceStyles: Record<Surface, { text: string; dot: string }> = {
 /** An event name tagged with the colour of the surface it's played on. */
 export function TournamentLabel({
   event,
+  surface: played,
   onPhoto = false,
   wrap = false,
   className = "",
 }: {
   event: string;
+  surface?: CourtSurface; // the match's own surface, for events not in the list above
   onPhoto?: boolean;
   wrap?: boolean; // wrap long names instead of truncating
   className?: string;
 }) {
-  const surface = surfaceByEvent.find(([prefix]) => event.startsWith(prefix))?.[1];
+  const surface = surfaceByEvent.find(([prefix]) => event.startsWith(prefix))?.[1] ?? played;
   const style = surface ? surfaceStyles[surface] : { text: "", dot: "bg-muted" };
 
   return (

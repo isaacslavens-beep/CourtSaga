@@ -2,10 +2,32 @@
 // fixed rules over the data, so the same log always binds the same book. No generated prose:
 // the only free text in a book is the fan's own notes. Lines are kept short on purpose.
 
-import { findRivalries, isRewatch, matchById, matches, monthLabel, parseSets, rivalries, setCount, tournamentOf, type FanEntry, type Match, type Surface } from "./library";
-import { rivalryRecords, type RecordMeeting } from "./rivalry-records";
+import {
+  eventLabel,
+  findRivalries,
+  finished,
+  isRewatch,
+  monthLabel,
+  parseSets,
+  roundName,
+  scoreText,
+  setCount,
+  tournamentOf,
+  type FanEntry,
+  type Match,
+  type RecordMeeting,
+  type Surface,
+} from "./library";
 
 /* ---------- The shape every book shares ---------- */
+
+/** Everything a book is bound from: the log, the fan's ranking, and each rivalry's full record of meetings */
+export type Diary = {
+  matches: Record<string, Match>;
+  entries: Record<string, FanEntry>;
+  order: string[];
+  records: Record<string, RecordMeeting[]>;
+};
 
 export type Entry =
   | { kind: "logged"; id: string; m: Match; fan: FanEntry; marks: string[]; detail: string | null }
@@ -81,11 +103,11 @@ const nicknameOf = (players: string[]) => nicknames[[...players].sort().join("-"
 export const rivalryTitle = (players: string[]) => nicknameOf(players) ?? players.join(" & ");
 
 /** The shelf, decided by rule from the log: rivalries first, then every collection with enough in it. */
-export function buildShelf(entries: Record<string, FanEntry>): ShelfBook[] {
-  const all: Item[] = loggedItems(entries);
+export function buildShelf(diary: Diary): ShelfBook[] {
+  const all: Item[] = loggedItems(diary);
   if (all.length < SAGA_MIN_MATCHES) return [];
   return [
-    ...findRivalries(entries).map((r) => ({
+    ...findRivalries(diary.entries, diary.matches).map((r) => ({
       id: r.id,
       kind: "rivalry" as const,
       title: rivalryTitle(r.players),
@@ -99,13 +121,13 @@ export function buildShelf(entries: Record<string, FanEntry>): ShelfBook[] {
 }
 
 /** Every meeting in a rivalry: the full record when the results data has it, otherwise the ones you logged. */
-function recordFor(id: string, [A, B]: [string, string]): RecordMeeting[] {
+function recordFor(id: string, [A, B]: [string, string], { matches, entries, records }: Diary): RecordMeeting[] {
   return (
-    rivalryRecords[id] ??
-    matches
-      .filter((m) => (m.winner === A && m.loser === B) || (m.winner === B && m.loser === A))
+    records[id] ??
+    Object.values(matches)
+      .filter((m) => entries[m.id] && ((m.winner === A && m.loser === B) || (m.winner === B && m.loser === A)))
       .sort((a, b) => a.date.localeCompare(b.date))
-      .map((m) => ({ date: m.date, event: m.event.replace(/ \d{4}$/, ""), round: m.round, surface: m.surface, winner: m.winner, logId: m.id }))
+      .map((m) => ({ date: m.date, event: m.event.replace(/ \d{4}$/, ""), round: m.round, stage: m.stage, tour: m.tour, surface: m.surface, winner: m.winner, logId: m.id }))
   );
 }
 
@@ -133,8 +155,10 @@ const ordinal = (n: number) => `${n}${n % 100 >= 11 && n % 100 <= 13 ? "th" : ["
 /* ---------- Helpers ---------- */
 
 /** Only the matches you've actually logged */
-const loggedItems = (entries: Record<string, FanEntry>): Item[] =>
-  matches.filter((m) => entries[m.id]).map((m) => ({ m, fan: entries[m.id] }));
+const loggedItems = ({ matches, entries }: Diary): Item[] =>
+  Object.values(matches)
+    .filter((m) => entries[m.id])
+    .map((m) => ({ m, fan: entries[m.id] }));
 
 type Item = { m: Match; fan: FanEntry };
 const s = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
@@ -142,16 +166,18 @@ const avg = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.le
 const shortEvent = (m: Match) => m.event.replace(/ \d{4}$/, "");
 const byWatched = (a: Item, b: Item) => a.fan.watchedDate.localeCompare(b.fan.watchedDate) || a.m.date.localeCompare(b.m.date);
 const called = (x: Item) => !!x.fan.pick && x.fan.pick.winner === x.m.winner;
-const exact = (x: Item) => called(x) && x.fan.pick!.sets === setCount(x.m.score);
-const isFive = (m: Match) => m.bestOf === 5 && setCount(m.score) === 5;
-const isFinal = (round: string) => round === "Final" || round === "Women's final";
+// A call can only be exactly right about a match played to the end
+const exact = (x: Item) => called(x) && finished(x.m.score) && x.fan.pick!.sets === setCount(x.m.score);
+// Only matches played to the end count as five-setters and comebacks: a retirement is neither
+const isFive = (m: Match) => m.bestOf === 5 && setCount(m.score) === 5 && finished(m.score);
+const isFinal = (round: string) => round === "F";
 const lostFirst = (m: Match) => {
   const [s0] = parseSets(m.score);
-  return s0.w < s0.l;
+  return finished(m.score) && !!s0 && s0.w < s0.l;
 };
 const twoDown = (m: Match) => {
-  const [s0, s1] = parseSets(m.score);
-  return s0.w < s0.l && !!s1 && s1.w < s1.l;
+  const [, s1] = parseSets(m.score);
+  return lostFirst(m) && !!s1 && s1.w < s1.l;
 };
 const lastSet = (m: Match) => m.score.split(" ").pop()!;
 const fifthTiebreak = (m: Match) => lastSet(m).includes("(");
@@ -195,10 +221,10 @@ function loggedEntry(x: Item, detail: string | null = null, marks: string[] = []
  * Milestones across the whole log, in diary order (see `diaryPages`): where it begins, the 10th, 25th, 50th
  * and every 100th match, your first 5-ball rating and your first match in person.
  */
-function milestones(entries: Record<string, FanEntry>) {
+function milestones(diary: Diary) {
   const marks = new Map<string, string[]>();
   const add = (id: string, line: Line) => marks.set(id, [...(marks.get(id) ?? []), line.text]);
-  const log = loggedItems(entries).sort(byWatched);
+  const log = loggedItems(diary).sort(byWatched);
   log.forEach((x, i) => {
     const n = i + 1;
     if (n === 1) add(x.m.id, say(x.m.id, "The first page", "Where your diary begins"));
@@ -214,7 +240,7 @@ function milestones(entries: Record<string, FanEntry>) {
 function favouriteOf(items: Item[], order: string[]) {
   const id = order.find((oid) => items.some((x) => x.m.id === oid));
   const fav = items.find((x) => x.m.id === id);
-  return fav ? { label: `${fav.m.event} · ${fav.m.round}`, note: fav.fan.note } : null;
+  return fav ? { label: eventLabel(fav.m), note: fav.fan.note } : null;
 }
 
 /**
@@ -240,7 +266,7 @@ function rowsOf(items: Item[], rowOf: (x: Item) => string, colorBy: (x: Item) =>
         value: x.fan.rating,
         side: 1 as const,
         watched: true,
-        title: `${x.m.event} · ${x.m.round}: ${x.m.winner} won · you rated it ${x.fan.rating}`,
+        title: `${eventLabel(x.m)}: ${x.m.winner} won · you rated it ${x.fan.rating}`,
         logId: x.m.id,
       })),
   );
@@ -274,10 +300,11 @@ function mostBacked(items: Item[]) {
 
 // A run of this many straight wins is worth a line when it ends
 const STREAK_MIN = 4;
-const surfaceNames: Record<Surface, string> = { clay: "clay", grass: "grass", hard: "hard courts" };
+const surfaceNames: Record<Surface, string> = { clay: "clay", grass: "grass", hard: "hard courts", carpet: "carpet", unknown: "" };
 
-function bindRivalry(id: string, entries: Record<string, FanEntry>, order: string[]): BookData {
-  const [A, B] = (findRivalries(entries).find((r) => r.id === id)?.players ?? id.split("-")) as [string, string];
+function bindRivalry(id: string, diary: Diary): BookData {
+  const { entries, order } = diary;
+  const [A, B] = (findRivalries(entries, diary.matches).find((r) => r.id === id)?.players ?? id.split("-")) as [string, string];
   type Streak = { by: string; of: string; n: number };
   type Beat = { meet: RecordMeeting; m?: Match; fan?: FanEntry; marks: string[]; ended: Streak | null; i: number; a: number; b: number };
   const lead = (a: number, b: number) => (a === b ? null : a > b ? A : B);
@@ -288,7 +315,7 @@ function bindRivalry(id: string, entries: Record<string, FanEntry>, order: strin
   let a = 0;
   let b = 0;
   let run = { who: "", n: 0 };
-  const beats: Beat[] = recordFor(id, [A, B]).map((meet, i) => {
+  const beats: Beat[] = recordFor(id, [A, B], diary).map((meet, i) => {
     const before = lead(a, b);
     if (meet.winner === A) a++;
     else b++;
@@ -301,7 +328,7 @@ function bindRivalry(id: string, entries: Record<string, FanEntry>, order: strin
     if (ended) marks.push(say(seed, `Ended ${ended.of}'s run at ${ended.n}`, `Stopped ${ended.of} at ${ended.n} straight`).text);
     run = run.who === meet.winner ? { who: run.who, n: run.n + 1 } : { who: meet.winner, n: 1 };
     if ((i + 1) % 10 === 0) marks.push(say(seed, `Their ${ordinal(i + 1)} meeting`, `Meeting no. ${i + 1}`).text);
-    return { meet, m: meet.logId ? matchById[meet.logId] : undefined, fan: meet.logId ? entries[meet.logId] : undefined, marks, ended, i, a, b };
+    return { meet, m: meet.logId ? diary.matches[meet.logId] : undefined, fan: meet.logId ? entries[meet.logId] : undefined, marks, ended, i, a, b };
   });
   const yours = beats.filter((x): x is Beat & Item => !!x.fan && !!x.m);
 
@@ -352,7 +379,7 @@ function bindRivalry(id: string, entries: Record<string, FanEntry>, order: strin
     const notes = [...new Set(cb.map((x) => x.meet.surface))].flatMap((surface) => {
       const onIt = beats.slice(0, last.i + 1).filter((x) => x.meet.surface === surface);
       const owner = onIt[0].meet.winner;
-      if (onIt.length < 2 || onIt.some((x) => x.meet.winner !== owner)) return [];
+      if (surface === "unknown" || onIt.length < 2 || onIt.some((x) => x.meet.winner !== owner)) return [];
       const where = surfaceNames[surface];
       const ways = [`${owner} unbeaten on ${where}: ${onIt.length}–0`, `${onIt.length}–0 to ${owner} on ${where}`];
       if (surface !== "hard") ways.push(`${cap(where)} belongs to ${owner}: ${onIt.length}–0`);
@@ -390,7 +417,7 @@ function bindRivalry(id: string, entries: Record<string, FanEntry>, order: strin
       entries: cb.map((x): Entry =>
         x.fan && x.m
           ? loggedEntry({ m: x.m, fan: x.fan }, null, x.marks)
-          : { kind: "other", key: String(x.i), head: `${x.meet.event} · ${x.meet.round}`, line: `${x.meet.winner} won`, marks: x.marks, meet: x.meet, loser: x.meet.winner === A ? B : A },
+          : { kind: "other", key: String(x.i), head: `${x.meet.event} · ${roundName(x.meet)}`, line: `${x.meet.winner} won`, marks: x.marks, meet: x.meet, loser: x.meet.winner === A ? B : A },
       ),
       compact: false,
       footer: { label: `End of ${year}:`, value: standing(last.a, last.b), share: last.a / (last.a + last.b), score: [last.a, last.b] },
@@ -594,7 +621,8 @@ function bindFinals(all: Item[], order: string[]): BookData {
       entries: ts.map((x) => {
         const sets = setCount(x.m.score);
         const straight = parseSets(x.m.score).every((set) => set.w > set.l);
-        return loggedEntry(x, `${straight ? "Straight sets" : `${cap(word(sets))} sets`}, ${x.m.score}`);
+        const how = !finished(x.m.score) ? "Unfinished" : straight ? "Straight sets" : `${cap(word(sets))} sets`;
+        return loggedEntry(x, `${how}, ${scoreText(x.m.score)}`);
       }),
       compact: n > 4,
       footer: { label: "Finals so far:", value: String(cumulative), share: cumulative / items.length },
@@ -800,7 +828,8 @@ function bindCalls(all: Item[], order: string[]): BookData {
       epigraph: epigraphOf(ys),
       entries: ys.map((x) => {
         const p = x.fan.pick!;
-        return loggedEntry(x, `You picked ${p.winner} in ${p.sets}${exact(x) ? ": exactly right" : called(x) ? `: it went ${setCount(x.m.score)}` : ""}`);
+        const went = finished(x.m.score) ? `: it went ${setCount(x.m.score)}` : ": it ended early";
+        return loggedEntry(x, `You picked ${p.winner} in ${p.sets}${exact(x) ? ": exactly right" : called(x) ? went : ""}`);
       }),
       compact: false,
       footer: { label: "Your calls so far:", value: `${right} of ${made} right`, share: right / made },
@@ -854,10 +883,11 @@ function bindCalls(all: Item[], order: string[]): BookData {
 }
 
 /** Bind any book on the shelf from the current log. */
-export function buildBook(id: string, entries: Record<string, FanEntry>, order: string[]): BookData {
-  const all: Item[] = loggedItems(entries);
+export function buildBook(id: string, diary: Diary): BookData {
+  const all: Item[] = loggedItems(diary);
+  const { order } = diary;
   const book = id.includes("-")
-    ? bindRivalry(id, entries, order)
+    ? bindRivalry(id, diary)
     : id === "finals"
       ? bindFinals(all, order)
       : id === "five"
@@ -868,46 +898,46 @@ export function buildBook(id: string, entries: Record<string, FanEntry>, order: 
             ? bindCalls(all, order)
             : bindSeasons(all, order);
   // Milestones in your log show on their match wherever it turns up
-  const marks = milestones(entries);
+  const marks = milestones(diary);
   for (const chapter of book.chapters)
     for (const e of chapter.entries) if (e.kind === "logged" && marks.has(e.id)) e.marks.push(...marks.get(e.id)!);
   return book;
 }
 
 /** Which book a logged match should open in: its rivalry if it has one, otherwise your seasons. */
-export function bookFor(id: string) {
-  const m = matchById[id];
+export function bookFor(id: string, diary: Diary) {
+  const m = diary.matches[id];
   const inPair = (p: string) => m.winner === p || m.loser === p;
-  return rivalries.find((r) => inPair(r.players[0]) && inPair(r.players[1]))?.id ?? "seasons";
+  return findRivalries(diary.entries, diary.matches).find((r) => inPair(r.players[0]) && inPair(r.players[1]))?.id ?? "seasons";
 }
 
-export type MissedMeeting = { key: string; event: string; year: string; round: string };
+export type MissedMeeting = { key: string; event: string; year: string; round: string; matchId?: string };
 
 /**
  * A rivalry's meetings that aren't in your log, as a list to catch up on: finals first, then
  * semifinals and quarterfinals, newest first within each. Winners are left out, so the list
  * doesn't give the result away.
  */
-export function missedMeetings(id: string, entries: Record<string, FanEntry>) {
-  const players = (findRivalries(entries).find((r) => r.id === id)?.players ?? id.split("-")) as [string, string];
-  const record = recordFor(id, players);
+export function missedMeetings(id: string, diary: Diary) {
+  const players = (findRivalries(diary.entries, diary.matches).find((r) => r.id === id)?.players ?? id.split("-")) as [string, string];
+  const record = recordFor(id, players, diary);
   const stage = (round: string) => {
-    const i = ["Final", "Semifinal", "Quarterfinal"].indexOf(round);
+    const i = ["F", "SF", "QF"].indexOf(round);
     return i < 0 ? 3 : i;
   };
   const missed = record
     .map((meet, i) => ({ meet, i }))
-    .filter(({ meet }) => !meet.logId || !entries[meet.logId])
+    .filter(({ meet }) => !meet.logId || !diary.entries[meet.logId])
     .sort((a, b) => stage(a.meet.round) - stage(b.meet.round) || b.meet.date.localeCompare(a.meet.date))
-    .map(({ meet, i }): MissedMeeting => ({ key: String(i), event: meet.event, year: meet.date.slice(0, 4), round: meet.round }));
+    .map(({ meet, i }): MissedMeeting => ({ key: String(i), event: meet.event, year: meet.date.slice(0, 4), round: roundName(meet), matchId: meet.matchId }));
   return { players, total: record.length, missed };
 }
 
 /** How many matches a book holds, for its cover. */
-export function shelfCount(id: string, entries: Record<string, FanEntry>) {
-  const rivalry = findRivalries(entries).find((r) => r.id === id);
-  if (rivalry) return recordFor(id, rivalry.players).length;
-  const all: Item[] = loggedItems(entries);
+export function shelfCount(id: string, diary: Diary) {
+  const rivalry = findRivalries(diary.entries, diary.matches).find((r) => r.id === id);
+  if (rivalry) return recordFor(id, rivalry.players, diary).length;
+  const all: Item[] = loggedItems(diary);
   if (id === "finals") return all.filter((x) => isFinal(x.m.round)).length;
   if (id === "five") return all.filter((x) => isFive(x.m)).length;
   if (id === "comebacks") return all.filter((x) => lostFirst(x.m)).length;

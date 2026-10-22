@@ -1,16 +1,20 @@
 import Image from "next/image";
+import { DataCredit } from "./credits";
 import { Hero } from "./hero";
 import { SmoothAnchors } from "./smooth-anchors";
-import { LogDemo } from "./demos/log-demo";
-import { LogProvider } from "./demos/log-store";
-import { RankDemo } from "./demos/rank-demo";
-import { StoryDemo } from "./demos/story-demo";
+import { rivalryRecords } from "./demos/rivalry-records";
+import { sampleEntries, sampleMatches, sampleOrder } from "./demos/sample";
+import { LogSection } from "./diary/log";
+import { RankSection } from "./diary/rank";
+import { SagaSection } from "./diary/saga";
+import { LogProvider } from "./diary/store";
+import { StepHeading } from "./step-heading";
 import djokovicCentreCourt from "@/public/photos/djokovic-wimbledon-centre-court.jpg";
 
 const steps = [
   {
     id: "log",
-    demo: <LogDemo />,
+    demo: <LogSection />,
     verb: "Write",
     title: "Log a match",
     body: "Every match you log is a page in your diary. Rate it, say who you were backing, and add a few words if you like.",
@@ -18,7 +22,7 @@ const steps = [
   },
   {
     id: "rank",
-    demo: <RankDemo />,
+    demo: <RankSection />,
     verb: "Sort",
     title: "Rank your favourites",
     body: "Your best matches at each tournament, in your own order.",
@@ -26,7 +30,7 @@ const steps = [
   },
   {
     id: "story",
-    demo: <StoryDemo />,
+    demo: <SagaSection />,
     verb: "Read back",
     title: "Explore your saga",
     body: "Your diary, read back to you. It builds itself from the matches you log: your rivalries, your five-setters, the calls you got right, and the meetings you missed.",
@@ -50,18 +54,12 @@ const photoCredits = [
   ["Djokovic on Centre Court", "Reuters"],
 ];
 
-const DownArrow = ({ className }: { className: string }) => (
-  <svg viewBox="0 0 16 16" aria-hidden className={`fill-none stroke-current ${className}`} strokeLinecap="round" strokeLinejoin="round">
-    <path d="M8 3v10M4 9l4 4 4-4" />
-  </svg>
-);
-
 export default function Home() {
   return (
     <div className="flex flex-1 flex-col">
       <SmoothAnchors />
       {/* One sample log behind the hero's card and all three steps */}
-      <LogProvider>
+      <LogProvider mode="demo" matches={sampleMatches} entries={sampleEntries} order={sampleOrder} records={rivalryRecords} focusId="wim25">
         <Hero />
 
         <main className="flex-1">
@@ -74,23 +72,8 @@ export default function Home() {
               className={"stage" in s ? "stage py-24" : `border-t border-line py-20 ${i % 2 ? "bg-surface/60" : ""}`}
             >
               <div className="mx-auto w-full max-w-6xl px-4 sm:px-8">
-                <div className="max-w-2xl">
-                  {/* The diary's three parts: write it, sort it, read it back */}
-                  <p className="flex items-center gap-3">
-                    <span className="flex h-10 w-10 items-center justify-center rounded-full bg-ball font-bold text-[#0b0d12] ring-1 ring-black/10">{i + 1}</span>
-                    <span className="text-sm font-semibold uppercase tracking-[0.16em] text-muted">{s.verb}</span>
-                  </p>
-                  <h2 id={`${s.id}-title`} className="mt-5 font-display text-4xl font-bold tracking-tight sm:text-5xl">
-                    {s.title}
-                  </h2>
-                  <p className="mt-4 text-xl font-medium leading-relaxed text-muted">{s.body}</p>
-                  <p className="mt-4 inline-flex items-center gap-2.5 text-lg font-semibold text-court">
-                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-ball text-[#0b0d12] ring-1 ring-black/10">
-                      <DownArrow className="h-4 w-4 stroke-2 motion-safe:animate-bounce" />
-                    </span>
-                    {s.hint}
-                  </p>
-                </div>
+                {/* The diary's three parts: write it, sort it, read it back */}
+                <StepHeading n={i + 1} verb={s.verb} title={s.title} body={s.body} hint={s.hint} id={`${s.id}-title`} />
                 <div className="mt-10">{s.demo}</div>
               </div>
             </section>
@@ -114,16 +97,21 @@ export default function Home() {
           </section>
         </main>
 
-        {/* Photo credits, quietly at the very end */}
+        {/* Credits for the photos and the match data, quietly at the very end */}
         <footer className="border-t border-line">
-          <p className="mx-auto max-w-6xl px-4 py-6 text-xs leading-relaxed text-muted sm:px-8">
-            <span className="font-semibold">Photos:</span>{" "}
-            {photoCredits.map(([photo, source], i) => (
-              <span key={photo}>
-                {photo} ({source}){i < photoCredits.length - 1 && " · "}
-              </span>
-            ))}
-          </p>
+          <div className="mx-auto max-w-6xl space-y-2 px-4 py-6 text-xs leading-relaxed text-muted sm:px-8">
+            <p>
+              <span className="font-semibold">Photos:</span>{" "}
+              {photoCredits.map(([photo, source], i) => (
+                <span key={photo}>
+                  {photo} ({source}){i < photoCredits.length - 1 && " · "}
+                </span>
+              ))}
+            </p>
+            <p>
+              <DataCredit />
+            </p>
+          </div>
         </footer>
       </LogProvider>
     </div>

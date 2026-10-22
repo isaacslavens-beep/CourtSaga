@@ -74,6 +74,20 @@ export function Hero() {
               </a>
               <p className="max-w-[16rem] text-sm text-white/80">A working demo with a sample fan&apos;s log. Nothing you change is saved.</p>
             </div>
+            <p className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-2">
+              <Link
+                href="/signup"
+                className="inline-flex items-center rounded-full bg-white px-5 py-2.5 font-bold text-[#0b0d12] shadow-lg shadow-black/20 transition hover:-translate-y-0.5 hover:shadow-xl"
+              >
+                Sign up
+              </Link>
+              <span className="text-white/85">
+                Have a diary already?{" "}
+                <Link href="/login" className="font-semibold text-white underline decoration-white/50 underline-offset-4 hover:decoration-white">
+                  Log in
+                </Link>
+              </span>
+            </p>
           </div>
 
           {/* The service boxes: the service line along one edge, the centre service line through the middle */}

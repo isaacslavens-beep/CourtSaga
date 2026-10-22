@@ -201,7 +201,7 @@ export function Burst({ trigger }: { trigger: number }) {
 
 /* ---------- Courts, for matches without a photo ---------- */
 
-const courtFill: Record<Surface, string> = { clay: "bg-clay", hard: "bg-hard", grass: "bg-lawn" };
+const courtFill: Record<Surface, string> = { clay: "bg-clay", hard: "bg-hard", grass: "bg-lawn", carpet: "bg-carpet", unknown: "bg-muted" };
 
 export function CourtArt({ surface, className = "" }: { surface: Surface; className?: string }) {
   return (

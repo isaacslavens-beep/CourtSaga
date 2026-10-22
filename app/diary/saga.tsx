@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import {
   SAGA_MIN_MATCHES,
   bookFor,
@@ -11,15 +11,16 @@ import {
   shelfCount,
   type BookChapter,
   type BookData,
+  type Diary,
   type Entry,
   type ShelfBook,
   type StripItem,
 } from "./books";
 import { Avatar, BallScore, CollectionIcon, CourtArt, IconArrowUp, PageArrow, chartStyles } from "./fun";
 import mastersLogo from "@/public/slams/masters-1000.png";
-import { diaryPages, eventLabel, matchById, monthLabel, parseSets } from "./library";
+import { diaryPages, endingOf, eventLabel, finished, monthLabel, parseScore, roundName, setWinner } from "./library";
 import { HighlightsLink, SlamLogo } from "../match-ui";
-import { useLog } from "./log-store";
+import { useLog } from "./store";
 import { glideTo } from "../glide";
 import { Segments, ShapeChart, beat, coverPhotos, roman, tintVars, tintsOf } from "./saga-ui";
 
@@ -198,9 +199,11 @@ function ShapePage({
   );
 }
 
-/** Back up to a match's page in your diary, to read or change it. */
-function PageButton({ page, onClick, compact = false }: { page: number | undefined; onClick: () => void; compact?: boolean }) {
+/** Back up to a match's page in your diary, to read or change it. In a shared saga, just where it is. */
+function PageButton({ page, onClick, compact = false }: { page: number | undefined; onClick?: () => void; compact?: boolean }) {
   const label = `Open page ${page} of your diary in the log`;
+  if (!onClick)
+    return <span className={`shrink-0 whitespace-nowrap font-semibold text-muted ${compact ? "px-1.5 text-xs" : "px-2 text-sm"}`}>{compact ? `p. ${page}` : `Page ${page}`}</span>;
   return (
     <button
       type="button"
@@ -235,7 +238,7 @@ function EntryRow({
   compact: boolean;
   isEpigraph: boolean;
   spot: { id: string; n: number } | null;
-  onEdit: (id: string) => void;
+  onEdit?: (id: string) => void;
   i: number;
 }) {
   // A meeting you didn't log: one quiet line, so the whole story is there
@@ -255,7 +258,7 @@ function EntryRow({
 
   const { m, fan } = entry;
   const flash = spot?.id === m.id ? "spot-flash" : "";
-  const title = `${m.event} · ${m.round}`;
+  const title = eventLabel(m);
 
   if (compact) {
     return (
@@ -272,7 +275,7 @@ function EntryRow({
           </p>
         </div>
         <BallScore value={fan.rating} size="sm" />
-        <PageButton page={pages.get(m.id)} onClick={() => onEdit(m.id)} compact />
+        <PageButton page={pages.get(m.id)} onClick={onEdit && (() => onEdit(m.id))} compact />
       </li>
     );
   }
@@ -305,7 +308,7 @@ function EntryRow({
             </span>
           )}
           <span className="ml-auto">
-            <PageButton page={pages.get(m.id)} onClick={() => onEdit(m.id)} />
+            <PageButton page={pages.get(m.id)} onClick={onEdit && (() => onEdit(m.id))} />
           </span>
         </div>
         {entry.detail && <p className="mt-1 text-sm text-muted">{entry.detail}</p>}
@@ -320,11 +323,8 @@ type Pages = ReturnType<typeof diaryPages>;
 
 /** Games per set for both players, the set's winner in bold, a tiebreak's points on the set's loser. */
 function MiniScore({ winner, loser, score, tones }: { winner: string; loser: string; score: string; tones: Tones }) {
-  const sets = score.split(" ").map((set, k) => {
-    const { w, l } = parseSets(score)[k];
-    const tb = set.match(/\((\d+)(?:-(\d+))?\)/);
-    return { w, l, tb: tb ? (tb[2] ?? tb[1]) : null };
-  });
+  const { sets: parsed } = parseScore(score);
+  const sets = parsed.map((set, k) => ({ ...set, took: setWinner(parsed, k, finished(score)) }));
   return (
     <span className="block overflow-hidden rounded-xl bg-surface ring-1 ring-foreground/10">
       {[winner, loser].map((name, row) => (
@@ -335,11 +335,11 @@ function MiniScore({ winner, loser, score, tones }: { winner: string; loser: str
           <span className="flex shrink-0">
             {sets.map((set, k) => {
               const games = row ? set.l : set.w;
-              const tookSet = row ? set.l > set.w : set.w > set.l;
+              const tookSet = set.took === (row ? "l" : "w");
               return (
                 <span key={k} className={`relative w-5 text-center font-mono tabular-nums ${tookSet ? "font-bold" : "text-muted"}`}>
                   {games}
-                  {set.tb && !tookSet && <sup className="absolute -right-0.5 top-0 text-[9px] text-muted">{set.tb}</sup>}
+                  {set.tb !== null && set.took && !tookSet && <sup className="absolute -right-0.5 top-0 text-[9px] text-muted">{set.tb}</sup>}
                 </span>
               );
             })}
@@ -368,13 +368,14 @@ function MeetingCard({
   tones: Tones;
   isEpigraph: boolean;
   flash: boolean;
-  onEdit: (id: string) => void;
+  onEdit?: (id: string) => void;
   i: number;
 }) {
   const logged = entry.kind === "logged";
   const meet = logged
-    ? { event: entry.m.event.replace(/ \d{4}$/, ""), year: entry.m.date.slice(0, 4), round: entry.m.round, surface: entry.m.surface, winner: entry.m.winner, loser: entry.m.loser, score: entry.m.score, retired: false }
-    : { event: entry.meet.event, year: entry.meet.date.slice(0, 4), round: entry.meet.round, surface: entry.meet.surface, winner: entry.meet.winner, loser: entry.loser, score: entry.meet.score ?? null, retired: !!entry.meet.retired };
+    ? { event: entry.m.event.replace(/ \d{4}$/, ""), year: entry.m.date.slice(0, 4), round: roundName(entry.m), surface: entry.m.surface, winner: entry.m.winner, loser: entry.m.loser, score: entry.m.score }
+    : { event: entry.meet.event, year: entry.meet.date.slice(0, 4), round: roundName(entry.meet), surface: entry.meet.surface, winner: entry.meet.winner, loser: entry.loser, score: entry.meet.score ?? null };
+  const ending = meet.score ? endingOf({ score: meet.score, loser: meet.loser }) : null;
   const side = logged ? (entry.fan.cheering ?? entry.fan.pick?.winner ?? null) : null;
 
   return (
@@ -419,7 +420,7 @@ function MeetingCard({
           {entry.marks.map((t) => (
             <Mark key={t}>{t}</Mark>
           ))}
-          {meet.retired && <span className="text-xs font-semibold text-muted">{meet.loser} retired</span>}
+          {ending && <span className="text-xs font-semibold text-muted">{ending}</span>}
           {side && (
             <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${side === meet.winner ? "bg-grass/15 text-grass" : "bg-fault/15 text-fault"}`}>
               {side === meet.winner ? "✓" : "✗"} Backed {side}
@@ -427,7 +428,7 @@ function MeetingCard({
           )}
           <span className="ml-auto">
             {logged ? (
-              <PageButton page={pages.get(entry.id)} onClick={() => onEdit(entry.id)} />
+              <PageButton page={pages.get(entry.id)} onClick={onEdit && (() => onEdit(entry.id))} />
             ) : (
               <HighlightsLink players={[meet.winner, meet.loser]} event={`${meet.event} ${meet.year} · ${meet.round}`} />
             )}
@@ -456,8 +457,9 @@ function ChapterPage({
   rivalry: boolean;
   spot: { id: string; n: number } | null;
   focus: { key: string; n: number } | null; // the match picked in the chart, to flash
-  onEdit: (id: string) => void;
+  onEdit?: (id: string) => void;
 }) {
+  const { matches } = useLog();
   const tones = chartStyles(faces);
   const score = rivalry ? chapter.footer.score : undefined;
   return (
@@ -495,10 +497,10 @@ function ChapterPage({
             </p>
             {/* Always say which match the words are about */}
             <footer className="mt-3 flex items-center gap-2 text-sm text-muted">
-              <SlamLogo event={matchById[chapter.epigraph.id].event} size="h-8 w-8" />
+              <SlamLogo event={matches[chapter.epigraph.id].event} size="h-8 w-8" />
               <span>
                 Your words, page {pages.get(chapter.epigraph.id)} ·{" "}
-                <span className="font-semibold text-foreground">{eventLabel(matchById[chapter.epigraph.id])}</span> · {monthLabel(chapter.epigraph.date)}
+                <span className="font-semibold text-foreground">{eventLabel(matches[chapter.epigraph.id])}</span> · {monthLabel(chapter.epigraph.date)}
               </span>
             </footer>
           </blockquote>
@@ -571,7 +573,7 @@ function ChapterPage({
   );
 }
 
-function EpiloguePage({ book, next }: { book: BookData; next: { title: string; open: () => void } }) {
+function EpiloguePage({ book, next, coda }: { book: BookData; next: { title: string; open: () => void }; coda: string }) {
   const { big, facts, favourite } = book.epilogue;
   const [a, b] = big;
   return (
@@ -616,7 +618,7 @@ function EpiloguePage({ book, next }: { book: BookData; next: { title: string; o
           >
             Read next: {next.title} →
           </button>
-          <p className="text-muted">To be continued in 2027.</p>
+          <p className="text-muted">{coda}</p>
         </div>
       </div>
       <div className="space-y-3 lg:pt-10 lg:[&_dl]:grid-cols-1">
@@ -676,10 +678,11 @@ function BookRing({ book, on, seen, count, onOpen }: { book: ShelfBook; on: bool
 
 /* ---------- The story ---------- */
 
-export function StoryDemo() {
-  const { entries, order, setFocusId, spotlight } = useLog();
-  const diary = diaryPages(entries); // each match's page number
-  const shelf = buildShelf(entries);
+export function SagaSection() {
+  const { mode, matches, entries, order, records, spotlight, openInLog } = useLog();
+  const log: Diary = useMemo(() => ({ matches, entries, order, records }), [matches, entries, order, records]);
+  const diary = diaryPages(entries, matches); // each match's page number
+  const shelf = buildShelf(log);
   const [bookId, setBookId] = useState(shelf[0]?.id ?? "seasons");
   const [pageIdx, setPageIdx] = useState(0);
   const [dir, setDir] = useState(1);
@@ -691,8 +694,8 @@ export function StoryDemo() {
   const [seenSpot, setSeenSpot] = useState(0);
   if (spotlight?.target === "story" && spotlight.n !== seenSpot) {
     setSeenSpot(spotlight.n);
-    const target = bookFor(spotlight.id);
-    const chapterIdx = buildBook(target, entries, order).chapters.findIndex((c) => c.entries.some((e) => e.kind === "logged" && e.id === spotlight.id));
+    const target = matches[spotlight.id] ? bookFor(spotlight.id, log) : (shelf[0]?.id ?? "seasons");
+    const chapterIdx = buildBook(target, log).chapters.findIndex((c) => c.entries.some((e) => e.kind === "logged" && e.id === spotlight.id));
     setBookId(target);
     markSeen(target);
     setPageIdx(chapterIdx + 2);
@@ -725,15 +728,19 @@ export function StoryDemo() {
     );
   }
   const shelfBook = shelf.find((b) => b.id === bookId) ?? shelf[0];
-  const book = buildBook(bookId, entries, order);
+  const book = buildBook(bookId, log);
   const rivalry = book.kind === "rivalry";
   const spotId = spot && book.chapters.some((c) => c.entries.some((e) => e.kind === "logged" && e.id === spot.id)) ? spot.id : null;
-  const editInLog = (id: string) => {
-    setFocusId(id);
-    glideTo(document.getElementById("log"), "start", 0);
-  };
-  const photo = coverPhotos[bookId];
-  const catchUp = rivalry ? missedMeetings(bookId, entries) : null;
+  // Back to the match's page in the log: further up the demo, or the log page of a diary. A shared saga is read-only.
+  const editInLog =
+    mode === "shared"
+      ? undefined
+      : (id: string) => {
+          openInLog(id);
+          if (mode === "demo") glideTo(document.getElementById("log"), "start", 0);
+        };
+  const photo = coverPhotos[bookId] ?? coverPhotos[bookId.split("-").reverse().join("-")];
+  const catchUp = rivalry ? missedMeetings(bookId, log) : null;
   const nextBook = shelf[(shelf.findIndex((b) => b.id === bookId) + 1) % shelf.length];
   const open = (id: string) => {
     setTouched(true);
@@ -778,7 +785,10 @@ export function StoryDemo() {
       label: `chapter ${roman[i]}, ${c.year}`,
       node: <ChapterPage chapter={c} pages={diary} index={i} faces={book.faces} rivalry={rivalry} spot={spotId ? spot : null} focus={focus} onEdit={editInLog} />,
     })),
-    { label: "where it stands", node: <EpiloguePage book={book} next={{ title: nextBook.title, open: () => open(nextBook.id) }} /> },
+    {
+      label: "where it stands",
+      node: <EpiloguePage book={book} next={{ title: nextBook.title, open: () => open(nextBook.id) }} coda={mode === "demo" ? "To be continued in 2027." : "To be continued."} />,
+    },
   ];
   const turn = (d: 1 | -1) => {
     if ((d < 0 && atStart) || (d > 0 && atEnd)) return;
@@ -805,7 +815,7 @@ export function StoryDemo() {
                     book={b}
                     on={b.id === bookId}
                     seen={seen.includes(b.id)}
-                    count={shelfCount(b.id, entries)}
+                    count={shelfCount(b.id, log)}
                     onOpen={() => open(b.id)}
                   />
                 ))}

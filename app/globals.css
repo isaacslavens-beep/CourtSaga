@@ -18,6 +18,7 @@
   --clay: #8a2433;
   --hard: #1f74d6;
   --lawn: #1e6b3a;
+  --carpet: #5c5f87;
   /* Players, from the validated reference palette in fixed slot order */
   --p-alcaraz: #2a78d6;
   --p-sinner: #eb6834;
@@ -45,6 +46,7 @@
   --color-clay: var(--clay);
   --color-hard: var(--hard);
   --color-lawn: var(--lawn);
+  --color-carpet: var(--carpet);
   --color-p-alcaraz: var(--p-alcaraz);
   --color-p-sinner: var(--p-sinner);
   --color-p-djokovic: var(--p-djokovic);

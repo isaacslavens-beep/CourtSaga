@@ -9,16 +9,18 @@ export const alt = "CourtSaga: a free, simple diary for the tennis you watch.";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
-const file = (path: string) => readFile(join(process.cwd(), path));
-const dataUri = async (path: string, type: string) => `data:${type};base64,${(await file(path)).toString("base64")}`;
+// Each read is scoped to its own folder, so only those files are bundled with the card
+const dataUri = (file: Buffer, type: string) => `data:${type};base64,${file.toString("base64")}`;
 
 const [bricolage, geist500, geist700] = await Promise.all(
-  ["bricolage-700", "geist-500", "geist-700"].map((name) => file(`assets/fonts/${name}.ttf`)),
+  ["bricolage-700", "geist-500", "geist-700"].map((name) => readFile(join(process.cwd(), "assets", "fonts", `${name}.ttf`))),
 );
 const slams = await Promise.all(
-  ["australian-open", "roland-garros", "olympics", "wimbledon", "us-open"].map((name) => dataUri(`public/slams/${name}.png`, "image/png")),
+  ["australian-open", "roland-garros", "olympics", "wimbledon", "us-open"].map(async (name) =>
+    dataUri(await readFile(join(process.cwd(), "public", "slams", `${name}.png`)), "image/png"),
+  ),
 );
-const photo = await dataUri("public/photos/rybakina-uso-2026.jpg", "image/jpeg");
+const photo = dataUri(await readFile(join(process.cwd(), "public", "photos", "rybakina-uso-2026.jpg")), "image/jpeg");
 
 const surround = "#3a7556";
 const court = "#2b5d9b";
