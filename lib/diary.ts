@@ -104,7 +104,6 @@ export async function loadDiary(userId: string, { records = false } = {}): Promi
       ...matchColumns,
       watchedOn: diaryEntries.watchedOn,
       watchedDate: diaryEntries.watchedDate,
-      setsSeen: diaryEntries.setsSeen,
       rating: diaryEntries.rating,
       cheering: diaryEntries.cheering,
       pickWinner: diaryEntries.pickWinner,
@@ -125,7 +124,6 @@ export async function loadDiary(userId: string, { records = false } = {}): Promi
       {
         watchedOn: r.watchedOn as WatchMode,
         watchedDate: r.watchedDate,
-        setsSeen: r.setsSeen,
         rating: r.rating,
         cheering: r.cheering as StoredEntry["cheering"],
         pick: r.pickWinner ? { side: r.pickWinner as "winner" | "loser" } : null,

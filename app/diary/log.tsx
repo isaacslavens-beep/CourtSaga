@@ -30,12 +30,11 @@ const photos: Record<string, { src: StaticImageData; alt: string; position: stri
   },
 };
 
-/** A new page for a match you've just found: watched on TV as it happened, every set seen, three balls */
+/** A new page for a match you've just found: watched on TV as it happened, three balls */
 function blankEntry(m: Match): FanEntry {
   return {
     watchedOn: "TV",
     watchedDate: m.date.slice(0, 7),
-    setsSeen: parseScore(m.score).sets.map((_, i) => i),
     rating: 3,
     cheering: null,
     pick: null,
@@ -57,12 +56,11 @@ function Question({ step, title, children }: { step: number; title: string; chil
   );
 }
 
-/** A TV-style scorebug: both players, games per set, tiebreak points on the set's loser. Sets you didn't see are faded. */
-function Scoreboard({ match, seen }: { match: Match; seen: number[] }) {
+/** A TV-style scorebug: both players, games per set, tiebreak points on the set's loser. */
+function Scoreboard({ match }: { match: Match }) {
   const { sets: parsed } = parseScore(match.score);
   const done = finished(match.score);
   const sets = parsed.map((set, i) => ({ ...set, took: setWinner(parsed, i, done) }));
-  const missed = sets.some((_, i) => !seen.includes(i));
   const ending = endingOf(match);
   return (
     <div className="overflow-hidden rounded-2xl bg-[#0a1220]/90 text-white shadow-xl ring-1 ring-white/15 backdrop-blur-md">
@@ -78,10 +76,7 @@ function Scoreboard({ match, seen }: { match: Match; seen: number[] }) {
               return (
                 <span
                   key={i}
-                  title={seen.includes(i) ? `Set ${i + 1}: you watched it` : `Set ${i + 1}: you missed it`}
-                  className={`relative w-6 text-center font-mono text-lg tabular-nums sm:w-7 transition-opacity ${tookSet ? "font-bold text-white" : "text-white/55"} ${
-                    seen.includes(i) ? "" : "opacity-35"
-                  }`}
+                  className={`relative w-6 text-center font-mono text-lg tabular-nums sm:w-7 ${tookSet ? "font-bold text-white" : "text-white/55"}`}
                 >
                   {games}
                   {set.tb !== null && set.took && !tookSet && <sup className="absolute -right-0.5 top-0.5 text-[9px] text-white/70">{set.tb}</sup>}
@@ -91,11 +86,7 @@ function Scoreboard({ match, seen }: { match: Match; seen: number[] }) {
           </span>
         </div>
       ))}
-      {(missed || ending) && (
-        <p className="border-t border-white/10 px-3.5 py-1.5 text-xs text-white/60">
-          {[ending, missed && "Faded sets are the ones you didn't see"].filter(Boolean).join(" · ")}
-        </p>
-      )}
+      {ending && <p className="border-t border-white/10 px-3.5 py-1.5 text-xs text-white/60">{ending}</p>}
     </div>
   );
 }
@@ -115,7 +106,7 @@ const chip = (on: boolean) =>
     on ? "border-court bg-court text-court-ink shadow-md" : "border-line bg-surface text-muted hover:-translate-y-0.5 hover:border-court hover:text-court"
   }`;
 
-/** How and when you watched, and which sets you saw */
+/** How and when you watched */
 function WatchQuestion({ step, match, log, set }: { step: number; match: Match; log: FanEntry; set: (patch: Partial<FanEntry>) => void }) {
   const played = match.date.slice(0, 7);
   const later = log.watchedDate !== played;
@@ -124,8 +115,6 @@ function WatchQuestion({ step, match, log, set }: { step: number; match: Match; 
   const years = Array.from({ length: Math.max(1, new Date().getFullYear() - firstYear + 1) }, (_, i) => firstYear + i);
   // Never before it was played
   const setWatched = (y: number, m: number) => set({ watchedDate: `${y}-${String(m).padStart(2, "0")}` < played ? played : `${y}-${String(m).padStart(2, "0")}` });
-  const { sets } = parseScore(match.score);
-  const toggleSet = (i: number) => set({ setsSeen: log.setsSeen.includes(i) ? log.setsSeen.filter((s) => s !== i) : [...log.setsSeen, i].sort((a, b) => a - b) });
 
   return (
     <Question step={step} title="How did you watch?">
@@ -167,17 +156,6 @@ function WatchQuestion({ step, match, log, set }: { step: number; match: Match; 
             </select>
           </span>
         )}
-      </span>
-      <span className="flex w-full flex-wrap items-center gap-2 pt-1">
-        <span className="font-semibold text-muted">Sets you saw</span>
-        {sets.map((s, i) => (
-          <button key={i} type="button" aria-pressed={log.setsSeen.includes(i)} onClick={() => toggleSet(i)} className={chip(log.setsSeen.includes(i))}>
-            <span className="sr-only">Set {i + 1}, </span>
-            <span className="font-mono tabular-nums">
-              {s.w}-{s.l}
-            </span>
-          </button>
-        ))}
       </span>
     </Question>
   );
@@ -577,7 +555,7 @@ export function LogSection() {
               </div>
 
               <div className="relative -mt-14 space-y-4 px-4 pb-4">
-                <Scoreboard key={focusId} match={match} seen={log.setsSeen} />
+                <Scoreboard key={focusId} match={match} />
 
                 <div className="flex flex-wrap gap-2">
                   {log.cheering ? (

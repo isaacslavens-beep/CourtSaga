@@ -1,0 +1,1 @@
+ALTER TABLE "diary_entries" DROP COLUMN "sets_seen";

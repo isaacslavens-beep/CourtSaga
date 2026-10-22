@@ -30,7 +30,6 @@ export type Match = {
 export type FanEntry = {
   watchedOn: WatchMode;
   watchedDate: string; // "YYYY-MM"
-  setsSeen: number[]; // set indexes
   rating: number; // 1 to 5
   cheering: string | null;
   pick: { winner: string } | null; // your call on who wins: whoever you backed

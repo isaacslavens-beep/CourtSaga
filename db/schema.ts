@@ -158,7 +158,6 @@ export const diaryEntries = pgTable(
       .references(() => matches.id),
     watchedOn: text("watched_on").notNull(), // Live | TV | Stream
     watchedDate: text("watched_date").notNull(), // "YYYY-MM"
-    setsSeen: smallint("sets_seen").array().notNull(), // set indexes, from 0
     rating: smallint("rating").notNull(), // 1 to 5
     // Sides rather than names, so they hold whatever a player is called
     cheering: text("cheering"), // "winner" | "loser" | null

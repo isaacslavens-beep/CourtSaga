@@ -15,7 +15,6 @@ const side = z.enum(["winner", "loser"]);
 const entry = z.strictObject({
   watchedOn: z.enum(["Live", "TV", "Stream"]),
   watchedDate: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/),
-  setsSeen: z.array(z.number().int().min(0).max(6)).max(7),
   rating: z.number().int().min(1).max(5),
   cheering: side.nullable(),
   pick: z.strictObject({ side }).nullable(),
@@ -30,7 +29,6 @@ type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];
 const columns = (e: Partial<StoredEntry>) => ({
   ...(e.watchedOn !== undefined && { watchedOn: e.watchedOn }),
   ...(e.watchedDate !== undefined && { watchedDate: e.watchedDate }),
-  ...(e.setsSeen !== undefined && { setsSeen: [...new Set(e.setsSeen)].sort((a, b) => a - b) }),
   ...(e.rating !== undefined && { rating: e.rating }),
   ...(e.cheering !== undefined && { cheering: e.cheering }),
   ...(e.pick !== undefined && { pickWinner: e.pick?.side ?? null }),
@@ -82,7 +80,6 @@ export async function addEntry(id: string, page: StoredEntry) {
       matchId: valid.id,
       watchedOn: valid.entry.watchedOn,
       watchedDate: valid.entry.watchedDate,
-      setsSeen: [],
       rating: valid.entry.rating,
       position: order.indexOf(valid.id),
       ...columns(valid.entry),
