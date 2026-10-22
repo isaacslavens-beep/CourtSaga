@@ -39,7 +39,7 @@ async function Account() {
           <p className="text-muted">
             {user.email}
             <br />
-            {pages === 1 ? "1 page" : `${pages} pages`} in your diary
+            {pages === 1 ? "1 match" : `${pages} matches`} logged
           </p>
           <LogOutButton />
         </div>
@@ -49,7 +49,7 @@ async function Account() {
       </Card>
       <Card title="Delete your account">
         <p className="mb-4 text-muted">
-          Deleting your account deletes your diary with it: every page, your ranking, your saga and its share link. It can&apos;t be undone.
+          Deleting your account deletes everything you&apos;ve logged: every match, your ranking, your saga and its share link. It can&apos;t be undone.
         </p>
         <DeleteAccountForm />
       </Card>

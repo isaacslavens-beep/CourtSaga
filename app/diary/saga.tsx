@@ -201,7 +201,7 @@ function ShapePage({
 
 /** Back up to a match's page in your diary, to read or change it. In a shared saga, just where it is. */
 function PageButton({ page, onClick, compact = false }: { page: number | undefined; onClick?: () => void; compact?: boolean }) {
-  const label = `Open page ${page} of your diary in the log`;
+  const label = `Open page ${page} in the log`;
   if (!onClick)
     return <span className={`shrink-0 whitespace-nowrap font-semibold text-muted ${compact ? "px-1.5 text-xs" : "px-2 text-sm"}`}>{compact ? `p. ${page}` : `Page ${page}`}</span>;
   return (

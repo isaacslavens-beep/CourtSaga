@@ -85,12 +85,11 @@ export const tintVars = ([a, b]: [string, string]) => ({ "--tint-a": a, "--tint-
 
 type Tones = ReturnType<typeof chartStyles>;
 
-const special = ["", "other", "right", "exact", "wrong"];
+const special = ["", "other", "right", "wrong"];
 
 /** The fill of one mark: a player's colour, green/red for calls, and two greys for someone else and no side. */
 function markColor(color: string, players: Tones) {
-  if (color === "exact") return "var(--grass)";
-  if (color === "right") return "color-mix(in srgb, var(--grass) 55%, var(--surface))";
+  if (color === "right") return "var(--grass)";
   if (color === "wrong") return "var(--fault)";
   if (color === "other") return "color-mix(in srgb, var(--muted) 70%, var(--surface))";
   if (color === "") return "color-mix(in srgb, var(--foreground) 22%, var(--surface))";

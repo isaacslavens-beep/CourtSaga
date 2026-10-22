@@ -52,7 +52,7 @@ export type BookChapter = {
 export type StripItem = {
   key: string;
   group: string; // rivalries: the year it sits under; collections: the row it counts towards
-  color: string; // a player's name, "right"/"exact"/"wrong" for calls, "other", or "" for no side
+  color: string; // a player's name, "right"/"wrong" for calls, "other", or "" for no side
   value: number; // your rating (1–5), or 3 for a meeting you didn't log
   side: 1 | -1; // rivalries: above the line for the first player, below for the second
   watched: boolean;
@@ -166,8 +166,6 @@ const avg = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.le
 const shortEvent = (m: Match) => m.event.replace(/ \d{4}$/, "");
 const byWatched = (a: Item, b: Item) => a.fan.watchedDate.localeCompare(b.fan.watchedDate) || a.m.date.localeCompare(b.m.date);
 const called = (x: Item) => !!x.fan.pick && x.fan.pick.winner === x.m.winner;
-// A call can only be exactly right about a match played to the end
-const exact = (x: Item) => called(x) && finished(x.m.score) && x.fan.pick!.sets === setCount(x.m.score);
 // Only matches played to the end count as five-setters and comebacks: a retirement is neither
 const isFive = (m: Match) => m.bestOf === 5 && setCount(m.score) === 5 && finished(m.score);
 const isFinal = (round: string) => round === "F";
@@ -251,7 +249,7 @@ function favouriteOf(items: Item[], order: string[]) {
 function rowsOf(items: Item[], rowOf: (x: Item) => string, colorBy: (x: Item) => string, rows: string[], label: (color: string) => string, keep = 3) {
   const counts = new Map<string, number>();
   for (const x of items) counts.set(colorBy(x), (counts.get(colorBy(x)) ?? 0) + 1);
-  const special = (c: string) => c === "" || c === "right" || c === "exact" || c === "wrong";
+  const special = (c: string) => c === "" || c === "right" || c === "wrong";
   const kept = [...counts.entries()].filter(([c, n]) => !special(c) && n >= 2).sort((a, b) => b[1] - a[1]).slice(0, keep).map(([c]) => c);
   const colour = (x: Item) => (special(colorBy(x)) || kept.includes(colorBy(x)) ? colorBy(x) : "other");
   const rank = (c: string) => (kept.includes(c) ? kept.indexOf(c) : c === "other" ? 90 : 95);
@@ -805,7 +803,6 @@ function bindCalls(all: Item[], order: string[]): BookData {
       best = Math.max(best, run);
     }
     const r = ys.filter(called).length;
-    const e = ys.filter(exact).length;
     const at = (...ways: string[]) => say(`calls:${year}`, ...ways);
     const options: Line[] = [];
     if (ci === 0) options.push(at("Your first calls", "First predictions", "Calling it early"));
@@ -824,12 +821,11 @@ function bindCalls(all: Item[], order: string[]): BookData {
       title: title.text,
       previously,
       notes: [],
-      side: `${s(ys.length, "call")}, ${r} right${e ? ` (${e} exact)` : ""}.`,
+      side: `${s(ys.length, "call")}, ${r} right.`,
       epigraph: epigraphOf(ys),
       entries: ys.map((x) => {
         const p = x.fan.pick!;
-        const went = finished(x.m.score) ? `: it went ${setCount(x.m.score)}` : ": it ended early";
-        return loggedEntry(x, `You picked ${p.winner} in ${p.sets}${exact(x) ? ": exactly right" : called(x) ? went : ""}`);
+        return loggedEntry(x, `You picked ${p.winner}${called(x) ? ": right" : ""}`);
       }),
       compact: false,
       footer: { label: "Your calls so far:", value: `${right} of ${made} right`, share: right / made },
@@ -849,6 +845,11 @@ function bindCalls(all: Item[], order: string[]): BookData {
     perPlayer.set(p, { n: cur.n + 1, r: cur.r + (called(x) ? 1 : 0) });
   }
   const [picked, pv] = [...perPlayer.entries()].sort((a, b) => b[1].n - a[1].n)[0];
+  // The year with the most calls right, among years with at least three
+  const best3 = years
+    .map(({ year, items: ys }) => ({ year, n: ys.length, r: ys.filter(called).length }))
+    .filter((y) => y.n >= 3)
+    .sort((a, b) => b.r / b.n - a.r / a.n || b.n - a.n)[0];
   const r = items.filter(called).length;
   return {
     id: "calls",
@@ -858,17 +859,17 @@ function bindCalls(all: Item[], order: string[]): BookData {
     subtitle: `Every prediction you made: ${items.length} calls.`,
     ...rowsOf(
       items,
-      (x) => (exact(x) ? "Winner and sets" : called(x) ? "Winner only" : "Missed"),
-      (x) => (exact(x) ? "exact" : called(x) ? "right" : "wrong"),
-      ["Winner and sets", "Winner only", "Missed"],
+      (x) => (called(x) ? "Right" : "Missed"),
+      (x) => (called(x) ? "right" : "wrong"),
+      ["Right", "Missed"],
       () => "",
     ),
     stripLegend: [],
-    stripCaption: "How close each call came.",
+    stripCaption: "Each call, right or missed.",
     facts: [
       ["Right", `${r} of ${items.length}`],
-      ["Exactly right", String(items.filter(exact).length)],
       ["Longest run", `${best} in a row`],
+      ["Picked most", `${picked}: ${pv.r} of ${pv.n} right`],
     ],
     chapters,
     epilogue: {
@@ -876,7 +877,7 @@ function bindCalls(all: Item[], order: string[]): BookData {
         { label: "right", n: r, face: false },
         { label: "missed", n: items.length - r, face: false },
       ],
-      facts: [["Picked most", `${picked}: ${pv.r} of ${pv.n} right`]],
+      facts: [["Your best year", best3 ? `${best3.year}: ${best3.r} of ${best3.n} right` : "Not enough calls yet"]],
       favourite: favouriteOf(items, order),
     },
   };

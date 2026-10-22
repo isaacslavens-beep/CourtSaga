@@ -11,7 +11,7 @@ import { LogProvider } from "../../diary/store";
 /* Someone's saga, opened from the link they shared: read-only, and only the saga. Shared links are kept
    out of search engines; only people who are given one can open it. */
 
-const description = "A saga from CourtSaga, a free, simple diary for the tennis you watch.";
+const description = "A tennis saga, shared from CourtSaga.";
 
 export async function generateMetadata({ params }: PageProps<"/s/[slug]">): Promise<Metadata> {
   const owner = await sharedSagaOwner((await params).slug);
@@ -31,7 +31,7 @@ export default function SharedSagaPage({ params }: PageProps<"/s/[slug]">) {
             <span className="font-display text-xl font-bold tracking-tight">CourtSaga</span>
           </Link>
           <Link href="/signup" className="rounded-full bg-white/10 px-4 py-1.5 text-sm font-semibold ring-1 ring-white/25 transition hover:bg-white/20">
-            Start your own diary
+            Sign up
           </Link>
         </div>
       </header>
@@ -61,7 +61,7 @@ async function Shared({ params }: Pick<PageProps<"/s/[slug]">, "params">) {
         <p className="text-sm font-semibold uppercase tracking-[0.16em] text-muted">A saga, shared</p>
         <h1 className="mt-3 font-display text-4xl font-bold tracking-tight sm:text-5xl">{owner.name}&apos;s saga</h1>
         <p className="mt-4 text-xl font-medium leading-relaxed text-muted">
-          {owner.name}&apos;s tennis diary, read back: their rivalries, five-setters, calls and the meetings they missed. &ldquo;You&rdquo; here is {owner.name}.
+          {owner.name}&apos;s tennis, read back: their rivalries, five-setters, calls and the meetings they missed. &ldquo;You&rdquo; here is {owner.name}.
         </p>
       </div>
       {diary.order.length < SAGA_MIN_MATCHES ? (

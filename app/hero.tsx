@@ -82,7 +82,7 @@ export function Hero() {
                 Sign up
               </Link>
               <span className="text-white/85">
-                Have a diary already?{" "}
+                Already signed up?{" "}
                 <Link href="/login" className="font-semibold text-white underline decoration-white/50 underline-offset-4 hover:decoration-white">
                   Log in
                 </Link>

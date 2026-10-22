@@ -162,8 +162,7 @@ export const diaryEntries = pgTable(
     rating: smallint("rating").notNull(), // 1 to 5
     // Sides rather than names, so they hold whatever a player is called
     cheering: text("cheering"), // "winner" | "loser" | null
-    pickWinner: text("pick_winner"), // "winner" | "loser" | null
-    pickSets: smallint("pick_sets"),
+    pickWinner: text("pick_winner"), // "winner" | "loser" | null: your call on who wins
     tags: text("tags").array().notNull().default(sql`'{}'::text[]`),
     note: text("note").notNull().default(""),
     classic: boolean("classic").notNull().default(false),
@@ -178,7 +177,7 @@ export const diaryEntries = pgTable(
     check("diary_entries_watched_on", sql`${t.watchedOn} in ('Live', 'TV', 'Stream')`),
     check("diary_entries_watched_date", sql`${t.watchedDate} ~ '^\\d{4}-(0[1-9]|1[0-2])$'`),
     check("diary_entries_cheering", sql`${t.cheering} in ('winner', 'loser')`),
-    check("diary_entries_pick", sql`${t.pickWinner} in ('winner', 'loser') and ${t.pickSets} between 1 and 5 or ${t.pickWinner} is null and ${t.pickSets} is null`),
+    check("diary_entries_pick", sql`${t.pickWinner} in ('winner', 'loser')`),
   ],
 );
 

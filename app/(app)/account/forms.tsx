@@ -46,7 +46,7 @@ export function DeleteAccountForm() {
   async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const form = new FormData(e.currentTarget);
-    if (!window.confirm("Delete your account and your whole diary? This can't be undone.")) return;
+    if (!window.confirm("Delete your account and everything you've logged? This can't be undone.")) return;
     setPending(true);
     setError(null);
     const { error } = await authClient.deleteUser({ password: String(form.get("password")) });
@@ -64,7 +64,7 @@ export function DeleteAccountForm() {
       <Field label="Your password, to be sure it's you" name="password" type="password" autoComplete="current-password" required />
       {error && <Message tone="error">{error}</Message>}
       <SubmitButton pending={pending} danger>
-        {pending ? "Deleting…" : "Delete my account and diary"}
+        {pending ? "Deleting…" : "Delete my account"}
       </SubmitButton>
     </form>
   );

@@ -33,7 +33,7 @@ export type FanEntry = {
   setsSeen: number[]; // set indexes
   rating: number; // 1 to 5
   cheering: string | null;
-  pick: { winner: string; sets: number } | null;
+  pick: { winner: string } | null; // your call on who wins: whoever you backed
   tags: string[];
   note: string; // the fan's own words, anything they like
   classic: boolean;
@@ -44,12 +44,12 @@ export type FanEntry = {
  * so they hold whatever the site ends up calling each player.
  */
 export type Side = "winner" | "loser";
-export type StoredEntry = Omit<FanEntry, "cheering" | "pick"> & { cheering: Side | null; pick: { side: Side; sets: number } | null };
+export type StoredEntry = Omit<FanEntry, "cheering" | "pick"> & { cheering: Side | null; pick: { side: Side } | null };
 
 const sideOf = (m: Match, name: string | null): Side | null => (name === m.winner ? "winner" : name === m.loser ? "loser" : null);
 
 export function toFanEntry(e: StoredEntry, m: Match): FanEntry {
-  return { ...e, cheering: e.cheering && m[e.cheering], pick: e.pick && { winner: m[e.pick.side], sets: e.pick.sets } };
+  return { ...e, cheering: e.cheering && m[e.cheering], pick: e.pick && { winner: m[e.pick.side] } };
 }
 
 export function toStoredEntry(fan: Partial<FanEntry>, m: Match): Partial<StoredEntry> {
@@ -57,7 +57,7 @@ export function toStoredEntry(fan: Partial<FanEntry>, m: Match): Partial<StoredE
   return {
     ...rest,
     ...(cheering !== undefined && { cheering: sideOf(m, cheering) }),
-    ...(pick !== undefined && { pick: pick && sideOf(m, pick.winner) ? { side: sideOf(m, pick.winner)!, sets: pick.sets } : null }),
+    ...(pick !== undefined && { pick: pick && sideOf(m, pick.winner) ? { side: sideOf(m, pick.winner)! } : null }),
   };
 }
 

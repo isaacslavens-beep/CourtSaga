@@ -20,7 +20,7 @@ export default function LogPage({ searchParams }: PageProps<"/log">) {
           n={1}
           verb="Write"
           title="Log a match"
-          body="Every match you log is a page in your diary. Find one, rate it, say who you were backing, and add a few words if you like."
+          body="Find a match, rate it, say who you were backing, and add a few words if you like."
         />
         <Suspense fallback={<OpeningDiary />}>
           <Log searchParams={searchParams} />

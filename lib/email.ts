@@ -16,7 +16,7 @@ export async function sendPasswordReset(to: { email: string; name: string }, url
   const text = [
     hi,
     "",
-    "Someone, hopefully you, asked to reset the password for your CourtSaga diary. Choose a new one here:",
+    "Someone, hopefully you, asked to reset your CourtSaga password. Choose a new one here:",
     "",
     url,
     "",
@@ -26,7 +26,7 @@ export async function sendPasswordReset(to: { email: string; name: string }, url
   ].join("\n");
   const html = `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:16px;line-height:1.5;color:#0f1b2d;max-width:480px">
   <p>${escape(hi)}</p>
-  <p>Someone, hopefully you, asked to reset the password for your CourtSaga diary.</p>
+  <p>Someone, hopefully you, asked to reset your CourtSaga password.</p>
   <p><a href="${escape(url)}" style="display:inline-block;background:#d4e157;color:#0b0d12;font-weight:700;text-decoration:none;padding:10px 20px;border-radius:999px">Choose a new password</a></p>
   <p style="color:#4b5a6e;font-size:14px">The link works for an hour. If you didn't ask, ignore this email and your password stays the same.</p>
   <p style="color:#4b5a6e;font-size:14px">CourtSaga</p>

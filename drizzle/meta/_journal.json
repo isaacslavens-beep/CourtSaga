@@ -15,6 +15,13 @@
       "when": 1792629212470,
       "tag": "0001_init",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792632480331,
+      "tag": "0002_drop-predicted-sets",
+      "breakpoints": true
     }
   ]
 }

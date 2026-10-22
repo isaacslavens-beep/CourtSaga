@@ -23,7 +23,7 @@ export default function SagaPage({ searchParams }: PageProps<"/saga">) {
           n={3}
           verb="Read back"
           title="Your saga"
-          body="Your diary, read back to you. It builds itself from the matches you log: your rivalries, your five-setters, the calls you got right, and the meetings you missed."
+          body="Your matches, read back to you. It builds itself from the matches you log: your rivalries, your five-setters, the calls you got right, and the meetings you missed."
         />
         <Suspense fallback={<OpeningDiary />}>
           <Saga searchParams={searchParams} />

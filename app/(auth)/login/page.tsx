@@ -7,7 +7,7 @@ export const metadata: Metadata = { title: "Log in · CourtSaga" };
 
 export default function LogInPage() {
   return (
-    <AuthPage title="Open your diary">
+    <AuthPage title="Log in">
       {/* Reads ?next=, the page to go back to */}
       <Suspense>
         <LogInForm />

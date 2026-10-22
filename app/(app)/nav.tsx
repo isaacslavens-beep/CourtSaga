@@ -16,7 +16,7 @@ const pill = (on: boolean) => `flex items-center gap-2 rounded-full font-semibol
 export function AppNav() {
   const path = usePathname();
   return (
-    <nav aria-label="Your diary" className="order-3 flex w-full items-center gap-1 sm:order-2 sm:ml-auto sm:w-auto sm:gap-1.5">
+    <nav aria-label="Log, rank and saga" className="order-3 flex w-full items-center gap-1 sm:order-2 sm:ml-auto sm:w-auto sm:gap-1.5">
       {steps.map((s) => (
         <Link key={s.href} href={s.href} aria-current={path === s.href ? "page" : undefined} className={`${pill(path === s.href)} py-1 pl-1 pr-3 sm:py-1.5 sm:pl-1.5 sm:pr-3.5`}>
           <span className="flex h-7 w-7 items-center justify-center rounded-full bg-ball text-sm font-bold text-[#0b0d12] ring-1 ring-black/10">{s.n}</span>

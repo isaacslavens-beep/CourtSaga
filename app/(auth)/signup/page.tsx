@@ -6,7 +6,7 @@ export const metadata: Metadata = { title: "Sign up · CourtSaga" };
 
 export default function SignUpPage() {
   return (
-    <AuthPage title="Start your diary" intro="Free. All you need is an email and a password.">
+    <AuthPage title="Sign up" intro="Free. All you need is an email and a password.">
       <SignUpForm />
     </AuthPage>
   );

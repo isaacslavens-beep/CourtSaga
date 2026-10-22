@@ -271,7 +271,7 @@ export function LogSection() {
     setEditedId(match.id);
   };
   const tearOut = () => {
-    if (!match || !window.confirm(`Tear page ${pages.get(match.id)} out of your diary? Everything you wrote about this match goes with it.`)) return;
+    if (!match || !window.confirm(`Tear out page ${pages.get(match.id)}? Everything you wrote about this match goes with it.`)) return;
     const rest = Object.keys(entries).filter((id) => id !== match.id);
     remove(match.id);
     if (editedId === match.id) setEditedId(null);
@@ -304,21 +304,9 @@ export function LogSection() {
   const scrollStrip = (dir: 1 | -1) =>
     strip.current?.scrollBy({ left: dir * strip.current.clientWidth * 0.75, behavior: "smooth" });
 
-  const sets = match ? parseScore(match.score).sets : [];
   const players = match ? [match.winner, match.loser] : [];
-  const setOptions = match?.bestOf === 5 ? [3, 4, 5] : [2, 3];
-  const pick = log?.pick ?? null;
-
-  // Checked against the real result. Only a match played to the end can be called exactly.
-  const done = match ? finished(match.score) : true;
-  const rightWinner = !!pick && !!match && pick.winner === match.winner;
-  const exact = rightWinner && done && pick!.sets === sets.length;
+  // Checked against the real result
   const backingWon = !!match && log?.cheering === match.winner;
-
-  const choosePick = (next: { winner: string; sets: number }) => {
-    set({ pick: next });
-    if (match && next.winner === match.winner && done && next.sets === sets.length) celebrate("call");
-  };
 
   const event = match ? eventLabel(match) : "";
   const page = match ? pages.get(match.id) : undefined;
@@ -346,7 +334,7 @@ export function LogSection() {
             <>
               {pageCount ? "Open a page" : "Your pages"}{" "}
               <span className="font-normal text-white/70">
-                · {pageCount === 1 ? "1 page" : `${pageCount} pages`} in your diary{pageCount > 4 ? ", scroll for more" : ""}
+                · {pageCount === 1 ? "1 page" : `${pageCount} pages`} logged{pageCount > 4 ? ", scroll for more" : ""}
               </span>
             </>
           ) : (
@@ -438,7 +426,7 @@ export function LogSection() {
           <div className="min-w-0 space-y-7">
             {diary && isDraft && (
               <p className="rounded-2xl bg-ball/25 px-4 py-3 font-medium">
-                A new page for <span className="font-semibold">{event}</span>. Answer what you like, then add it to your diary.
+                A new page for <span className="font-semibold">{event}</span>. Answer what you like, then save it.
               </p>
             )}
             <Question step={1} title="Rate it">
@@ -472,8 +460,8 @@ export function LogSection() {
                     aria-pressed={on}
                     onClick={() => {
                       // Backing someone is your call that they'll win
-                      set({ cheering: p, pick: p ? { winner: p, sets: pick?.sets || setOptions[0] } : null });
-                      if (p === match.winner && done && (pick?.sets || setOptions[0]) === sets.length) celebrate("call");
+                      set({ cheering: p, pick: p ? { winner: p } : null });
+                      if (p === match.winner) celebrate("call");
                     }}
                     style={!touched && !on && p ? { animationDelay: "1.2s" } : undefined}
                     className={`relative flex cursor-pointer flex-col items-center gap-2 rounded-2xl border-2 px-2 pb-3 pt-4 sm:px-3 font-semibold transition duration-200 ${
@@ -498,28 +486,6 @@ export function LogSection() {
                   </button>
                 );
               })}
-              {log.cheering && (
-                <span className="flex w-full flex-wrap items-center gap-2 pt-1">
-                  <span className="font-semibold text-muted">To win in</span>
-                  {setOptions.map((n) => (
-                    <button
-                      key={n}
-                      type="button"
-                      aria-pressed={pick?.sets === n}
-                      aria-label={`${n} sets`}
-                      onClick={() => choosePick({ winner: log.cheering!, sets: n })}
-                      className={`h-10 w-10 cursor-pointer rounded-full border-2 font-display text-lg font-bold transition duration-200 ${
-                        pick?.sets === n
-                          ? "border-court bg-court text-court-ink shadow-md"
-                          : "border-line bg-surface text-muted hover:-translate-y-0.5 hover:border-court hover:text-court"
-                      }`}
-                    >
-                      {n}
-                    </button>
-                  ))}
-                  <span className="font-semibold text-muted">sets</span>
-                </span>
-              )}
             </Question>
 
             {diary && <WatchQuestion step={3} match={match} log={log} set={set} />}
@@ -550,7 +516,7 @@ export function LogSection() {
                   onClick={addDraft}
                   className="inline-flex cursor-pointer items-center gap-2.5 rounded-full bg-ball px-6 py-3 text-lg font-bold text-[#0b0d12] shadow-lg shadow-black/15 transition hover:-translate-y-0.5 hover:shadow-xl"
                 >
-                  Add it to your diary
+                  Save this match
                 </button>
               ) : (
                 <p className="text-sm text-muted" role="status" aria-live="polite">
@@ -578,7 +544,7 @@ export function LogSection() {
                     </>
                   ) : (
                     <>
-                      New page <span className="font-normal text-muted">· not in your diary yet</span>
+                      New page <span className="font-normal text-muted">· not saved yet</span>
                     </>
                   )}
                 </span>
@@ -615,6 +581,7 @@ export function LogSection() {
 
                 <div className="flex flex-wrap gap-2">
                   {log.cheering ? (
+                    <span className="relative">
                     <span
                       key={`backing-${log.cheering}`}
                       className={`sticker-in inline-flex items-center gap-1.5 rounded-full px-3 py-1 font-semibold ${
@@ -624,28 +591,11 @@ export function LogSection() {
                       <IconHeart className="h-4 w-4" />
                       {log.cheering} {backingWon ? "won" : "lost"}
                     </span>
+                    <Burst trigger={burst.call} />
+                    </span>
                   ) : (
                     <span key="backing-none" className="sticker-in rounded-full bg-surface px-3 py-1 text-muted ring-1 ring-line">
                       Not backing anyone
-                    </span>
-                  )}
-                  {pick && (
-                    <span className="relative">
-                      <span
-                        key={`call-${pick.winner}-${pick.sets}`}
-                        className={`sticker-in inline-flex items-center gap-1.5 rounded-full px-3 py-1 font-semibold ${
-                          exact ? "bg-grass text-background" : rightWinner ? "bg-ball/40 text-foreground" : "bg-fault/15 text-fault"
-                        }`}
-                      >
-                        {exact
-                          ? "✓ Called it exactly!"
-                          : rightWinner
-                            ? done
-                              ? `✓ Right winner, but it went ${sets.length}`
-                              : "✓ Right winner"
-                            : `✗ Picked ${pick.winner}`}
-                      </span>
-                      <Burst trigger={burst.call} />
                     </span>
                   )}
                   {/* A real diary's own marks: a classic, and the fan's tags */}
@@ -693,7 +643,7 @@ export function LogSection() {
           }
           done={
             diary && isDraft ? (
-              <span className="font-bold underline decoration-2 underline-offset-4">Add it to your diary as a new page</span>
+              <span className="font-bold underline decoration-2 underline-offset-4">Save this match as a new page</span>
             ) : (
               <>
                 ✓ Saved to page {pages.get(nextId ?? editedId ?? match.id)} of your diary.{" "}

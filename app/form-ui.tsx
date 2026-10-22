@@ -44,9 +44,9 @@ export function problem(error: { status?: number; code?: string; message?: strin
   switch (error.code) {
     case "USER_ALREADY_EXISTS":
     case "USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL":
-      return "There's already a diary with that email. Log in instead, or reset its password.";
+      return "There's already an account with that email. Log in instead, or reset its password.";
     case "INVALID_EMAIL_OR_PASSWORD":
-      return "That email and password don't match a diary.";
+      return "That email and password don't match an account.";
     case "INVALID_PASSWORD":
       return "That password isn't right.";
     case "INVALID_EMAIL":

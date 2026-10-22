@@ -59,7 +59,7 @@ export function ShareSaga({ slug: initial, origin }: { slug: string | null; orig
               </a>
             </>
           ) : (
-            "A link anyone can read your saga with. The rest of your diary stays private."
+            "A link anyone can read your saga with. Everything else stays private."
           )}
         </p>
         {failed && <p className="mt-1 text-sm font-semibold text-fault">That didn&apos;t work. Check your connection and try again.</p>}

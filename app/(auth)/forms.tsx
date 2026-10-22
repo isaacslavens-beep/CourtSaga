@@ -33,13 +33,13 @@ export function SignUpForm() {
 
   return (
     <form onSubmit={submit} className="space-y-4">
-      <Field label="Your name" name="name" autoComplete="given-name" required maxLength={60} placeholder="What your diary calls you" />
+      <Field label="Your name" name="name" autoComplete="given-name" required maxLength={60} placeholder="A first name is fine" />
       <Field label="Email" name="email" type="email" autoComplete="email" required />
       <Field label="Password" hint="at least 8 characters" name="password" type="password" autoComplete="new-password" required minLength={8} maxLength={128} />
       {error && <Message tone="error">{error}</Message>}
-      <SubmitButton pending={pending}>{pending ? "Starting your diary…" : "Start my diary"}</SubmitButton>
+      <SubmitButton pending={pending}>{pending ? "Signing up…" : "Sign up"}</SubmitButton>
       <p className="text-center text-muted">
-        Have a diary already?{" "}
+        Already signed up?{" "}
         <Link href="/login" className="font-semibold text-court underline-offset-4 hover:underline">
           Log in
         </Link>
@@ -74,7 +74,7 @@ export function LogInForm() {
       <Field label="Email" name="email" type="email" autoComplete="email" required />
       <Field label="Password" name="password" type="password" autoComplete="current-password" required />
       {error && <Message tone="error">{error}</Message>}
-      <SubmitButton pending={pending}>{pending ? "Opening your diary…" : "Log in"}</SubmitButton>
+      <SubmitButton pending={pending}>{pending ? "Logging in…" : "Log in"}</SubmitButton>
       <p className="flex flex-wrap justify-between gap-2 text-muted">
         <Link href="/forgot-password" className="font-semibold text-court underline-offset-4 hover:underline">
           Forgot your password?
@@ -110,7 +110,7 @@ export function ForgotPasswordForm() {
   if (sent)
     return (
       <div className="space-y-4">
-        <Message tone="done">If there&apos;s a diary for that email, a link to choose a new password is on its way. It works for an hour.</Message>
+        <Message tone="done">If there&apos;s an account for that email, a link to choose a new password is on its way. It works for an hour.</Message>
         <p className="text-muted">
           Nothing after a few minutes? Check your spam folder, or{" "}
           <button type="button" onClick={() => setSent(false)} className="cursor-pointer font-semibold text-court underline-offset-4 hover:underline">

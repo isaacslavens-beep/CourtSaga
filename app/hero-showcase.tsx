@@ -73,9 +73,7 @@ function ExampleCard({ ex, onOpen, className = "", children }: { ex: Example; on
     ? null
     : pick.winner !== m.winner
       ? { ok: false, text: `✗ Called ${pick.winner}` }
-      : pick.sets === sets.length
-        ? { ok: true, text: `✓ Called it in ${pick.sets}` }
-        : { ok: true, text: `✓ Called ${pick.winner}` };
+      : { ok: true, text: `✓ Called ${pick.winner}` };
 
   return (
     <button
