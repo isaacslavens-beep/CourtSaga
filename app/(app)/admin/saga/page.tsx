@@ -13,6 +13,7 @@ import { OpeningDiary } from "../../loading-page";
 export const metadata: Metadata = { title: "A saga · CourtSaga", robots: { index: false } };
 
 // Anyone's saga, shared or not, read-only as a share link shows it. A 404 for everyone but the admin.
+// Every saga is the same route, so the provider is keyed by account or it keeps the last one it showed.
 export default function AdminSagaPage({ searchParams }: PageProps<"/admin/saga">) {
   return (
     <div className="court-saga saga-room flex flex-1 flex-col">
@@ -43,7 +44,7 @@ async function Saga({ searchParams }: Pick<PageProps<"/admin/saga">, "searchPara
             {diary.order.length === 1 ? "1 match" : `${diary.order.length} matches`} logged. The saga starts at {SAGA_MIN_MATCHES}.
           </p>
         ) : (
-          <LogProvider mode="shared" rows={diary.rows} entries={diary.entries} order={diary.order} records={diary.records}>
+          <LogProvider key={owner.id} mode="shared" rows={diary.rows} entries={diary.entries} order={diary.order} records={diary.records}>
             <SagaSection />
           </LogProvider>
         )}
