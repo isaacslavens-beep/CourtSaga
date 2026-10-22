@@ -8,4 +8,5 @@ export const pageCourts: Record<string, Court> = {
   "/rank": "rg",
   "/saga": "saga",
   "/account": "uso",
+  "/admin": "uso",
 };
