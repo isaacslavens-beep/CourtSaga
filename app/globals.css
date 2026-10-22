@@ -398,31 +398,51 @@ html {
   --ink: #1d2433;
 }
 
-/* A page turning over: the leaf swings about the spine, its front the page it was, its back the page it
-   becomes, and a shadow passes over it as it turns. Forward turns lift the right-hand page; back turns
-   the left. */
+/* How far a page has turned, from 0 to 1. Registered so it can be transitioned: the leaf's angle, the
+   shadow passing over it and the shadow it casts all follow it, whether the page is turning by itself
+   or being pulled round by hand. */
+@property --turn {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 0;
+}
+
+/* Where a page turns: over the open book, with the spine at the centre of its perspective. Script sets
+   --turn on it; while a hand holds the page (.held) it follows exactly, otherwise it eases. */
+.turn-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  pointer-events: none;
+  perspective: 2600px;
+  transition: --turn 0.75s cubic-bezier(0.45, 0.05, 0.3, 1);
+}
+
+.turn-layer.held {
+  transition: none;
+}
+
+/* The leaf: its front the page it was, its back the page it becomes. Forward turns lift the right-hand
+   page; back turns the left. */
 .leaf {
   position: absolute;
   top: 0;
   bottom: 0;
-  z-index: 20;
   width: 50%;
   transform-style: preserve-3d;
-  animation-duration: 0.75s;
-  animation-timing-function: cubic-bezier(0.45, 0.05, 0.3, 1);
-  animation-fill-mode: forwards;
+  transform: rotateY(calc(var(--turn) * var(--dir) * 180deg));
 }
 
 .leaf-forward {
+  --dir: -1;
   right: 0;
   transform-origin: left center;
-  animation-name: leaf-forward;
 }
 
 .leaf-back {
+  --dir: 1;
   left: 0;
   transform-origin: right center;
-  animation-name: leaf-back;
 }
 
 .leaf > * {
@@ -437,32 +457,23 @@ html {
   transform: rotateY(180deg);
 }
 
+/* Darkest when the leaf stands straight up from the spine */
 .leaf > *::after {
   content: "";
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background: rgb(15 20 30 / 0.16);
-  opacity: 0;
-  animation: leaf-shade 0.75s ease-in-out forwards;
+  background: rgb(15 20 30 / 0.18);
+  opacity: sin(var(--turn) * 180deg);
 }
 
-@keyframes leaf-forward {
-  to {
-    transform: rotateY(-180deg);
-  }
-}
-
-@keyframes leaf-back {
-  to {
-    transform: rotateY(180deg);
-  }
-}
-
-@keyframes leaf-shade {
-  50% {
-    opacity: 1;
-  }
+/* The shadow the lifted leaf casts on the page it uncovers */
+.leaf-cast {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 50%;
+  opacity: sin(var(--turn) * 180deg);
 }
 
 /* A book opening or closing slides to stay centred: closed, only its cover shows */
@@ -470,10 +481,23 @@ html {
   transition: transform 0.75s cubic-bezier(0.45, 0.05, 0.3, 1);
 }
 
-/* A page's corner lifts when you could turn it */
+/* A closed cover lifts at its edge when you point at it, showing the first page beneath */
+.cover-peek {
+  transform-origin: left center;
+  transition: transform 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@media (hover: hover) and (min-width: 1024px) {
+  .cover-peek:hover {
+    transform: perspective(4500px) rotateY(-26deg);
+  }
+}
+
+/* A page's corner, folded back a little; more when you could pull it */
 .page-corner {
   background: linear-gradient(225deg, transparent 50%, var(--paper-edge) 50%);
-  transition: width 0.2s ease, height 0.2s ease;
+  box-shadow: -2px -2px 6px -4px rgb(15 20 30 / 0.4);
+  transition: width 0.25s ease, height 0.25s ease;
 }
 
 /* On a phone the pages don't fold over the spine: the next ones swing in */
@@ -484,13 +508,168 @@ html {
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .leaf,
-  .leaf > *::after {
-    animation: none;
+/* ---------- The saga's shelf: books floating in the reading room ---------- */
+
+/* Each book bobs to its own beat (--dur, --d), and its shadow on the floor shrinks as it rises */
+.lib-float {
+  perspective: 900px;
+  animation: lib-float var(--dur, 6s) ease-in-out var(--d, 0s) infinite;
+}
+
+@keyframes lib-float {
+  0%,
+  100% {
+    translate: 0 0;
   }
-  .book-slide {
+  50% {
+    translate: 0 -10px;
+  }
+}
+
+.lib-shadow {
+  background: rgb(60 45 20 / 0.3);
+  animation: lib-shadow var(--dur, 6s) ease-in-out var(--d, 0s) infinite;
+  transition: background-color 0.4s;
+}
+
+@keyframes lib-shadow {
+  50% {
+    scale: 0.78;
+    opacity: 0.55;
+  }
+}
+
+/* A book in three dimensions: a cover in front, a back behind, and the spine, the top and the edges of
+   the pages between them. At rest it's turned to show its pages; point at it and it turns to follow
+   the pointer (--rx, --ry set by script); the one you're reading faces you, lifted. */
+.lib-3d {
+  --depth: 16px;
+  transform-style: preserve-3d;
+  transform: translateY(var(--lift, 0px)) rotateX(var(--rx, -7deg)) rotateY(var(--ry, -24deg));
+  transition: transform 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.lib-book:hover .lib-3d,
+.lib-book:focus-visible .lib-3d {
+  --ry: -8deg;
+  --rx: -3deg;
+  --lift: -8px;
+}
+
+.lib-book[aria-selected="true"] .lib-3d {
+  --ry: -2deg;
+  --rx: 0deg;
+  --lift: -16px;
+}
+
+.lib-3d.tilting {
+  transition-duration: 0.2s;
+}
+
+.lib-face,
+.lib-back {
+  position: absolute;
+  inset: 0;
+  border-radius: 2px 8px 8px 2px;
+}
+
+.lib-face {
+  transform: translateZ(calc(var(--depth) / 2));
+  box-shadow: 0 1px 0 rgb(255 255 255 / 0.15) inset;
+}
+
+/* Light falls on the cover from the top left, and gathers where the pointer is */
+.lib-face::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at var(--sx, 35%) var(--sy, 0%), rgb(255 255 255 / 0.32), transparent 55%),
+    linear-gradient(115deg, rgb(255 255 255 / 0.18), transparent 40%);
+  opacity: 0.55;
+  transition: opacity 0.3s;
+}
+
+.lib-book:hover .lib-face::after,
+.lib-book[aria-selected="true"] .lib-face::after {
+  opacity: 1;
+}
+
+.lib-book:focus-visible .lib-face {
+  outline: 3px solid var(--ink, #1d2433);
+  outline-offset: 5px;
+}
+
+.lib-back {
+  transform: translateZ(calc(var(--depth) / -2));
+  background: color-mix(in srgb, var(--tint-a) 55%, #0e1520);
+}
+
+.lib-spine {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: calc(var(--depth) / -2);
+  width: var(--depth);
+  transform: rotateY(-90deg);
+  background: color-mix(in srgb, var(--tint-a) 70%, #0e1520);
+}
+
+.lib-pages {
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+  left: calc(100% - var(--depth) / 2 - 3px);
+  width: var(--depth);
+  transform: rotateY(90deg);
+  background: repeating-linear-gradient(90deg, #fbf6ea 0 1px, #e3d9c3 1px 2px);
+}
+
+.lib-top {
+  position: absolute;
+  left: 2px;
+  right: 3px;
+  top: calc(3px - var(--depth) / 2);
+  height: var(--depth);
+  transform: rotateX(90deg);
+  background: repeating-linear-gradient(0deg, #fbf6ea 0 1px, #e3d9c3 1px 2px);
+}
+
+/* The ribbon of the book you're reading, hanging out from between its pages */
+.lib-ribbon {
+  position: absolute;
+  left: 66%;
+  top: 80%;
+  width: 10px;
+  height: calc(20% + 26px);
+  background: var(--ball);
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% calc(100% - 6px), 0 100%);
+  animation: ribbon-in 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+@keyframes ribbon-in {
+  from {
+    height: 20%;
+  }
+}
+
+.lib-book[aria-selected="true"] .lib-shadow {
+  background: color-mix(in srgb, var(--tint-a) 45%, rgb(60 45 20 / 0.3));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .turn-layer,
+  .book-slide,
+  .cover-peek,
+  .lib-3d {
     transition: none;
+  }
+  .lib-float,
+  .lib-shadow,
+  .lib-ribbon {
+    animation: none;
   }
 }
 
