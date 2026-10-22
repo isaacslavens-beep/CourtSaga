@@ -46,7 +46,7 @@ export default async function Image({ params }: { params: Promise<{ slug: string
           </div>
           <span style={{ marginTop: 72, fontSize: 22, fontWeight: 700, letterSpacing: 5, color: muted }}>A TENNIS SAGA</span>
           <span style={{ marginTop: 14, fontFamily: "Bricolage", fontSize: titleSize, lineHeight: 1.02, letterSpacing: -2 }}>{title}</span>
-          <span style={{ marginTop: 18, fontSize: 30, color: muted }}>Their matches, turned into a story.</span>
+          <span style={{ marginTop: 18, fontSize: 30, color: muted }}>Matches, turned into a story.</span>
           {lines.length > 0 && (
             <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginTop: 34 }}>
               {lines.map((line) => (

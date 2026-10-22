@@ -46,18 +46,21 @@ function CoverArt({ id, kind, title, faces, photo, big = false }: { id: string; 
   return (
     <span className={`relative flex h-full w-full grow flex-col overflow-hidden bg-[var(--tint-a)] text-left text-white ${big ? "rounded-l-md rounded-r-2xl" : "rounded-l-sm rounded-r-lg"}`}>
       {photo ? (
-        // A landscape photo fills a portrait cover by its height, so it's drawn about twice the cover's width.
-        // The shelf's covers load straight away: off to the side of the strip, lazy ones would wait for a scroll.
-        <Image
-          src={photo.src}
-          alt=""
-          fill
-          placeholder="blur"
-          sizes={big ? "(min-width: 1024px) 68rem, 190vw" : "24rem"}
-          loading={big ? undefined : "eager"}
-          fetchPriority={big ? undefined : "low"}
-          className={`object-cover ${photo.position}`}
-        />
+        // The photo fills the cover above its title band, so a landscape photo is cropped (and enlarged) as
+        // little as it can be. The shelf's covers load straight away: off to the side of the strip, lazy
+        // ones would wait for a scroll.
+        <span className="relative block min-h-0 flex-1">
+          <Image
+            src={photo.src}
+            alt=""
+            fill
+            placeholder="blur"
+            sizes={big ? "(min-width: 1024px) 46rem, 125vw" : "18rem"}
+            loading={big ? undefined : "eager"}
+            fetchPriority={big ? undefined : "low"}
+            className={`object-cover ${photo.position}`}
+          />
+        </span>
       ) : (
         <span aria-hidden className="absolute inset-x-0 top-[38%] h-[18%] bg-[var(--tint-b)]" />
       )}

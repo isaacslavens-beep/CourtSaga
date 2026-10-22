@@ -9,7 +9,7 @@ import { OpeningDiary } from "../../(app)/loading-page";
 import { SagaHeader } from "../../saga-header";
 import { SharedFrame } from "./frame";
 
-/* Someone's saga, opened from the link they shared: read-only, and only the saga. Shared links are kept
+/* Someone's saga, opened from a shared link: read-only, and only the saga. Shared links are kept
    out of search engines; only people who are given one can open it. */
 
 const description = "A tennis saga, shared from CourtSaga.";
@@ -43,7 +43,7 @@ async function Shared({ params }: Pick<PageProps<"/s/[slug]">, "params">) {
   const diary = await loadDiary(owner.id, { records: true });
   const body = (
     <>
-      {owner.name}&apos;s tennis, read back: their rivalries, five-setters, calls and the meetings they missed. &ldquo;You&rdquo; here is {owner.name}.
+      {owner.name}&apos;s tennis, read back: rivalries, five-setters, calls and missed meetings. &ldquo;You&rdquo; here is {owner.name}.
     </>
   );
   return (
