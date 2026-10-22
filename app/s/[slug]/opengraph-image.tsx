@@ -5,8 +5,8 @@ import { coverLines, loadDiary, sharedSagaOwner, shelfOf } from "@/lib/diary";
 import SiteCard from "../../opengraph-image";
 
 /* The card a shared saga's link shows, so it looks nothing like a link to the site: the saga's warm
-   reading room, whose saga it is, what's in it, and its first books fanned out beside. A link that's
-   been turned off shows the site's own card. */
+   reading room, whose saga it is, what's in it, and its first books fanned out in front of Federer's
+   finger wag. A link that's been turned off shows the site's own card. */
 
 export const alt = "A tennis saga, shared from CourtSaga";
 export const size = { width: 1200, height: 630 };
@@ -15,6 +15,9 @@ export const contentType = "image/png";
 const [bricolage, geist500, geist700] = await Promise.all(
   ["bricolage-700", "geist-500", "geist-700"].map((name) => readFile(join(process.cwd(), "assets", "fonts", `${name}.ttf`))),
 );
+
+// Federer at Roland Garros, a copy sized for the card
+const federer = `data:image/jpeg;base64,${(await readFile(join(process.cwd(), "assets", "photos", "federer-finger-wag.jpg"))).toString("base64")}`;
 
 const room = "#f1ede4";
 const ink = "#1d2433";
@@ -35,6 +38,11 @@ export default async function Image({ params }: { params: Promise<{ slug: string
   return new ImageResponse(
     (
       <div style={{ display: "flex", position: "relative", width: "100%", height: "100%", background: room, color: ink, fontFamily: "Geist" }}>
+        {/* Federer behind the books, fading into the room on the left */}
+        <img src={federer} alt="" width={560} height={777} style={{ position: "absolute", right: 0, top: -12, width: 560, height: 777, objectFit: "cover" }} />
+        <div style={{ display: "flex", position: "absolute", right: 0, top: 0, width: 560, height: 630, background: `linear-gradient(to right, ${room} 0%, rgba(241,237,228,0.6) 22%, rgba(241,237,228,0) 45%)` }} />
+        <div style={{ display: "flex", position: "absolute", right: 0, bottom: 0, width: 560, height: 260, background: "linear-gradient(to bottom, rgba(241,237,228,0), rgba(241,237,228,0.55))" }} />
+
         {/* The words, on the left */}
         <div style={{ display: "flex", flexDirection: "column", position: "absolute", left: 72, top: 64, width: 560 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -62,7 +70,7 @@ export default async function Image({ params }: { params: Promise<{ slug: string
         {books.map((book, i) => {
           const tilt = [-7, 2, 9][i];
           const x = 636 + i * 184;
-          const y = [150, 118, 158][i];
+          const y = [328, 300, 336][i];
           return (
             <div key={book.id} style={{ display: "flex", position: "absolute", left: x, top: y, width: 176, height: 290, transform: `rotate(${tilt}deg)` }}>
               {/* A ribbon from the book in the middle, hanging out from under its cover */}
