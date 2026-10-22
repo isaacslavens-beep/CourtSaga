@@ -1,14 +1,13 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { CourtBand } from "../../court-band";
 import { DataCredit } from "../../credits";
 
-/* A shared saga's page, on the saga's own court: Roland Garros clay in its green surround, the book on the
-   felt below. Also the frame for a link that's been turned off. */
-export function SharedFrame({ heading, children }: { heading: ReactNode; children: ReactNode }) {
+/* A shared saga's page: the saga's own look, its book on the felt, under the felt's olive. Also the frame
+   for a link that's been turned off. */
+export function SharedFrame({ children }: { children: ReactNode }) {
   return (
-    <div className="court-rg flex flex-1 flex-col">
-      <header className="bg-[var(--hc-surround)] text-white">
+    <div className="court-saga flex flex-1 flex-col">
+      <header className="bg-[var(--header)] text-white">
         <div aria-hidden className="flex h-1.5">
           <span className="flex-1 bg-[var(--slam-a)]" />
           <span className="flex-1 bg-[var(--slam-b)]" />
@@ -25,8 +24,7 @@ export function SharedFrame({ heading, children }: { heading: ReactNode; childre
           </Link>
         </div>
       </header>
-      <CourtBand>{heading}</CourtBand>
-      <main className="stage flex-1 pb-16 pt-10 sm:pt-12">
+      <main className="stage stage-plain flex-1 pb-16 pt-8 sm:pt-12">
         <div className="mx-auto w-full max-w-6xl px-4 sm:px-8">{children}</div>
       </main>
       <footer className="border-t border-line">
@@ -34,17 +32,6 @@ export function SharedFrame({ heading, children }: { heading: ReactNode; childre
           <DataCredit />
         </p>
       </footer>
-    </div>
-  );
-}
-
-/** The heading on the court: whose saga it is */
-export function SharedHeading({ title, body }: { title: string; body?: ReactNode }) {
-  return (
-    <div className="max-w-2xl">
-      <p className="text-sm font-semibold uppercase tracking-[0.16em] text-white/80">A saga, shared</p>
-      <h1 className="mt-3 font-display text-4xl font-bold tracking-tight sm:text-5xl">{title}</h1>
-      {body && <p className="mt-4 text-xl font-medium leading-relaxed text-white/90">{body}</p>}
     </div>
   );
 }

@@ -1,38 +1,60 @@
 import type { CSSProperties, ReactNode } from "react";
 import { TennisBall } from "./diary/fun";
-import { Net, line } from "./hero";
 
-/* A page's heading on its court, drawn as the hero draws its own: half a court seen from above, baseline on
-   the left and the net on the right (on a phone, baseline at the top and net at the bottom). The words sit
-   in the backcourt and a ball waits in the service box. Colours and surface come from the court class on
-   an ancestor, e.g. .court-wimbledon. */
+/* A page's heading, and beside it (below it on a phone) a court seen from above, drawn to scale in its
+   surround. Colours and surface come from the court class on an ancestor, e.g. .court-wimbledon. */
+
+// A doubles court, in centimetres: 23.77 m long, 10.97 m wide, with 1.37 m alleys and the service lines
+// 6.40 m from the net. The net posts stand 0.914 m outside the doubles sidelines.
+const LENGTH = 2377;
+const WIDTH = 1097;
+const ALLEY = 137;
+const NET = LENGTH / 2;
+const SERVICE = 640;
+const POST = 91.4;
+
+/** The court from above: lines, net and posts in white over the surface, a ball waiting by the T. */
+function Court() {
+  const lines = [
+    `M0 0H${LENGTH}V${WIDTH}H0Z`, // doubles sidelines and baselines
+    `M0 ${ALLEY}H${LENGTH}M0 ${WIDTH - ALLEY}H${LENGTH}`, // singles sidelines
+    `M${NET - SERVICE} ${ALLEY}V${WIDTH - ALLEY}M${NET + SERVICE} ${ALLEY}V${WIDTH - ALLEY}`, // service lines
+    `M${NET - SERVICE} ${WIDTH / 2}H${NET + SERVICE}`, // centre service line
+    `M0 ${WIDTH / 2}H30M${LENGTH - 30} ${WIDTH / 2}H${LENGTH}`, // centre marks
+  ];
+  return (
+    <div aria-hidden className="relative py-[5%]">
+      <div className="court-surface relative aspect-[2377/1097] bg-[var(--hc-court)] shadow-[0_0_0_1px_rgb(0_0_0/0.06)]">
+        <svg viewBox={`0 0 ${LENGTH} ${WIDTH}`} preserveAspectRatio="none" className="absolute inset-0 h-full w-full overflow-visible">
+          <path d={lines.join("")} fill="none" stroke="white" strokeOpacity="0.9" strokeWidth="3" vectorEffect="non-scaling-stroke" />
+          {/* The net: its mesh, the white tape, and a post at each end */}
+          <line x1={NET} x2={NET} y1={-POST} y2={WIDTH + POST} stroke="rgb(0 0 0 / 0.3)" strokeWidth="7" vectorEffect="non-scaling-stroke" />
+          <line x1={NET} x2={NET} y1={-POST} y2={WIDTH + POST} stroke="white" strokeWidth="2.5" vectorEffect="non-scaling-stroke" />
+        </svg>
+        {[0, 1].map((end) => (
+          <span
+            key={end}
+            className="absolute h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#0c1a2b] ring-2 ring-white/80"
+            style={{ left: "50%", top: `${((end ? WIDTH + POST : -POST) / WIDTH) * 100}%` }}
+          />
+        ))}
+        {/* A ball by the T, in the deuce court */}
+        <span className="bob absolute left-[34%] top-[30%]" style={{ "--tilt": "0deg", "--dur": "3.2s" } as CSSProperties}>
+          <span className="absolute -bottom-1 left-1/2 h-1.5 w-5 -translate-x-1/2 rounded-full bg-black/30 blur-[2px]" />
+          <TennisBall filled className="relative h-5 w-5 drop-shadow sm:h-6 sm:w-6" />
+        </span>
+      </div>
+    </div>
+  );
+}
+
 export function CourtBand({ children }: { children: ReactNode }) {
   return (
-    <div className="bg-[var(--hc-surround)] text-white">
-      <div className="mx-auto max-w-6xl px-4 pb-10 pt-3 sm:px-10 sm:pt-4">
-        <div className="court-surface relative grid grid-cols-[minmax(0,1fr)] border-[3px] border-[var(--hc-line)] bg-[var(--hc-court)] max-lg:border-b-0 lg:grid-cols-[minmax(0,62fr)_minmax(0,38fr)] lg:border-r-0">
-          {/* Singles sidelines, the length of the court */}
-          <span aria-hidden className={`${line} max-lg:inset-y-0 max-lg:left-[var(--hc-alley)] max-lg:w-[3px] lg:inset-x-0 lg:top-[var(--hc-alley)] lg:h-[3px]`} />
-          <span aria-hidden className={`${line} max-lg:inset-y-0 max-lg:right-[var(--hc-alley)] max-lg:w-[3px] lg:inset-x-0 lg:bottom-[var(--hc-alley)] lg:h-[3px]`} />
-          <Net />
-
-          {/* The backcourt, with the short centre mark on the baseline */}
-          <div className="relative px-11 pb-10 pt-10 sm:px-16 lg:py-14 lg:pl-16 lg:pr-12">
-            <span aria-hidden className={`${line} max-lg:left-1/2 max-lg:top-0 max-lg:h-3 max-lg:w-[3px] lg:left-0 lg:top-1/2 lg:h-[3px] lg:w-3`} />
-            {children}
-          </div>
-
-          {/* The service boxes: the service line along one edge, the centre service line through the middle */}
-          <div aria-hidden className="relative h-24 lg:h-auto">
-            <span className={`${line} max-lg:inset-x-[var(--hc-alley)] max-lg:top-0 max-lg:h-[3px] lg:inset-y-[var(--hc-alley)] lg:left-0 lg:w-[3px]`} />
-            <span
-              className={`${line} max-lg:inset-y-0 max-lg:left-1/2 max-lg:w-[3px] max-lg:-translate-x-1/2 lg:inset-x-0 lg:top-1/2 lg:h-[3px] lg:-translate-y-1/2`}
-            />
-            <span className="bob absolute left-[28%] top-[38%] lg:left-[34%] lg:top-[26%]" style={{ "--tilt": "0deg", "--dur": "3.2s" } as CSSProperties}>
-              <span className="absolute -bottom-1.5 left-1/2 h-2 w-6 -translate-x-1/2 rounded-full bg-black/30 blur-[2px]" />
-              <TennisBall filled className="relative h-7 w-7 drop-shadow lg:h-8 lg:w-8" />
-            </span>
-          </div>
+    <div className="court-surround bg-[var(--hc-surround)] text-white">
+      <div className="mx-auto grid max-w-6xl items-center gap-x-14 gap-y-6 px-4 pb-10 pt-8 sm:px-8 sm:pb-12 sm:pt-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,28rem)]">
+        <div>{children}</div>
+        <div className="w-full max-w-sm max-lg:mx-auto lg:max-w-none">
+          <Court />
         </div>
       </div>
     </div>

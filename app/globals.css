@@ -310,72 +310,44 @@ html {
   }
 }
 
-/* ---------- The diary's pages: each one a Slam's court, seen from above like the hero ----------
-   A page sets one of these on itself, and the header follows it: the court's surround, the court and its
-   surface, the light tint the page's content sits on, and the Slam's two colours (as in the ranking). The
-   lines and alleys are the hero's. */
+/* ---------- The signed-in pages: the log and the ranking on Slams' courts, the saga as a book ----------
+   A page sets one of these on itself, and the header follows it: the header's colour, the court's surround,
+   the court and its surface, the light tint the page's content sits on, and two colours for the strip
+   along the top (the Slams' own, as in the ranking). */
 
-.court-ao,
-.court-wimbledon,
-.court-rg,
-.court-uso {
-  --hc-line: rgb(255 255 255 / 0.85);
-  --hc-alley: 1.25rem;
-}
-
-@media (min-width: 1024px) {
-  .court-ao,
-  .court-wimbledon,
-  .court-rg,
-  .court-uso {
-    --hc-alley: 2.75rem;
-  }
-}
-
-/* Melbourne's blue hard court */
-.court-ao {
-  --hc-surround: #1a4782;
-  --hc-court: #2a74c0;
-  --page: #eef4fb;
-  --slam-a: #1b84c9;
-  --slam-b: #0b3d6b;
-}
-
-/* Wimbledon's grass, mown in stripes that run with the net */
+/* Wimbledon: grass all round, the court mown in stripes that run with the net, under the club's dark green */
 .court-wimbledon {
-  --hc-surround: #1d5534;
-  --hc-court: #3a7d3f;
+  --header: #1b4a2c;
+  --hc-surround: #3b7a3b;
+  --hc-court: #4a8d44;
   --page: #eff5ec;
   --slam-a: #54237f;
   --slam-b: #006633;
 }
 
 .court-wimbledon .court-surface {
-  background-image: repeating-linear-gradient(to bottom, rgb(255 255 255 / 0.07) 0 3rem, transparent 3rem 6rem);
+  background-image: repeating-linear-gradient(to right, rgb(255 255 255 / 0.09) 0 8.333%, transparent 8.333% 16.667%);
 }
 
-@media (min-width: 1024px) {
-  .court-wimbledon .court-surface {
-    background-image: repeating-linear-gradient(to right, rgb(255 255 255 / 0.07) 0 3rem, transparent 3rem 6rem);
-  }
-}
-
-/* Roland Garros' clay, grainy, inside its green surround */
+/* Roland Garros: a clay floor, court and surround alike, under the stadium's green walls */
 .court-rg {
-  --hc-surround: #0d4a33;
-  --hc-court: #b4552b;
-  --page: #f3f6df;
+  --header: #0d4a33;
+  --hc-surround: #a84f26;
+  --hc-court: #c0602f;
+  --page: #f8efe9;
   --slam-a: #c8501c;
   --slam-b: #064a30;
 }
 
+.court-rg .court-surround,
 .court-rg .court-surface {
   background-image: radial-gradient(rgb(255 255 255 / 0.1) 1px, transparent 1px);
   background-size: 6px 6px;
 }
 
-/* New York's blue court on green: the hero's own colours */
+/* New York: the blue court in its green surround, the hero's own colours */
 .court-uso {
+  --header: #3a7556;
   --hc-surround: #3a7556;
   --hc-court: #2b5d9b;
   --page: #eef4f0;
@@ -383,8 +355,16 @@ html {
   --slam-b: #ffd200;
 }
 
-/* Below its court, a page keeps a faint memory of it, as the saga's felt keeps a ball's seam: one corner of
-   a court in white lines, top right, on the page's tint. Grass keeps its stripes. */
+/* The saga isn't played on a court: it's what the log and the ranking add up to, bound as a book whose
+   cover is a tennis ball's felt. Its header is the felt's dark olive. */
+.court-saga {
+  --header: #4d6a0d;
+  --slam-a: var(--ball);
+  --slam-b: #ffffff;
+}
+
+/* Below its court, a page keeps a faint memory of it, as the landing's saga keeps a ball's seam: one
+   corner of a court in white lines, top right, on the page's tint. Grass keeps its stripes. */
 .court-page {
   background:
     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1000 700' fill='none' stroke='white' stroke-width='8'%3E%3Cpath d='M0 60H940V700M0 160H940M380 160V700M0 460H380M940 460H900'/%3E%3C/svg%3E")
@@ -398,6 +378,31 @@ html {
       right top / min(40rem, 60%) auto no-repeat,
     repeating-linear-gradient(to bottom, rgb(255 255 255 / 0.55) 0 4rem, transparent 4rem 8rem),
     var(--page);
+}
+
+/* The saga's cover: optic-yellow felt, a little fuzzy, with the edges of the pages showing beneath it */
+.saga-cover {
+  background-color: var(--ball);
+  background-image:
+    radial-gradient(rgb(255 255 255 / 0.3) 0.8px, transparent 1.3px),
+    radial-gradient(rgb(73 92 0 / 0.14) 0.8px, transparent 1.3px);
+  background-size:
+    5px 5px,
+    7px 7px;
+  background-position:
+    0 0,
+    2px 3px;
+  box-shadow:
+    5px 5px 0 -1px #fffdf4,
+    5px 5px 0 0 var(--line),
+    10px 10px 0 -1px #fffdf4,
+    10px 10px 0 0 var(--line),
+    0 30px 50px -24px rgb(15 27 45 / 0.35);
+}
+
+/* The saga's felt without the landing's seam: the cover has one of its own */
+.stage.stage-plain {
+  background: var(--background);
 }
 
 /* Keep the whole court on short screens. Unlayered, so it wins over utilities. */

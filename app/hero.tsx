@@ -9,10 +9,10 @@ import { HeroShowcase } from "./hero-showcase";
    colours in light and dark alike. */
 
 // One court line; --hc-alley is the gap between the doubles and singles sidelines
-export const line = "pointer-events-none absolute bg-[var(--hc-line)]";
+const line = "pointer-events-none absolute bg-[var(--hc-line)]";
 
 /** The net along the open edge, from above: mesh, white tape along the top, and a post at each end. */
-export function Net() {
+function Net() {
   const post = "absolute h-3.5 w-3.5 rounded-full bg-[#0c1a2b] ring-2 ring-white/80";
   return (
     <div

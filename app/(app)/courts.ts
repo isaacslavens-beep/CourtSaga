@@ -1,10 +1,11 @@
-// Which Slam's court each page of the diary is drawn on (see .court-* in globals.css). The header reads it
-// too, so it sits on the same surround as the court below it.
-export type Court = "ao" | "wimbledon" | "rg" | "uso";
+// Which look each signed-in page has (see .court-* in globals.css): the log on Wimbledon's grass, the
+// ranking on Roland Garros' clay, the account on the US Open's court, and the saga a book of its own. The
+// header reads it too, so it matches the page below it.
+export type Court = "wimbledon" | "rg" | "uso" | "saga";
 
 export const pageCourts: Record<string, Court> = {
-  "/log": "ao",
-  "/rank": "wimbledon",
-  "/saga": "rg",
+  "/log": "wimbledon",
+  "/rank": "rg",
+  "/saga": "saga",
   "/account": "uso",
 };

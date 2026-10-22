@@ -14,6 +14,9 @@ type Results = { results: MatchRow[]; total: number; page: number; pages: number
 
 const examples = ["alcaraz sinner", "wimbledon 2008 final", "sabalenka ao 2023"];
 
+/** A search for a season after the last one in the data */
+const notInYet = (query: string, last: number) => (query.match(/\b(19|20)\d{2}\b/g) ?? []).some((y) => Number(y) > last);
+
 export function MatchFinder({ seasons }: { seasons: [number, number] | null }) {
   const { matches, entries, view } = useLog();
   const pages = diaryPages(entries, matches);
@@ -70,6 +73,7 @@ export function MatchFinder({ seasons }: { seasons: [number, number] | null }) {
           </span>
         )}
       </label>
+      {seasons && <p className="mt-0.5 text-sm text-muted">{seasons[1] + 1} matches will be added once the {seasons[1] + 1} season ends.</p>}
       <div className="relative mt-3">
         <svg viewBox="0 0 20 20" aria-hidden className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 fill-none stroke-current stroke-2 text-muted" strokeLinecap="round">
           <circle cx="8.5" cy="8.5" r="5.5" />
@@ -111,7 +115,10 @@ export function MatchFinder({ seasons }: { seasons: [number, number] | null }) {
             <p className="px-1 text-muted">Searching…</p>
           ) : !shown.total ? (
             <p className="rounded-2xl bg-background px-4 py-3 text-muted">
-              No matches for &ldquo;{shown.query}&rdquo;. Try a player&apos;s surname, a tournament and a year, like &ldquo;federer wimbledon 2007&rdquo;.
+              No matches for &ldquo;{shown.query}&rdquo;.{" "}
+              {seasons && notInYet(shown.query, seasons[1])
+                ? `Matches from ${seasons[1] + 1} aren't in yet: they'll be added once that season ends.`
+                : "Try a player's surname, a tournament and a year, like \u201cfederer wimbledon 2007\u201d."}
             </p>
           ) : (
             <>

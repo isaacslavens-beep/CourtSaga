@@ -6,6 +6,7 @@ import { cache } from "react";
 import { alias } from "drizzle-orm/pg-core";
 import { getDb } from "@/db";
 import { diaryEntries, matches, players, sagaShares, user } from "@/db/schema";
+import { buildShelf } from "@/app/diary/books";
 import { vocabulary } from "./search-words";
 import {
   diaryPages,
@@ -184,6 +185,21 @@ async function rivalryRecords(rows: MatchRow[], entries: Record<string, StoredEn
     }));
   }
   return records;
+}
+
+/** What a saga's cover says about it: how many matches, the seasons they span, and its rivalries */
+export function coverLines({ rows, entries, order, records }: DiaryData) {
+  if (!rows.length) return [];
+  const seasons = rows.map((r) => r.season);
+  const [first, last] = [Math.min(...seasons), Math.max(...seasons)];
+  const named = toMatches(rows);
+  const fans = Object.fromEntries(Object.entries(entries).map(([id, e]) => [id, toFanEntry(e, named[id])]));
+  const rivalries = buildShelf({ matches: named, entries: fans, order, records: records ?? {} }).filter((b) => b.kind === "rivalry").length;
+  return [
+    rows.length === 1 ? "1 match" : `${rows.length} matches`,
+    first === last ? `played in ${first}` : `played ${first} to ${last}`,
+    ...(rivalries ? [rivalries === 1 ? "1 rivalry" : `${rivalries} rivalries`] : []),
+  ];
 }
 
 /** The diary's newest page: the match open in the log when no other is asked for */

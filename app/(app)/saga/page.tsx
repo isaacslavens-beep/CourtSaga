@@ -3,34 +3,38 @@ import { headers } from "next/headers";
 import Link from "next/link";
 import { Suspense } from "react";
 import { requireUser } from "@/lib/auth";
-import { loadDiary, shareSlugOf } from "@/lib/diary";
+import { coverLines, loadDiary, shareSlugOf } from "@/lib/diary";
 import { SAGA_MIN_MATCHES } from "../../diary/books";
 import { SagaSection } from "../../diary/saga";
 import { LogProvider } from "../../diary/store";
-import { CourtBand } from "../../court-band";
-import { StepHeading } from "../../step-heading";
+import { SagaCover, SagaKicker } from "../../saga-cover";
 import { OpeningDiary } from "../loading-page";
 import { saver } from "../saver";
 import { ShareSaga } from "./share";
 
 export const metadata: Metadata = { title: "Your saga · CourtSaga" };
 
+const kicker = (
+  <SagaKicker>
+    <span className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-base font-bold tracking-normal text-[#0b0d12] ring-1 ring-black/10">3</span>
+    Read back
+  </SagaKicker>
+);
+const body = "Your matches, read back to you. It builds itself from what you log and rank: your rivalries, your five-setters, the calls you got right, and the meetings you missed.";
+
 export default function SagaPage({ searchParams }: PageProps<"/saga">) {
   return (
-    <div className="court-rg flex flex-1 flex-col">
-      <CourtBand>
-        <StepHeading
-          as="h1"
-          onCourt
-          n={3}
-          verb="Read back"
-          title="Your saga"
-          body="Your matches, read back to you. It builds itself from the matches you log: your rivalries, your five-setters, the calls you got right, and the meetings you missed."
-        />
-      </CourtBand>
-      <section className="stage flex-1 pb-16 pt-10 sm:pt-12">
+    <div className="court-saga flex flex-1 flex-col">
+      <section className="stage stage-plain flex-1 pb-16 pt-8 sm:pt-12">
         <div className="mx-auto w-full max-w-6xl px-4 sm:px-8">
-          <Suspense fallback={<OpeningDiary />}>
+          <Suspense
+            fallback={
+              <>
+                <SagaCover kicker={kicker} title="Your saga" body={body} />
+                <OpeningDiary />
+              </>
+            }
+          >
             <Saga searchParams={searchParams} />
           </Suspense>
         </div>
@@ -47,12 +51,13 @@ async function Saga({ searchParams }: Pick<PageProps<"/saga">, "searchParams">) 
   const enough = diary.order.length >= SAGA_MIN_MATCHES;
   return (
     <>
-      {enough && <ShareSaga slug={slug} origin={origin} />}
-      <LogProvider key={`${diary.version}:${spot?.id}`} mode="diary" rows={diary.rows} entries={diary.entries} order={diary.order} records={diary.records} spotlight={spot} saver={saver}>
-        <div className={enough ? "mt-10" : ""}>
+      <SagaCover kicker={kicker} title="Your saga" body={body} lines={coverLines(diary)} />
+      <div className="mt-8 space-y-10">
+        {enough && <ShareSaga slug={slug} origin={origin} />}
+        <LogProvider key={`${diary.version}:${spot?.id}`} mode="diary" rows={diary.rows} entries={diary.entries} order={diary.order} records={diary.records} spotlight={spot} saver={saver}>
           <SagaSection />
-        </div>
-      </LogProvider>
+        </LogProvider>
+      </div>
       {!enough && (
         <p className="mt-4 text-center text-muted">
           {diary.order.length === 1 ? "1 match" : `${diary.order.length} matches`} so far.{" "}

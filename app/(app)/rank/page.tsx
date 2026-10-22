@@ -14,7 +14,7 @@ export const metadata: Metadata = { title: "Rank your favourites · CourtSaga" }
 
 export default function RankPage({ searchParams }: PageProps<"/rank">) {
   return (
-    <div className="court-wimbledon flex flex-1 flex-col">
+    <div className="court-rg flex flex-1 flex-col">
       <CourtBand>
         <StepHeading as="h1" onCourt n={2} verb="Sort" title="Rank your favourites" body="Your best matches at each tournament, in your own order." />
       </CourtBand>
