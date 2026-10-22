@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { DataCredit } from "../credits";
 
-/* Signing up, logging in and resetting a password: one page of a diary, lying on the court's green
+/* Signing up and logging in: one page of a diary, lying on the court's green
    surround, the same green as the landing page's hero. */
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (

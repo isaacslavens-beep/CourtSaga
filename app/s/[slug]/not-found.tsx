@@ -1,12 +1,12 @@
 import Link from "next/link";
-import { SagaCover, SagaKicker } from "../../saga-cover";
+import { SagaHeader } from "../../saga-header";
 import { SharedFrame } from "./frame";
 
 export default function SagaNotShared() {
   return (
     <SharedFrame>
-      <SagaCover
-        kicker={<SagaKicker>A saga, shared</SagaKicker>}
+      <SagaHeader
+        kicker="A saga, shared"
         title="This saga isn't shared"
         body="The link may have been turned off or replaced by a new one. Ask whoever sent it for the latest."
       />

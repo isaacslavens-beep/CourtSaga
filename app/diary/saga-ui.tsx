@@ -1,6 +1,6 @@
 "use client";
 
-// Pieces of the saga in step 3: each book's look, its at-a-glance chart, and its page progress.
+// Pieces of the saga in step 3: each book's look, its chapter numbers and its at-a-glance chart.
 
 import { type StaticImageData } from "next/image";
 import { useRef, useState, type CSSProperties } from "react";
@@ -16,7 +16,14 @@ import type { BookData, StripItem } from "./books";
 import { Avatar, chartStyles } from "./fun";
 import { SlamLogo } from "../match-ui";
 
-export const roman = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"];
+/** A chapter's number: 1 is I, 14 is XIV */
+export function roman(n: number) {
+  let out = "";
+  for (const [value, numeral] of [[50, "L"], [40, "XL"], [10, "X"], [9, "IX"], [5, "V"], [4, "IV"], [1, "I"]] as const) {
+    for (; n >= value; n -= value) out += numeral;
+  }
+  return out;
+}
 
 /* ---------- Each book's look: two glow colours, and a photo for some ---------- */
 
@@ -331,31 +338,3 @@ export function ShapeChart({
     </figure>
   );
 }
-
-/* ---------- Story progress ---------- */
-
-/** One segment per page, filled up to and including the current one. */
-export function Segments({ labels, current, onPick }: { labels: string[]; current: number; onPick: (i: number) => void }) {
-  return (
-    <div className="flex gap-1.5">
-      {labels.map((label, i) => (
-        <button
-          key={i}
-          type="button"
-          title={label}
-          aria-label={`Go to ${label}`}
-          aria-current={i === current ? "step" : undefined}
-          onClick={() => onPick(i)}
-          className="group relative h-5 min-w-0 flex-1 cursor-pointer focus-visible:outline-2 focus-visible:outline-court"
-        >
-          <span className="absolute inset-x-0 top-1/2 h-1 -translate-y-1/2 overflow-hidden rounded-full bg-foreground/20 transition-colors group-hover:bg-foreground/35">
-            {i <= current && <span className="absolute inset-0 bg-foreground" />}
-          </span>
-        </button>
-      ))}
-    </div>
-  );
-}
-
-/** Style for a `.rise` piece of a slide: it rises in `i` beats after the slide appears. */
-export const beat = (i: number) => ({ "--i": i }) as CSSProperties;

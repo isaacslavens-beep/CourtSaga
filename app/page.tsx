@@ -35,7 +35,7 @@ const steps = [
     title: "Explore your saga",
     body: "Your diary, read back to you. It builds itself from the matches you log: your rivalries, your five-setters, the calls you got right, and the meetings you missed.",
     hint: "Pick a rivalry or a collection, then turn the pages.",
-    stage: true,
+    room: true, // the saga's own reading room, not a court
   },
 ];
 
@@ -69,7 +69,7 @@ export default function Home() {
               key={s.id}
               id={s.id}
               aria-labelledby={`${s.id}-title`}
-              className={"stage" in s ? "stage py-24" : `border-t border-line py-20 ${i % 2 ? "bg-surface/60" : ""}`}
+              className={"room" in s ? "saga-room border-t border-line py-24" : `border-t border-line py-20 ${i % 2 ? "bg-surface/60" : ""}`}
             >
               <div className="mx-auto w-full max-w-6xl px-4 sm:px-8">
                 {/* The diary's three parts: write it, sort it, read it back */}

@@ -6,7 +6,7 @@ import { SAGA_MIN_MATCHES } from "../../diary/books";
 import { SagaSection } from "../../diary/saga";
 import { LogProvider } from "../../diary/store";
 import { OpeningDiary } from "../../(app)/loading-page";
-import { SagaCover, SagaKicker } from "../../saga-cover";
+import { SagaHeader } from "../../saga-header";
 import { SharedFrame } from "./frame";
 
 /* Someone's saga, opened from the link they shared: read-only, and only the saga. Shared links are kept
@@ -20,15 +20,13 @@ export async function generateMetadata({ params }: PageProps<"/s/[slug]">): Prom
   return { title, description, robots: { index: false, follow: false }, openGraph: { title, description, siteName: "CourtSaga", type: "website" } };
 }
 
-const kicker = <SagaKicker>A saga, shared</SagaKicker>;
-
 export default function SharedSagaPage({ params }: PageProps<"/s/[slug]">) {
   return (
     <SharedFrame>
       <Suspense
         fallback={
           <>
-            <SagaCover kicker={kicker} title="A saga" body="Someone's tennis, read back." />
+            <SagaHeader kicker="A saga, shared" title="A saga" body="Someone's tennis, read back." />
             <OpeningDiary />
           </>
         }
@@ -50,8 +48,8 @@ async function Shared({ params }: Pick<PageProps<"/s/[slug]">, "params">) {
   );
   return (
     <>
-      <SagaCover kicker={kicker} title={`${owner.name}'s saga`} body={body} lines={coverLines(diary)} />
-      <div className="mt-8">
+      <SagaHeader kicker="A saga, shared" title={`${owner.name}'s saga`} body={body} lines={coverLines(diary)} />
+      <div className="mt-10">
         {diary.order.length < SAGA_MIN_MATCHES ? (
           <p className="rounded-2xl border-2 border-dashed border-line p-8 text-center text-lg font-medium text-muted">
             This saga starts once {owner.name} has logged {SAGA_MIN_MATCHES} matches.

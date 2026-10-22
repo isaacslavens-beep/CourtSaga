@@ -315,9 +315,9 @@ html {
    the court and its surface, the light tint the page's content sits on, and two colours for the strip
    along the top (the Slams' own, as in the ranking). */
 
-/* Wimbledon: grass all round, the court mown in stripes that run with the net, under the club's dark green */
+/* Wimbledon: grass all round, the court mown in stripes that run with the net, under the club's purple */
 .court-wimbledon {
-  --header: #1b4a2c;
+  --header: #54237f;
   --hc-surround: #3b7a3b;
   --hc-court: #4a8d44;
   --page: #eff5ec;
@@ -355,10 +355,10 @@ html {
   --slam-b: #ffd200;
 }
 
-/* The saga isn't played on a court: it's what the log and the ranking add up to, bound as a book whose
-   cover is a tennis ball's felt. Its header is the felt's dark olive. */
+/* The saga isn't played on a court: it's what the log and the ranking add up to, read as books. Its header
+   is ink, under a strip of ball yellow. */
 .court-saga {
-  --header: #4d6a0d;
+  --header: #1d2433;
   --slam-a: var(--ball);
   --slam-b: #ffffff;
 }
@@ -380,29 +380,118 @@ html {
     var(--page);
 }
 
-/* The saga's cover: optic-yellow felt, a little fuzzy, with the edges of the pages showing beneath it */
-.saga-cover {
-  background-color: var(--ball);
-  background-image:
-    radial-gradient(rgb(255 255 255 / 0.3) 0.8px, transparent 1.3px),
-    radial-gradient(rgb(73 92 0 / 0.14) 0.8px, transparent 1.3px);
-  background-size:
-    5px 5px,
-    7px 7px;
-  background-position:
-    0 0,
-    2px 3px;
-  box-shadow:
-    5px 5px 0 -1px #fffdf4,
-    5px 5px 0 0 var(--line),
-    10px 10px 0 -1px #fffdf4,
-    10px 10px 0 0 var(--line),
-    0 30px 50px -24px rgb(15 27 45 / 0.35);
+/* The saga's reading room: a calm, warm neutral for the books to stand and open on, so it stands apart
+   from the courts of steps 1 and 2 */
+.saga-room {
+  --background: #f1ede4;
+  --muted: #5d5a52;
+  --line: #ddd5c4;
+  --court: #1d2433;
+  --court-ink: #ffffff;
+  background: var(--background);
 }
 
-/* The saga's felt without the landing's seam: the cover has one of its own */
-.stage.stage-plain {
-  background: var(--background);
+/* A book's pages: warm paper, with the shade of the spine along each page's inner edge */
+.book {
+  --paper: #fffcf6;
+  --paper-edge: #ebe4d4;
+  --ink: #1d2433;
+}
+
+/* A page turning over: the leaf swings about the spine, its front the page it was, its back the page it
+   becomes, and a shadow passes over it as it turns. Forward turns lift the right-hand page; back turns
+   the left. */
+.leaf {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: 20;
+  width: 50%;
+  transform-style: preserve-3d;
+  animation-duration: 0.75s;
+  animation-timing-function: cubic-bezier(0.45, 0.05, 0.3, 1);
+  animation-fill-mode: forwards;
+}
+
+.leaf-forward {
+  right: 0;
+  transform-origin: left center;
+  animation-name: leaf-forward;
+}
+
+.leaf-back {
+  left: 0;
+  transform-origin: right center;
+  animation-name: leaf-back;
+}
+
+.leaf > * {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+}
+
+.leaf > :last-child {
+  transform: rotateY(180deg);
+}
+
+.leaf > *::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: rgb(15 20 30 / 0.16);
+  opacity: 0;
+  animation: leaf-shade 0.75s ease-in-out forwards;
+}
+
+@keyframes leaf-forward {
+  to {
+    transform: rotateY(-180deg);
+  }
+}
+
+@keyframes leaf-back {
+  to {
+    transform: rotateY(180deg);
+  }
+}
+
+@keyframes leaf-shade {
+  50% {
+    opacity: 1;
+  }
+}
+
+/* A book opening or closing slides to stay centred: closed, only its cover shows */
+.book-slide {
+  transition: transform 0.75s cubic-bezier(0.45, 0.05, 0.3, 1);
+}
+
+/* A page's corner lifts when you could turn it */
+.page-corner {
+  background: linear-gradient(225deg, transparent 50%, var(--paper-edge) 50%);
+  transition: width 0.2s ease, height 0.2s ease;
+}
+
+/* On a phone the pages don't fold over the spine: the next ones swing in */
+@media (max-width: 1023.98px) and (prefers-reduced-motion: no-preference) {
+  .phone-turn {
+    transform-origin: left center;
+    animation: page-turn 0.5s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .leaf,
+  .leaf > *::after {
+    animation: none;
+  }
+  .book-slide {
+    transition: none;
+  }
 }
 
 /* Keep the whole court on short screens. Unlayered, so it wins over utilities. */
@@ -551,72 +640,6 @@ html {
   }
 }
 
-/* ---------- The saga: the diary laid open on tennis-ball felt, so it stands apart from steps 1 and 2 ---------- */
-
-.stage {
-  --background: #f3f6df;
-  --muted: #535c4c;
-  --line: #dbe2bf;
-  /* Ball yellow is too pale for text, so the saga's accent is the ball's shade */
-  --court: #4d6a0d;
-  --court-ink: #ffffff;
-  /* A ball's seam, sweeping across the top corner of the felt */
-  background:
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1000 600' fill='none' stroke='white' stroke-width='9'%3E%3Cpath d='M300 -10C340 300 640 470 1010 450'/%3E%3C/svg%3E")
-      right top / min(46rem, 66%) auto no-repeat,
-    var(--background);
-  border-top: 1px solid var(--line);
-  color: var(--foreground);
-}
-
-/* A book's two colours, glowing from opposite corners. Registered so a new book fades its glow in. */
-@property --tint-a {
-  syntax: "<color>";
-  inherits: true;
-  initial-value: #3987e5;
-}
-
-@property --tint-b {
-  syntax: "<color>";
-  inherits: true;
-  initial-value: #d95926;
-}
-
-.glow {
-  background-color: var(--surface);
-  background-image:
-    radial-gradient(70% 90% at 0% 0%, color-mix(in srgb, var(--tint-a) 26%, transparent), transparent 70%),
-    radial-gradient(60% 80% at 100% 100%, color-mix(in srgb, var(--tint-b) 20%, transparent), transparent 70%);
-  transition:
-    --tint-a 0.7s ease,
-    --tint-b 0.7s ease;
-}
-
-/* Slides rise in, a beat apart: set --i on each piece, --dx on the slide for the direction */
-@keyframes rise {
-  from {
-    opacity: 0;
-    transform: translate(var(--dx, 0px), 14px);
-  }
-}
-
-.rise {
-  animation: rise 0.6s cubic-bezier(0.2, 0.7, 0.2, 1) both;
-  animation-delay: calc(var(--i, 0) * 70ms);
-}
-
-/* Chart bars grow out of the baseline, one meeting after another */
-@keyframes grow {
-  from {
-    transform: scaleY(0);
-  }
-}
-
-.grow {
-  animation: grow 0.5s cubic-bezier(0.2, 0.7, 0.2, 1) both;
-  animation-delay: calc(var(--i, 0) * var(--step, 45ms));
-}
-
 @keyframes grow-x {
   from {
     transform: scaleX(0);
@@ -640,8 +663,6 @@ html {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .rise,
-  .grow,
   .grow-x,
   .fade-in {
     animation: none;

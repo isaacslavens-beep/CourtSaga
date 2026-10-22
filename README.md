@@ -7,8 +7,8 @@ favourites, and read your saga back. Live at [courtsaga.com](https://www.courtsa
 
 - **Next.js 16** (App Router with Cache Components) and Tailwind 4, deployed by Vercel from `main`.
 - **Postgres on Neon**, through the Vercel Marketplace, with **Drizzle ORM**. Migrations are in `drizzle/`.
-- **Better Auth**: email and password only. No email check at sign-up, no social logins, magic links or 2FA.
-  Forgotten passwords are reset by an email sent through **Resend** from courtsaga.com.
+- **Better Auth**: email and password only. No email check at sign-up, no social logins, magic links, 2FA or
+  password reset, so the site never sends email.
 - **Match data**: TML-Database (Jeff Sackmann's format), loaded by `scripts/import-matches.ts`.
 
 ## Where things are
@@ -19,10 +19,10 @@ favourites, and read your saga back. Live at [courtsaga.com](https://www.courtsa
 | `app/demos/` | The sample log and its hand-checked rivalry records, for the demos only. |
 | `app/diary/` | The log, ranking and saga, used by both the demos and real diaries. `library.ts` holds the shared types and rules, `books.ts` the saga's rules, `store.tsx` the state and saving, and `finder.tsx` match search. |
 | `app/(app)/` | Signed-in pages (`/log`, `/rank`, `/saga`, `/account`) and the server actions that keep a diary. |
-| `app/(auth)/` | Sign up, log in, forgotten and reset password. |
+| `app/(auth)/` | Sign up and log in. |
 | `app/s/[slug]/` | A shared saga: read-only, kept out of search engines. |
 | `app/api/` | Better Auth's endpoints, and `GET /api/search`. |
-| `lib/` | Accounts (`auth.ts`), diary and search queries (`diary.ts`), email (`email.ts`). |
+| `lib/` | Accounts (`auth.ts`), diary and search queries (`diary.ts`). |
 | `db/`, `drizzle/` | The schema and database client, and the migrations generated from them. |
 | `scripts/` | `migrate.ts` and `import-matches.ts`. |
 | `proxy.ts` | Sends signed-in fans from `/` to their log, and everyone else from diary pages to log in. |
@@ -37,8 +37,6 @@ favourites, and read your saga back. Live at [courtsaga.com](https://www.courtsa
 4. `npm run db:migrate` creates the tables.
 5. `npm run import:matches -- ~/Desktop/courtsaga/tml-data` loads the matches, in about ten seconds.
 6. `npm run dev`, then open http://localhost:3000.
-
-Without `RESEND_API_KEY`, password reset links are printed in the terminal instead of emailed.
 
 ## The match data
 

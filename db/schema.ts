@@ -64,7 +64,7 @@ export const account = pgTable(
   (t) => [index("account_user_id_idx").on(t.userId)],
 );
 
-// Password reset tokens
+// Better Auth's one-off tokens (CourtSaga doesn't use any yet, but Better Auth expects the table)
 export const verification = pgTable(
   "verification",
   {
@@ -78,7 +78,7 @@ export const verification = pgTable(
   (t) => [index("verification_identifier_idx").on(t.identifier)],
 );
 
-// Sign-in and password reset attempts, per IP address and path
+// Sign-in, sign-up and other account requests, per IP address and path
 export const rateLimit = pgTable("rate_limit", {
   id: text("id").primaryKey(),
   key: text("key").notNull().unique(),

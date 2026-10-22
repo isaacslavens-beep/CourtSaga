@@ -44,7 +44,7 @@ export function problem(error: { status?: number; code?: string; message?: strin
   switch (error.code) {
     case "USER_ALREADY_EXISTS":
     case "USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL":
-      return "There's already an account with that email. Log in instead, or reset its password.";
+      return "There's already an account with that email. Log in instead.";
     case "INVALID_EMAIL_OR_PASSWORD":
       return "That email and password don't match an account.";
     case "INVALID_PASSWORD":
@@ -55,9 +55,6 @@ export function problem(error: { status?: number; code?: string; message?: strin
       return "Use at least 8 characters.";
     case "PASSWORD_TOO_LONG":
       return "Use 128 characters or fewer.";
-    case "INVALID_TOKEN":
-    case "TOKEN_EXPIRED":
-      return "That link has expired or been used. Ask for a new one.";
   }
   return "Something went wrong. Try again in a moment.";
 }
