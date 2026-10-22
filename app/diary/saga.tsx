@@ -18,7 +18,7 @@ import {
   type StripItem,
 } from "./books";
 import { Avatar, BallScore, CollectionIcon, IconArrowUp, PageArrow, chartStyles } from "./fun";
-import { MIN_RIVALRY_MEETINGS, diaryPages, endingOf, eventLabel, monthLabel, roundName, scoreText } from "./library";
+import { diaryPages, endingOf, eventLabel, monthLabel, roundName, scoreText } from "./library";
 import { HighlightsLink, SlamLogo } from "../match-ui";
 import { useLog } from "./store";
 import { glideTo } from "../glide";
@@ -992,8 +992,7 @@ export function SagaSection() {
             +
           </span>
           <span>
-            Improve your saga by logging more matches: new books appear as you go, and a rivalry gets its own once you&apos;ve logged at least{" "}
-            {MIN_RIVALRY_MEETINGS} of its meetings and a quarter of them.{" "}
+            The more matches you log, the more your saga grows.{" "}
             {mode === "diary" && (
               <Link href="/log" className="font-semibold text-foreground underline underline-offset-4">
                 Log a match
