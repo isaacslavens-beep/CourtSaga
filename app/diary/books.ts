@@ -107,7 +107,7 @@ export function buildShelf(diary: Diary): ShelfBook[] {
   const all: Item[] = loggedItems(diary);
   if (all.length < SAGA_MIN_MATCHES) return [];
   return [
-    ...findRivalries(diary.entries, diary.matches).map((r) => ({
+    ...findRivalries(diary.entries, diary.matches, diary.records).map((r) => ({
       id: r.id,
       kind: "rivalry" as const,
       title: rivalryTitle(r.players),
@@ -302,7 +302,7 @@ const surfaceNames: Record<Surface, string> = { clay: "clay", grass: "grass", ha
 
 function bindRivalry(id: string, diary: Diary): BookData {
   const { entries, order } = diary;
-  const [A, B] = (findRivalries(entries, diary.matches).find((r) => r.id === id)?.players ?? id.split("-")) as [string, string];
+  const [A, B] = (findRivalries(entries, diary.matches, diary.records).find((r) => r.id === id)?.players ?? id.split("-")) as [string, string];
   type Streak = { by: string; of: string; n: number };
   type Beat = { meet: RecordMeeting; m?: Match; fan?: FanEntry; marks: string[]; ended: Streak | null; i: number; a: number; b: number };
   const lead = (a: number, b: number) => (a === b ? null : a > b ? A : B);
@@ -909,7 +909,7 @@ export function buildBook(id: string, diary: Diary): BookData {
 export function bookFor(id: string, diary: Diary) {
   const m = diary.matches[id];
   const inPair = (p: string) => m.winner === p || m.loser === p;
-  return findRivalries(diary.entries, diary.matches).find((r) => inPair(r.players[0]) && inPair(r.players[1]))?.id ?? "seasons";
+  return findRivalries(diary.entries, diary.matches, diary.records).find((r) => inPair(r.players[0]) && inPair(r.players[1]))?.id ?? "seasons";
 }
 
 export type MissedMeeting = { key: string; event: string; year: string; round: string; matchId?: string };
@@ -920,7 +920,7 @@ export type MissedMeeting = { key: string; event: string; year: string; round: s
  * doesn't give the result away.
  */
 export function missedMeetings(id: string, diary: Diary) {
-  const players = (findRivalries(diary.entries, diary.matches).find((r) => r.id === id)?.players ?? id.split("-")) as [string, string];
+  const players = (findRivalries(diary.entries, diary.matches, diary.records).find((r) => r.id === id)?.players ?? id.split("-")) as [string, string];
   const record = recordFor(id, players, diary);
   const stage = (round: string) => {
     const i = ["F", "SF", "QF"].indexOf(round);
@@ -936,7 +936,7 @@ export function missedMeetings(id: string, diary: Diary) {
 
 /** How many matches a book holds, for its cover. */
 export function shelfCount(id: string, diary: Diary) {
-  const rivalry = findRivalries(diary.entries, diary.matches).find((r) => r.id === id);
+  const rivalry = findRivalries(diary.entries, diary.matches, diary.records).find((r) => r.id === id);
   if (rivalry) return recordFor(id, rivalry.players, diary).length;
   const all: Item[] = loggedItems(diary);
   if (id === "finals") return all.filter((x) => isFinal(x.m.round)).length;

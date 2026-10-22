@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import {
   SAGA_MIN_MATCHES,
@@ -17,7 +18,7 @@ import {
   type StripItem,
 } from "./books";
 import { Avatar, BallScore, CollectionIcon, IconArrowUp, PageArrow, chartStyles } from "./fun";
-import { diaryPages, endingOf, eventLabel, monthLabel, roundName, scoreText } from "./library";
+import { MIN_RIVALRY_MEETINGS, diaryPages, endingOf, eventLabel, monthLabel, roundName, scoreText } from "./library";
 import { HighlightsLink, SlamLogo } from "../match-ui";
 import { useLog } from "./store";
 import { glideTo } from "../glide";
@@ -984,6 +985,23 @@ export function SagaSection() {
   return (
     <div>
       <Shelf shelf={shelf} bookId={shelfBook.id} counts={counts} progress={progress} onOpen={openBook} />
+      {/* How the saga grows. Not on someone else's shared saga. */}
+      {mode !== "shared" && (
+        <p className="mt-3 flex items-start gap-2.5 text-sm text-muted sm:items-center">
+          <span aria-hidden className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-ball text-xs font-bold text-[#0b0d12]">
+            +
+          </span>
+          <span>
+            Improve your saga by logging more matches: new books appear as you go, and a rivalry gets its own once you&apos;ve logged at least{" "}
+            {MIN_RIVALRY_MEETINGS} of its meetings and a quarter of them.{" "}
+            {mode === "diary" && (
+              <Link href="/log" className="font-semibold text-foreground underline underline-offset-4">
+                Log a match
+              </Link>
+            )}
+          </span>
+        </p>
+      )}
 
       <div
         style={tintVars(tints)}

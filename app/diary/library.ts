@@ -251,15 +251,18 @@ export function endingOf(m: { score: string; loser: string }) {
 
 /* ---------- The diary ---------- */
 
-// Rivalries are picked by rule, not by hand: every pairing you've logged at least
-// MIN_RIVALRY_MEETINGS times, most meetings first (ties: the one you watched most recently),
-// top MAX_RIVALRIES. Within a pair, the player who appears more in your log comes first.
-export const MIN_RIVALRY_MEETINGS = 2;
+// Rivalries are picked by rule, not by hand: a pairing earns its own book once you've logged a good
+// part of it, at least MIN_RIVALRY_MEETINGS of its meetings and, when its full record is known, at least
+// MIN_RIVALRY_SHARE of them. Most meetings first (ties: the one you watched most recently), top
+// MAX_RIVALRIES. Within a pair, the player who appears more in your log comes first. Without records
+// (when choosing which records to load) every pairing with enough meetings is a candidate.
+export const MIN_RIVALRY_MEETINGS = 3;
+export const MIN_RIVALRY_SHARE = 0.25;
 export const MAX_RIVALRIES = 3;
 
 export type Rivalry = { id: string; players: [string, string] };
 
-export function findRivalries(log: Record<string, FanEntry>, matches: Record<string, Match>): Rivalry[] {
+export function findRivalries(log: Record<string, FanEntry>, matches: Record<string, Match>, records?: Record<string, RecordMeeting[]>): Rivalry[] {
   const appearances = new Map<string, number>();
   const mine = Object.values(matches).filter((m) => log[m.id]);
   for (const m of mine) for (const p of [m.winner, m.loser]) appearances.set(p, (appearances.get(p) ?? 0) + 1);
@@ -274,7 +277,7 @@ export function findRivalries(log: Record<string, FanEntry>, matches: Record<str
     pairs.set(id, { players, n: cur.n + 1, last: watched > cur.last ? watched : cur.last });
   }
   return [...pairs.entries()]
-    .filter(([, p]) => p.n >= MIN_RIVALRY_MEETINGS)
+    .filter(([id, p]) => p.n >= MIN_RIVALRY_MEETINGS && (!records?.[id] || p.n >= records[id].length * MIN_RIVALRY_SHARE))
     .sort((a, b) => b[1].n - a[1].n || b[1].last.localeCompare(a[1].last))
     .slice(0, MAX_RIVALRIES)
     .map(([id, p]) => ({ id, players: p.players }));

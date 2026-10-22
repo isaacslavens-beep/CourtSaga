@@ -98,7 +98,7 @@ export function LogProvider({ mode, rows: initialRows, matches: fixed, entries: 
     () => Object.fromEntries(Object.entries(stored).flatMap(([id, e]) => (matches[id] ? [[id, toFanEntry(e, matches[id])]] : []))),
     [stored, matches],
   );
-  const rivalries = useMemo(() => findRivalries(entries, matches), [entries, matches]);
+  const rivalries = useMemo(() => findRivalries(entries, matches, records), [entries, matches, records]);
 
   /* ---------- Saving, for a fan's own diary ---------- */
 
