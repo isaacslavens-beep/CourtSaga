@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import type { ReactNode } from "react";
+import { pageCourts } from "./courts";
 
 // The diary's three parts, numbered as on the landing page, then the account
 const steps = [
@@ -24,6 +26,20 @@ export function AppNav() {
         </Link>
       ))}
     </nav>
+  );
+}
+
+/** The header sits on the surround of the page's court, under a strip of that Slam's two colours */
+export function CourtHeader({ children }: { children: ReactNode }) {
+  const court = pageCourts[usePathname()] ?? "uso";
+  return (
+    <header className={`court-${court} bg-[var(--hc-surround)] text-white`}>
+      <div aria-hidden className="flex h-1.5">
+        <span className="flex-1 bg-[var(--slam-a)]" />
+        <span className="flex-1 bg-[var(--slam-b)]" />
+      </div>
+      {children}
+    </header>
   );
 }
 

@@ -17,6 +17,7 @@ export function StepHeading({
   hint,
   id,
   as: Heading = "h2",
+  onCourt = false,
 }: {
   n: number;
   verb: string;
@@ -25,17 +26,18 @@ export function StepHeading({
   hint?: ReactNode;
   id?: string;
   as?: "h1" | "h2";
+  onCourt?: boolean; // white words on a court (see CourtBand)
 }) {
   return (
     <div className="max-w-2xl">
       <p className="flex items-center gap-3">
         <span className="flex h-10 w-10 items-center justify-center rounded-full bg-ball font-bold text-[#0b0d12] ring-1 ring-black/10">{n}</span>
-        <span className="text-sm font-semibold uppercase tracking-[0.16em] text-muted">{verb}</span>
+        <span className={`text-sm font-semibold uppercase tracking-[0.16em] ${onCourt ? "text-white/80" : "text-muted"}`}>{verb}</span>
       </p>
       <Heading id={id} className="mt-5 font-display text-4xl font-bold tracking-tight sm:text-5xl">
         {title}
       </Heading>
-      <p className="mt-4 text-xl font-medium leading-relaxed text-muted">{body}</p>
+      <p className={`mt-4 text-xl font-medium leading-relaxed ${onCourt ? "text-white/90" : "text-muted"}`}>{body}</p>
       {hint && (
         <p className="mt-4 inline-flex items-center gap-2.5 text-lg font-semibold text-court">
           <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-ball text-[#0b0d12] ring-1 ring-black/10">

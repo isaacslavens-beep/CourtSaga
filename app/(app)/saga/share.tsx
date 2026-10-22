@@ -47,7 +47,7 @@ export function ShareSaga({ slug: initial, origin }: { slug: string | null; orig
 
   const button = "cursor-pointer rounded-full px-4 py-2 font-semibold transition disabled:cursor-wait disabled:opacity-60";
   return (
-    <div className="mt-8 flex flex-col gap-3 rounded-3xl bg-surface p-4 shadow-sm ring-1 ring-line sm:flex-row sm:items-center sm:justify-between sm:p-5">
+    <div className="flex flex-col gap-3 rounded-3xl bg-surface p-4 shadow-sm ring-1 ring-line sm:flex-row sm:items-center sm:justify-between sm:p-5">
       <div className="min-w-0">
         <p className="font-display text-lg font-bold">Share your saga</p>
         <p className="text-sm text-muted">

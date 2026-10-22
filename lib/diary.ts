@@ -2,6 +2,7 @@ import "server-only";
 import { createHash } from "node:crypto";
 import { and, asc, desc, eq, or, sql, type SQL } from "drizzle-orm";
 import { cacheLife } from "next/cache";
+import { cache } from "react";
 import { alias } from "drizzle-orm/pg-core";
 import { getDb } from "@/db";
 import { diaryEntries, matches, players, sagaShares, user } from "@/db/schema";
@@ -332,8 +333,8 @@ export async function shareSlugOf(userId: string) {
   return row?.slug ?? null;
 }
 
-/** Whose saga a share link opens, or null if the link is off or never existed. */
-export async function sharedSagaOwner(slug: string) {
+/** Whose saga a share link opens, or null if the link is off or never existed. Looked up once a request. */
+export const sharedSagaOwner = cache(async (slug: string) => {
   if (!/^[A-Za-z0-9_-]{16,64}$/.test(slug)) return null;
   const [row] = await getDb()
     .select({ id: user.id, name: user.name })
@@ -341,4 +342,4 @@ export async function sharedSagaOwner(slug: string) {
     .innerJoin(user, eq(user.id, sagaShares.userId))
     .where(eq(sagaShares.slug, slug));
   return row ?? null;
-}
+});

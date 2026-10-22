@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Suspense, type ReactNode } from "react";
 import { requireUser } from "@/lib/auth";
 import { pageCount } from "@/lib/diary";
+import { CourtBand } from "../../court-band";
 import { OpeningDiary } from "../loading-page";
 import { ChangePasswordForm, DeleteAccountForm, LogOutButton } from "./forms";
 
@@ -9,14 +10,19 @@ export const metadata: Metadata = { title: "Your account · CourtSaga" };
 
 export default function AccountPage() {
   return (
-    <section className="py-12 sm:py-16">
-      <div className="mx-auto w-full max-w-2xl px-4 sm:px-8">
+    <div className="court-uso flex flex-1 flex-col">
+      <CourtBand>
         <h1 className="font-display text-4xl font-bold tracking-tight sm:text-5xl">Your account</h1>
-        <Suspense fallback={<OpeningDiary />}>
-          <Account />
-        </Suspense>
-      </div>
-    </section>
+        <p className="mt-4 max-w-xl text-xl font-medium leading-relaxed text-white/90">Change your password, log out, or delete your account.</p>
+      </CourtBand>
+      <section className="court-page flex-1 pb-16 pt-10 sm:pt-12">
+        <div className="mx-auto w-full max-w-2xl px-4 sm:px-8">
+          <Suspense fallback={<OpeningDiary />}>
+            <Account />
+          </Suspense>
+        </div>
+      </section>
+    </div>
   );
 }
 
@@ -33,7 +39,7 @@ async function Account() {
   const user = await requireUser();
   const pages = await pageCount(user.id);
   return (
-    <div className="mt-8 space-y-6">
+    <div className="space-y-6">
       <Card title={user.name || "You"}>
         <div className="flex flex-wrap items-center justify-between gap-4">
           <p className="text-muted">

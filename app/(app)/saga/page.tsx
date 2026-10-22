@@ -7,6 +7,7 @@ import { loadDiary, shareSlugOf } from "@/lib/diary";
 import { SAGA_MIN_MATCHES } from "../../diary/books";
 import { SagaSection } from "../../diary/saga";
 import { LogProvider } from "../../diary/store";
+import { CourtBand } from "../../court-band";
 import { StepHeading } from "../../step-heading";
 import { OpeningDiary } from "../loading-page";
 import { saver } from "../saver";
@@ -16,20 +17,25 @@ export const metadata: Metadata = { title: "Your saga · CourtSaga" };
 
 export default function SagaPage({ searchParams }: PageProps<"/saga">) {
   return (
-    <section className="stage flex-1 py-12 sm:py-16">
-      <div className="mx-auto w-full max-w-6xl px-4 sm:px-8">
+    <div className="court-rg flex flex-1 flex-col">
+      <CourtBand>
         <StepHeading
           as="h1"
+          onCourt
           n={3}
           verb="Read back"
           title="Your saga"
           body="Your matches, read back to you. It builds itself from the matches you log: your rivalries, your five-setters, the calls you got right, and the meetings you missed."
         />
-        <Suspense fallback={<OpeningDiary />}>
-          <Saga searchParams={searchParams} />
-        </Suspense>
-      </div>
-    </section>
+      </CourtBand>
+      <section className="stage flex-1 pb-16 pt-10 sm:pt-12">
+        <div className="mx-auto w-full max-w-6xl px-4 sm:px-8">
+          <Suspense fallback={<OpeningDiary />}>
+            <Saga searchParams={searchParams} />
+          </Suspense>
+        </div>
+      </section>
+    </div>
   );
 }
 
@@ -43,7 +49,7 @@ async function Saga({ searchParams }: Pick<PageProps<"/saga">, "searchParams">) 
     <>
       {enough && <ShareSaga slug={slug} origin={origin} />}
       <LogProvider key={`${diary.version}:${spot?.id}`} mode="diary" rows={diary.rows} entries={diary.entries} order={diary.order} records={diary.records} spotlight={spot} saver={saver}>
-        <div className="mt-10">
+        <div className={enough ? "mt-10" : ""}>
           <SagaSection />
         </div>
       </LogProvider>

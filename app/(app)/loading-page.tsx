@@ -1,7 +1,10 @@
-/** Shown for a moment while a diary page opens */
+import { TennisBall } from "../diary/fun";
+
+/** Shown for a moment while a page opens: a ball bouncing */
 export function OpeningDiary() {
   return (
-    <p className="mt-10 rounded-3xl border-2 border-dashed border-line p-10 text-center text-lg font-medium text-muted" role="status">
+    <p className="flex flex-col items-center gap-3 py-16 text-lg font-medium text-muted" role="status">
+      <TennisBall filled className="h-9 w-9 drop-shadow motion-safe:animate-bounce" />
       Loading…
     </p>
   );
