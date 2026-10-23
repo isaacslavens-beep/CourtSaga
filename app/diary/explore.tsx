@@ -736,7 +736,7 @@ function Start({ start, follow, slam, setSlam }: { start: StartData; follow: Fol
     <div className="space-y-12">
       <section>
         <h2 className="font-display text-2xl font-bold tracking-tight">Start at a Slam</h2>
-        <p className="text-muted">Pick one for every final played there since {Math.min(...start.finals.map((r) => r.season))}, then follow the story from any of them.</p>
+        <p className="text-muted">Pick one for every final played there, then follow the story from any of them.</p>
         <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
           {slamTiles.map((t, i) => (
             <button

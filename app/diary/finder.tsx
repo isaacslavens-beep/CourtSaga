@@ -17,6 +17,8 @@ const examples = ["alcaraz sinner", "wimbledon 2008 final", "sabalenka ao 2023"]
 
 /** A search for a season after the last one in the data */
 const notInYet = (query: string, last: number) => (query.match(/\b(19|20)\d{2}\b/g) ?? []).some((y) => Number(y) > last);
+/** A search for a season before the first one in the data */
+const tooEarly = (query: string, first: number) => (query.match(/\b(19|20)\d{2}\b/g) ?? []).some((y) => Number(y) < first);
 
 export function MatchFinder({ seasons, explore = false, inside }: { seasons: [number, number] | null; explore?: boolean; inside?: ReactNode }) {
   const { matches, entries, view } = useLog();
@@ -75,7 +77,7 @@ export function MatchFinder({ seasons, explore = false, inside }: { seasons: [nu
         {seasons && (
           <span className="font-sans text-sm font-normal text-muted">
             {" "}
-            · any tour-level singles match, {seasons[0]} to {seasons[1]}
+            · any tour-level singles match
           </span>
         )}
       </label>
@@ -128,7 +130,9 @@ export function MatchFinder({ seasons, explore = false, inside }: { seasons: [nu
               No matches for &ldquo;{shown.query}&rdquo;.{" "}
               {seasons && notInYet(shown.query, seasons[1])
                 ? `Matches from ${seasons[1] + 1} aren't in yet.`
-                : "Try a player's surname, a tournament and a year, like \u201cfederer wimbledon 2007\u201d."}
+                : seasons && tooEarly(shown.query, seasons[0])
+                  ? `The match data goes back to ${seasons[0]}, so earlier matches can't be found yet.`
+                  : "Try a player's surname, a tournament and a year, like \u201cfederer wimbledon 2007\u201d."}
             </p>
           ) : (
             <>

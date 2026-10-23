@@ -1124,7 +1124,7 @@ export function tellStory(input: StoryInput): Story {
       kicker: total > 1 ? `Meeting ${k + 1} of ${total}${hs} · ${record(aa, ba)} after it` : `Their only meeting${hs}`,
       visual: h2hVisual,
     },
-    event: { title: cap(atEvent(F.event)), kicker: `Every year, ${editions[0] ?? F.season} on`, visual: eventVisual },
+    event: { title: cap(atEvent(F.event)), kicker: "Year by year", visual: eventVisual },
     season: { title: `The ${seasonWord} season`, kicker: "Match by match", visual: seasonVisual },
     draw: { title: "The draw", kicker: drawVisual?.champion ? `Won by ${who(drawVisual.champion)}` : "", visual: drawVisual },
     after: { title: "What came next", kicker: "", visual: null },

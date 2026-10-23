@@ -59,7 +59,7 @@ export function Hero() {
               Explore and remember the story of tennis.
             </h1>
             <p className="mt-6 max-w-lg text-lg font-medium leading-relaxed text-white/90 sm:text-xl">
-              Explore the story behind any match since 2003, and turn the ones you&apos;ve seen into a saga of your
+              Explore the story behind any match, and turn the ones you&apos;ve seen into a saga of your
               own to share.
             </p>
             <div className="mt-8 flex flex-wrap items-center gap-x-5 gap-y-3">

@@ -7,7 +7,7 @@ import { useEffect, useState } from "react";
    step being looked at, so it says what an account adds to the demo on screen. */
 
 const lines: Record<string, string> = {
-  log: "Sign up free to log any match since 2003",
+  log: "Sign up free to log any match",
   explore: "Sign up free to explore any tennis match",
   story: "Sign up free to build your own saga",
 };
