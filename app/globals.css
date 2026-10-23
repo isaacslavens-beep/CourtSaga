@@ -313,7 +313,7 @@ html {
 /* ---------- The signed-in pages: the log and exploring on Slams' courts, the saga as a book ----------
    A page sets one of these on itself, and the header follows it: the header's colour, the court's surround,
    the court and its surface, the light tint the page's content sits on, and two colours for the strip
-   along the top (the Slams' own, as in the ranking). */
+   along the top (the Slams' own). */
 
 /* Wimbledon: grass all round, the court mown in stripes that run with the net, under the club's purple */
 .court-wimbledon {
