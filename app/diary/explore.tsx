@@ -5,11 +5,11 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore, useTransition, type ReactNode } from "react";
 import { glideTo } from "../glide";
 import { HighlightsLink, SlamLogo, TournamentLabel } from "../match-ui";
-import { Avatar, BallScore, CourtArt, chartStyles } from "./fun";
+import { Avatar, BallRating, BallScore, CourtArt, chartStyles } from "./fun";
 import { bigEventOf, bigEvents, diaryPages, roundName, scoreText, toMatches, watched, watchedHow, type Match, type MatchRow, type Round, type WatchMode } from "./library";
-import { starMatch, updateEntry } from "../(app)/actions";
 import { highlightVideos } from "./media";
-import { Scoreboard } from "./log";
+import { MatchFinder } from "./finder";
+import { Scoreboard } from "./scoreboard";
 import { useLog } from "./store";
 import type { Bracket, BracketSlot, DrawVisual, EventVisual, Fact, H2HVisual, Part, SeasonVisual, StatsVisual, Story, Thread } from "./story";
 import type { Surface } from "./library";
@@ -433,8 +433,8 @@ export function StoryView({
   follow,
   pending,
   page,
-  logHref,
   star,
+  take,
   starOf = () => null,
   lite = false,
 }: {
@@ -442,8 +442,8 @@ export function StoryView({
   follow: Follow;
   pending: boolean;
   page: (id: string) => number | null;
-  logHref?: (id: string) => string; // signed in: where a starred match's diary page is
-  star?: ReactNode; // the star button, beside the title
+  star?: ReactNode; // beside the title: copying the link
+  take?: ReactNode; // under the title: your take on it, or a way to star it
   starOf?: StarOf; // whether a match is starred, and watched
   lite?: boolean; // the landing's demo: on a phone, only the threads that read quickest
 }) {
@@ -499,6 +499,7 @@ export function StoryView({
         </div>
         {star && <div className="w-full sm:ml-auto sm:w-auto">{star}</div>}
       </header>
+      {take && <div className="mb-8">{take}</div>}
 
       <div className="grid gap-8 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1fr)] lg:gap-10">
         {/* The match, as a page of the record */}
@@ -531,14 +532,6 @@ export function StoryView({
                 <SideLine side={story.a} name={story.a.name} />
                 <SideLine side={story.b} name={story.b.name} />
               </div>
-              {logHref && here && (
-                <Link
-                  href={logHref(story.id)}
-                  className="flex items-center justify-center gap-2 rounded-full border-2 border-line px-4 py-2.5 font-semibold text-court transition hover:border-court"
-                >
-                  Open it in your stars
-                </Link>
-              )}
             </div>
           </div>
         </div>
@@ -718,79 +711,158 @@ const starModes: { mode: WatchMode; label: string }[] = [
   { mode: "Stream", label: "Streamed" },
 ];
 
-/** Star this match in one click; once starred, say if you watched it, or go and add more */
-function StarPanel({ story, ask = false }: { story: Story; ask?: boolean }) {
-  const router = useRouter();
-  const [pending, start] = useTransition();
-  const state = useStarState()(story.id);
-  const { entries } = useLog();
-  const run = (action: () => Promise<void>) =>
-    start(async () => {
-      await action();
-      router.refresh();
-    });
-  if (!state) {
+const takeChip = (on: boolean) =>
+  `inline-flex cursor-pointer items-center gap-1.5 rounded-full border-2 px-3 py-1.5 text-sm font-semibold transition ${
+    on ? "border-court bg-court text-court-ink shadow-md" : "border-line bg-surface text-muted hover:border-court hover:text-court"
+  }`;
+
+/**
+ * Your take on a match, at the top of its story: one click stars it, then say if you watched it, rate it,
+ * say who you were backing and write a note. Everything saves as you go. At the foot of the story (`ask`),
+ * the star button comes with a question, and a starred match shows what you said.
+ */
+function YourTake({ story, ask = false }: { story: Story; ask?: boolean }) {
+  const { entries, matches, add, update, remove, saving } = useLog();
+  const page = usePages();
+  const fan = entries[story.id];
+  const m = matches[story.id];
+  const played = story.date.slice(0, 7);
+  const here = page(story.id);
+
+  if (!fan) {
     const button = (
       <button
         type="button"
-        disabled={pending}
-        onClick={() => run(() => starMatch(story.id))}
-        className="inline-flex cursor-pointer items-center gap-2 rounded-full bg-ball px-6 py-3 font-display text-lg font-bold text-[#0b0d12] shadow-lg shadow-black/15 transition hover:-translate-y-0.5 hover:shadow-xl disabled:opacity-60"
+        disabled={!m}
+        onClick={() => add(story.id, { watchedOn: null, watchedDate: played, rating: null, cheering: null, pick: null, note: "" })}
+        className="inline-flex shrink-0 cursor-pointer items-center gap-2 rounded-full bg-ball px-6 py-3 font-display text-lg font-bold text-[#0b0d12] shadow-lg shadow-black/15 transition hover:-translate-y-0.5 hover:shadow-xl disabled:opacity-60"
       >
-        <span aria-hidden className="text-xl">☆</span> {pending ? "Starring…" : "Star this match"}
+        <span aria-hidden className="text-xl">☆</span> Star this match
       </button>
     );
-    // At the foot of a story, the button comes with a question
-    return ask ? (
-      <div className="flex flex-col items-center gap-3 text-center">
-        <p className="font-display text-2xl font-bold tracking-tight">Want to remember this one?</p>
+    if (ask)
+      return (
+        <div className="flex flex-col items-center gap-3 text-center">
+          <p className="font-display text-2xl font-bold tracking-tight">Want to remember this one?</p>
+          {button}
+        </div>
+      );
+    return (
+      <div className="flex flex-col items-start gap-3 rounded-3xl border-2 border-dashed border-line bg-surface/70 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-muted">
+          <span className="font-display text-lg font-bold text-foreground">Remember this one?</span> Star it to rate it, note it, and keep it in your saga.
+        </p>
         {button}
       </div>
-    ) : (
-      button
     );
   }
-  const entry = entries[story.id];
-  return (
-    <div className={`rise-in rounded-2xl bg-ball px-5 py-4 text-left text-[#0b0d12] shadow-lg shadow-black/15 ring-1 ring-black/10 transition ${pending ? "opacity-60" : ""}`}>
-      <p className="flex flex-wrap items-center gap-x-2 font-display text-xl font-bold">
-        <span aria-hidden className="text-2xl">★</span> In your saga
-        <span className="font-sans text-sm font-semibold opacity-75">{state === "watched" ? `· watched ${watchedHow(entry?.watchedOn ?? null)}` : "· starred, not watched"}</span>
-      </p>
-      {entry?.rating ? (
-        <span className="mt-1.5 inline-flex rounded-full bg-[#0b0d12] px-2 py-1">
-          <BallScore value={entry.rating} size="sm" />
-        </span>
-      ) : null}
-      {entry?.note && <p className="mt-2 max-w-sm border-l-2 border-[#0b0d12]/40 pl-3 text-sm font-medium italic">&ldquo;{entry.note}&rdquo;</p>}
-      {state === "starred" && (
-        <p className="mt-2 flex flex-wrap items-center gap-1.5 text-sm">
-          <span className="font-semibold opacity-75">Watched it?</span>
-          {starModes.map(({ mode, label }) => (
-            <button
-              key={mode}
-              type="button"
-              disabled={pending}
-              onClick={() => run(() => updateEntry(story.id, { watchedOn: mode, watchedDate: story.date.slice(0, 7) }))}
-              className="cursor-pointer rounded-full bg-white/80 px-2.5 py-0.5 font-semibold transition hover:bg-white"
-            >
-              {label}
-            </button>
-          ))}
+
+  const seen = watched(fan);
+  const sagaLink = (
+    <Link
+      href={`/saga?m=${encodeURIComponent(story.id)}`}
+      className="inline-flex items-center gap-1.5 rounded-full bg-[#0b0d12] px-3.5 py-1.5 text-sm font-bold text-ball transition hover:-translate-y-0.5"
+    >
+      See it in your saga <span aria-hidden>→</span>
+    </Link>
+  );
+
+  // At the foot: what you said, and the way to the saga
+  if (ask)
+    return (
+      <div className="rise-in rounded-2xl bg-ball px-5 py-4 text-[#0b0d12] shadow-lg shadow-black/15 ring-1 ring-black/10">
+        <p className="flex flex-wrap items-center gap-x-2 font-display text-xl font-bold">
+          <span aria-hidden className="text-2xl">★</span> In your saga
+          <span className="font-sans text-sm font-semibold opacity-75">{seen ? `· watched ${watchedHow(fan.watchedOn)}` : "· starred, not watched"}</span>
         </p>
-      )}
-      <p className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm font-bold">
-        <Link
-          href={`/saga?m=${encodeURIComponent(story.id)}`}
-          className="inline-flex items-center gap-1.5 rounded-full bg-[#0b0d12] px-3.5 py-1.5 text-ball transition hover:-translate-y-0.5"
-        >
-          See it in your saga <span aria-hidden>→</span>
-        </Link>
-        <Link href={`/star?m=${encodeURIComponent(story.id)}`} className="underline decoration-2 underline-offset-4">
-          {entry?.rating || entry?.note ? "Edit your rating, pick or note" : "Add a rating, your pick or a note"}
-        </Link>
-      </p>
-    </div>
+        {fan.rating ? (
+          <span className="mt-1.5 inline-flex rounded-full bg-[#0b0d12] px-2 py-1">
+            <BallScore value={fan.rating} size="sm" />
+          </span>
+        ) : null}
+        {fan.note && <p className="mt-2 max-w-sm border-l-2 border-[#0b0d12]/40 pl-3 text-sm font-medium italic">&ldquo;{fan.note}&rdquo;</p>}
+        <p className="mt-3">{sagaLink}</p>
+      </div>
+    );
+
+  const players = m ? [m.winner, m.loser] : [];
+  return (
+    <section aria-label="Your take" className="rise-in overflow-hidden rounded-3xl bg-surface shadow-lg ring-4 ring-ball">
+      <header className="flex flex-wrap items-center gap-x-3 gap-y-2 bg-ball px-5 py-3 text-[#0b0d12]">
+        <p className="font-display text-xl font-bold">
+          <span aria-hidden>★</span> In your saga{here ? <span className="font-sans text-sm font-semibold opacity-70"> · page {here}</span> : null}
+        </p>
+        <span className="ml-auto flex items-center gap-3">
+          <span className="text-xs font-semibold opacity-70" role="status" aria-live="polite">
+            {saving === "error" ? "Couldn't save. Check your connection." : saving === "saving" ? "Saving…" : "Saves as you go"}
+          </span>
+          {sagaLink}
+        </span>
+      </header>
+      <div className="grid gap-6 p-5 sm:p-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+        <div className="space-y-5">
+          <div>
+            <p className="font-display font-bold">Did you watch it?</p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {starModes.map(({ mode, label }) => (
+                <button key={mode} type="button" aria-pressed={fan.watchedOn === mode} onClick={() => update(story.id, { watchedOn: mode, ...(seen ? {} : { watchedDate: played }) })} className={takeChip(fan.watchedOn === mode)}>
+                  {label}
+                </button>
+              ))}
+              <button type="button" aria-pressed={!seen} onClick={() => update(story.id, { watchedOn: null, watchedDate: played })} className={takeChip(!seen)}>
+                ☆ Didn&apos;t watch it
+              </button>
+            </div>
+          </div>
+          <div>
+            <p className="font-display font-bold">
+              Your rating <span className="font-sans text-sm font-normal text-muted">· if you like</span>
+            </p>
+            <div className="mt-2">
+              <BallRating value={fan.rating} size="md" onChange={(rating) => update(story.id, { rating })} />
+            </div>
+          </div>
+          <div>
+            <p className="font-display font-bold">Who were you backing?</p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {[...players, null].map((p) => (
+                <button
+                  key={p ?? "none"}
+                  type="button"
+                  aria-pressed={fan.cheering === p}
+                  onClick={() => update(story.id, { cheering: p, pick: p ? { winner: p } : null })}
+                  className={takeChip(fan.cheering === p)}
+                >
+                  {p && <Avatar name={p} size="h-6 w-6 text-[10px]" />}
+                  {p ?? "No one"}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+        <div className="flex min-w-0 flex-col">
+          <label htmlFor="your-note" className="font-display font-bold">
+            Your note <span className="font-sans text-sm font-normal text-muted">· why it matters to you, or anything else</span>
+          </label>
+          <textarea
+            id="your-note"
+            value={fan.note}
+            onChange={(e) => update(story.id, { note: e.target.value })}
+            rows={4}
+            maxLength={2000}
+            placeholder="Where you watched, who with, why it's one to remember…"
+            className="paper mt-2 w-full flex-1 resize-none rounded-xl border border-line bg-surface pb-1 pr-3 pt-0 leading-[var(--rule)] shadow-sm [--rule:1.75rem] placeholder:text-muted/70 focus:border-court focus:outline-none focus:ring-2 focus:ring-court/20"
+          />
+          <button
+            type="button"
+            onClick={() => window.confirm(`Remove your star from ${story.event} ${story.season}? What you wrote about it goes with it.`) && remove(story.id)}
+            className="mt-3 self-start cursor-pointer text-sm font-semibold text-muted underline-offset-4 hover:text-fault hover:underline"
+          >
+            Remove this star
+          </button>
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -820,6 +892,18 @@ function ShareLink({ story }: { story: Story }) {
       </svg>
       {copied ? "Link copied ✓" : "Copy link"}
     </button>
+  );
+}
+
+/** Signed out, on a shared match: what an account adds here */
+function GuestTake() {
+  return (
+    <div className="flex flex-col items-start gap-3 rounded-3xl border-2 border-dashed border-line bg-surface/70 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+      <p className="text-muted">
+        <span className="font-display text-lg font-bold text-foreground">Remember this one?</span> Sign up free to star it, rate it, note it, and keep it in your saga.
+      </p>
+      <StarDemo />
+    </div>
   );
 }
 
@@ -1175,11 +1259,13 @@ export function ExploreSection({
   missing,
   slam,
   guest = false,
+  seasons,
   start: startData,
 }: {
   story: Story | null;
   missing: boolean;
   slam: string | null;
+  seasons: [number, number] | null;
   guest?: boolean; // signed out, from a shared link: no starring, a way to sign up instead
   start: StartData;
 }) {
@@ -1204,44 +1290,33 @@ export function ExploreSection({
 
   return (
     <div className="space-y-8">
+      <MatchFinder seasons={seasons} onPick={(row) => follow(row.id)} inside={<SurpriseSmall slam={story ? slam : picked} />} />
       <div ref={top} className="scroll-mt-6">
         {missing && <p className="mb-6 rounded-2xl bg-fault/10 px-4 py-3 font-medium text-fault">That match isn&apos;t in the record.</p>}
         {story ? (
           <>
-            {/* Back to the Slams, or somewhere new */}
-            <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-              <Link href="/explore" className="font-semibold text-court underline-offset-4 hover:underline">
-                ← All Slams
-              </Link>
-              <SurpriseSmall slam={slam} />
-            </div>
+            {/* Back to where Explore starts */}
+            <Link href="/explore" className="mb-6 inline-block font-semibold text-court underline-offset-4 hover:underline">
+              ← All Slams
+            </Link>
             <Crumbs story={story} follow={follow} />
-            <StoryView story={story} follow={follow} pending={pending} page={page} logHref={(id) => `/star?m=${encodeURIComponent(id)}`} star={
-                <div className="flex flex-col items-start gap-2 sm:items-end">
-                  {guest ? <StarDemo /> : <StarPanel story={story} />}
-                  <ShareLink story={story} />
-                </div>
-              }
+            <StoryView
+              story={story}
+              follow={follow}
+              pending={pending}
+              page={page}
+              star={<ShareLink story={story} />}
+              take={guest ? <GuestTake /> : <YourTake story={story} />}
               starOf={starOf}
             />
             {/* At the foot of the story: keep this match, or try another */}
             <div className="mt-12 flex flex-col items-center gap-8">
-              {guest ? <StarDemo /> : <StarPanel story={story} ask />}
+              {guest ? <StarDemo /> : <YourTake story={story} ask />}
               <SurpriseMe again slam={slam} />
             </div>
           </>
         ) : (
           <>
-            <div className="mb-10 flex flex-col items-start gap-3 rounded-3xl border border-line bg-surface p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between sm:p-6">
-              <p className="max-w-xl text-muted">
-                <span className="font-display text-lg font-bold text-foreground">Looking for a match you saw?</span> Find it on the{" "}
-                <Link href="/star" className="font-semibold text-court underline underline-offset-4">
-                  Star page
-                </Link>
-                , rate it, and explore it from there. Or let chance pick one.
-              </p>
-              <SurpriseSmall slam={picked} />
-            </div>
             <Start start={startData} follow={follow} slam={picked} setSlam={setPicked} />
           </>
         )}

@@ -55,7 +55,7 @@ type LogStore = {
   /** The last "see it in the next step" request */
   spotlight: Spotlight | null;
   goTo: (target: Spotlight["target"], id: string) => void;
-  /** Open a page of the diary in the log, from the saga */
+  /** Open a starred match's story in Explore, from the saga */
   openInLog: (id: string) => void;
   saving: SaveState;
 };
@@ -197,10 +197,12 @@ export function LogProvider({ mode, rows: initialRows, matches: fixed, entries: 
     [mode, flush, router],
   );
 
+  // A match's own page is its story in Explore, where it's rated and noted too
   const openInLog = useCallback(
     (id: string) => {
-      if (mode === "diary") return router.push(`/star?m=${encodeURIComponent(id)}`);
+      if (mode === "diary") return router.push(`/explore?m=${encodeURIComponent(id)}`);
       setFocusId(id);
+      setSpotlight((s) => ({ target: "explore", id, n: (s?.n ?? 0) + 1 }));
     },
     [mode, router],
   );

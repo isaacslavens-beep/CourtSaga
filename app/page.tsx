@@ -7,7 +7,6 @@ import { SmoothAnchors } from "./smooth-anchors";
 import { rivalryRecords } from "./demos/rivalry-records";
 import { sampleEntries, sampleMatches, sampleOrder } from "./demos/sample";
 import { ExploreDemo } from "./diary/explore";
-import { LogSection } from "./diary/log";
 import { dataToSample, sampleToData } from "./diary/media";
 import { SagaSection } from "./diary/saga";
 import { LogProvider } from "./diary/store";
@@ -17,14 +16,6 @@ import djokovicCentreCourt from "@/public/photos/djokovic-wimbledon-centre-court
 
 const steps = [
   {
-    id: "star",
-    demo: <LogSection />,
-    verb: "Keep",
-    title: "Star a match",
-    body: "Star any match you want to remember, whether you watched it or not. Say how you saw it, rate it, back a player, add a few words.",
-    hint: "Pick any match below and change the answers.",
-  },
-  {
     id: "explore",
     demo: (
       <Suspense>
@@ -33,7 +24,7 @@ const steps = [
     ),
     verb: "Explore",
     title: "Explore any match",
-    body: "Pick a match and follow the story around it: the head-to-head, each player's season and history at the tournament, the draw, and what came next.",
+    body: "Find any match and follow the story around it: the head-to-head, each player's season and history at the tournament, the draw, and what came next. Star the ones you care about, watched or not, and rate them as you go.",
     hint: "Pick a match, then follow any underlined one.",
   },
   {

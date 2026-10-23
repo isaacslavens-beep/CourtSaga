@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { getSession } from "@/lib/auth";
-import { bigFinals, findMatches, latestPage, loadDiary, type DiaryData } from "@/lib/diary";
+import { bigFinals, findMatch, findMatches, latestPage, loadDiary, seasonRange, type DiaryData } from "@/lib/diary";
 import { matchStory, randomStoryId } from "@/lib/story";
 import { classics } from "../../diary/classics";
 import { bigEvents, diaryPages, roundName, slams, toFanEntry, toMatches } from "../../diary/library";
@@ -35,10 +35,10 @@ export default function ExplorePage({ searchParams }: PageProps<"/explore">) {
           as="h1"
           onCourt
           compact
-          n={2}
+          n={1}
           verb="Explore"
           title="Explore a match"
-          body="Start at a Slam, or from any match you star, and follow the story one match to the next."
+          body="Find any match, star it, rate it, and follow its story one match to the next."
         />
       </CourtBand>
       <section className="court-page flex-1 pb-16 pt-6 sm:pt-8">
@@ -65,12 +65,16 @@ async function Exploring({ searchParams }: Pick<PageProps<"/explore">, "searchPa
     redirect(id ? `/explore?m=${encodeURIComponent(id)}${atSlam ? `&slam=${encodeURIComponent(atSlam)}` : ""}` : "/explore");
   }
   const wanted = typeof m === "string" ? m.slice(0, 120) : null;
-  const [diary, story, finals, classicRows] = await Promise.all([
+  const [diary, story, finals, classicRows, seasons, row] = await Promise.all([
     user ? loadDiary(user.id) : noDiary,
     wanted ? matchStory(wanted) : null,
     wanted ? [] : bigFinals(),
     wanted ? [] : findMatches(classics.map((c) => c.id)),
+    seasonRange(),
+    // The match being explored, so it can be starred right here
+    wanted ? findMatch(wanted) : null,
   ]);
+  const rows = row && !diary.entries[row.id] ? [...diary.rows, row] : diary.rows;
 
   // With no match open: the Slams' finals, matches everyone remembers, and the diary's latest pages
   let recent: string[] = [];
@@ -83,9 +87,10 @@ async function Exploring({ searchParams }: Pick<PageProps<"/explore">, "searchPa
 
   return (
     <LogProvider
-      key={diary.version}
+      // Afresh for each match, so the one being explored is always in the store to star
+      key={`${diary.version}:${wanted}`}
       mode={user ? "diary" : "shared"}
-      rows={diary.rows}
+      rows={rows}
       entries={diary.entries}
       order={diary.order}
       focusId={latestPage(diary)}
@@ -97,6 +102,7 @@ async function Exploring({ searchParams }: Pick<PageProps<"/explore">, "searchPa
           missing={!!wanted && !story}
           slam={atSlam ?? null}
           guest={!user}
+          seasons={seasons}
           start={{ finals, classics: classicRows.map((row) => ({ row, why: classics.find((c) => c.id === row.id)!.why })), diary: recentRows }}
         />
       </div>

@@ -1,14 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { glideTo } from "../glide";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { TournamentLabel } from "../match-ui";
 import { Avatar } from "./fun";
 import { diaryPages, eventLabel, scoreText, toMatches, type MatchRow } from "./library";
 import { useLog } from "./store";
 
-/* Finding a match to star: players, tournament, year and round, in any order. Picking one opens its page
-   below, starred or not; from there it can be explored. */
+/* Finding a match: players, tournament, year and round, in any order. Picking one opens its story in
+   Explore, where it can be starred, rated and noted. */
 
 type Results = { results: MatchRow[]; total: number; page: number; pages: number; size: number; query: string; corrected: string | null };
 
@@ -19,8 +18,8 @@ const notInYet = (query: string, last: number) => (query.match(/\b(19|20)\d{2}\b
 /** A search for a season before the first one in the data */
 const tooEarly = (query: string, first: number) => (query.match(/\b(19|20)\d{2}\b/g) ?? []).some((y) => Number(y) < first);
 
-export function MatchFinder({ seasons }: { seasons: [number, number] | null }) {
-  const { matches, entries, view } = useLog();
+export function MatchFinder({ seasons, onPick, inside }: { seasons: [number, number] | null; onPick: (row: MatchRow) => void; inside?: ReactNode }) {
+  const { matches, entries } = useLog();
   const pages = diaryPages(entries, matches);
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
@@ -59,8 +58,8 @@ export function MatchFinder({ seasons }: { seasons: [number, number] | null }) {
     setPage(1);
   };
   const open = (row: MatchRow) => {
-    view(row);
-    glideTo(document.getElementById("your-log"), "start", 0);
+    setQuery("");
+    onPick(row);
   };
   const first = shown ? (shown.page - 1) * shown.size + 1 : 0;
 
@@ -90,8 +89,10 @@ export function MatchFinder({ seasons }: { seasons: [number, number] | null }) {
             placeholder={`Try "${examples[0]}" or "${examples[1]}"`}
             autoComplete="off"
             spellCheck={false}
-            className="w-full rounded-full border-2 border-line bg-background py-3 pl-12 pr-4 text-lg font-medium placeholder:text-muted/70 focus:border-court focus:outline-none focus:ring-4 focus:ring-court/15"
+            className={`w-full rounded-full border-2 border-line bg-background py-3 pl-12 text-lg font-medium placeholder:text-muted/70 focus:border-court focus:outline-none focus:ring-4 focus:ring-court/15 ${inside ? "pr-40 sm:pr-48" : "pr-4"}`}
           />
+          {/* Something to press at the bar's right end: Surprise me */}
+          {inside && <span className="absolute right-1.5 top-1/2 -translate-y-1/2">{inside}</span>}
         </div>
       </div>
 
@@ -159,10 +160,10 @@ export function MatchFinder({ seasons }: { seasons: [number, number] | null }) {
                           </span>
                         </span>
                         {page ? (
-                          <span className="shrink-0 rounded-full bg-ball/40 px-2.5 py-1 text-sm font-semibold">Page {page}</span>
+                          <span className="shrink-0 rounded-full bg-ball px-2.5 py-1 text-sm font-bold">★ In your saga</span>
                         ) : (
                           <span className="shrink-0 rounded-full border-2 border-line px-2.5 py-0.5 text-sm font-semibold text-court transition group-hover:border-court">
-                            Open
+                            Explore
                           </span>
                         )}
                       </button>

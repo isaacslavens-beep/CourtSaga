@@ -7,7 +7,7 @@ import { authClient } from "@/lib/auth-client";
 import { Field, Message, SubmitButton, problem } from "../form-ui";
 
 // Only ever send someone back to a page of this site
-const safeNext = (next: string | null) => (next && next.startsWith("/") && !next.startsWith("//") ? next : "/star");
+const safeNext = (next: string | null) => (next && next.startsWith("/") && !next.startsWith("//") ? next : "/explore");
 
 const text = (form: FormData, name: string) => String(form.get(name) ?? "").trim();
 
@@ -27,7 +27,7 @@ export function SignUpForm() {
       setPending(false);
       return;
     }
-    router.replace("/star");
+    router.replace("/explore");
     router.refresh();
   }
 

@@ -7,9 +7,8 @@ import { pageCourts } from "./courts";
 
 // The diary's three parts, numbered as on the landing page, then the account
 const steps = [
-  { href: "/star", n: 1, label: "Star" },
-  { href: "/explore", n: 2, label: "Explore" },
-  { href: "/saga", n: 3, label: "Saga" },
+  { href: "/explore", n: 1, label: "Explore" },
+  { href: "/saga", n: 2, label: "Saga" },
 ];
 
 const pill = (on: boolean) => `flex items-center gap-2 rounded-full font-semibold transition ${on ? "bg-white text-foreground shadow-md" : "text-white/90 hover:bg-white/10"}`;
@@ -18,7 +17,7 @@ const pill = (on: boolean) => `flex items-center gap-2 rounded-full font-semibol
 export function AppNav() {
   const path = usePathname();
   return (
-    <nav aria-label="Star, explore and saga" className="order-3 flex w-full items-center gap-1 sm:order-2 sm:ml-auto sm:w-auto sm:gap-1.5">
+    <nav aria-label="Explore and saga" className="order-3 flex w-full items-center gap-1 sm:order-2 sm:ml-auto sm:w-auto sm:gap-1.5">
       {steps.map((s) => (
         <Link key={s.href} href={s.href} aria-current={path === s.href ? "page" : undefined} className={`${pill(path === s.href)} py-1 pl-1 pr-3 sm:py-1.5 sm:pl-1.5 sm:pr-3.5`}>
           <span className="flex h-7 w-7 items-center justify-center rounded-full bg-ball text-sm font-bold text-[#0b0d12] ring-1 ring-black/10">{s.n}</span>

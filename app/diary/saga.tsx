@@ -240,10 +240,10 @@ function Faces({ names, size, tones }: { names: string[]; size: string; tones?: 
   return names.map((p) => <Avatar key={p} name={p} size={size} tone={t.get(p)} />);
 }
 
-/** Back to a match's page in the log, to read or change it. In a shared saga, just where it is. */
+/** On to a match's story in Explore, to read it or change your take. In a shared saga, just where it is. */
 function PageLink({ page, onClick }: { page: number | undefined; onClick?: () => void }) {
   if (!onClick) return <span className="whitespace-nowrap text-xs font-semibold text-muted">p. {page}</span>;
-  const label = `Open page ${page} in the log`;
+  const label = `Open page ${page} in Explore`;
   return (
     <button
       type="button"
@@ -305,7 +305,7 @@ function Frontispiece({ book, photo, best, pages }: { book: BookData; photo: Pho
                 <Faces names={book.faces} size="h-20 w-20 text-2xl ring-4 ring-[var(--paper)]" />
               </span>
             ) : null}
-            <p className="text-sm">Every page in this book comes from your log.</p>
+            <p className="text-sm">Every page in this book is a match you starred.</p>
           </div>
         )
       )}
@@ -393,7 +393,7 @@ function GlanceNumbers({ book, catchUp }: { book: BookData; catchUp: CatchUp | n
         <div className="mt-8">
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted">Still to watch</p>
           <p className="mt-1 text-sm text-muted">
-            {catchUp.missed.length} of {catchUp.total} meetings aren&apos;t in your log. Start with:
+            {catchUp.missed.length} of {catchUp.total} meetings aren&apos;t starred. Start with:
           </p>
           <ol className="mt-3 space-y-3">
             {catchUp.missed.slice(0, 3).map((x) => (
@@ -747,7 +747,7 @@ export function SagaSection() {
   if (!shelf.length) {
     return (
       <p className="rounded-2xl border-2 border-dashed border-line p-8 text-center text-lg font-medium text-muted">
-        Log {SAGA_MIN_MATCHES} matches to start your saga.
+        Star {SAGA_MIN_MATCHES} matches to start your saga.
       </p>
     );
   }
@@ -766,7 +766,6 @@ export function SagaSection() {
       ? undefined
       : (id: string) => {
           openInLog(id);
-          if (mode === "demo") glideTo(document.getElementById("star"), "start", 0);
         };
 
   // The best thing you wrote anywhere in the book, for the page facing its title
@@ -1001,8 +1000,8 @@ export function SagaSection() {
           <span>
             The more matches you star, the more your saga grows.{" "}
             {mode === "diary" && (
-              <Link href="/star" className="font-semibold text-foreground underline underline-offset-4">
-                Star a match
+              <Link href="/explore" className="font-semibold text-foreground underline underline-offset-4">
+                Find a match to star
               </Link>
             )}
           </span>

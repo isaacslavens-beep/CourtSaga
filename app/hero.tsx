@@ -64,7 +64,7 @@ export function Hero() {
             </p>
             <div className="mt-8 flex flex-wrap items-center gap-x-5 gap-y-3">
               <a
-                href="#star"
+                href="#explore"
                 className="inline-flex items-center gap-2.5 rounded-full bg-ball px-6 py-3 text-lg font-bold text-[#0b0d12] shadow-lg shadow-black/25 transition hover:-translate-y-0.5 hover:shadow-xl"
               >
                 Try it out

@@ -16,7 +16,9 @@ const nextConfig: NextConfig = {
     // Logging became starring
     return [
       { source: "/rank", destination: "/explore", permanent: true },
-      { source: "/log", destination: "/star", permanent: true },
+      // …then starring moved into Explore, which is home
+      { source: "/log", destination: "/explore", permanent: true },
+      { source: "/star", destination: "/explore", permanent: true },
     ];
   },
   turbopack: {

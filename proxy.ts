@@ -9,7 +9,7 @@ const hasSession = (request: NextRequest) =>
 
 export function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
-  if (pathname === "/") return hasSession(request) ? NextResponse.redirect(new URL("/star", request.url)) : NextResponse.next();
+  if (pathname === "/") return hasSession(request) ? NextResponse.redirect(new URL("/explore", request.url)) : NextResponse.next();
   if (hasSession(request)) return NextResponse.next();
   const login = new URL("/login", request.url);
   login.searchParams.set("next", pathname + search);
@@ -29,7 +29,7 @@ export const config = {
     },
     {
       // Explore opens signed out too, so a shared match's link works for anyone
-      source: "/(star|saga|account)",
+      source: "/(saga|account)",
       missing: [
         { type: "header", key: "next-router-prefetch" },
         { type: "header", key: "purpose", value: "prefetch" },
