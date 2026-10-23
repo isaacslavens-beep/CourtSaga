@@ -794,6 +794,39 @@ function StarPanel({ story, ask = false }: { story: Story; ask?: boolean }) {
   );
 }
 
+/** Floating at the foot of a story, always: copy its link to share it (or the phone's share sheet) */
+function ShareBar({ story, guest }: { story: Story; guest: boolean }) {
+  const [copied, setCopied] = useState(false);
+  const share = async () => {
+    const url = `${location.origin}/explore?m=${encodeURIComponent(story.id)}`;
+    const title = `${story.event} ${story.season} · ${roundName(asMatch(story))}`;
+    try {
+      // A phone offers its own share sheet; a computer copies the link
+      if (navigator.share && matchMedia("(pointer: coarse)").matches) return await navigator.share({ title, url });
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Share sheet closed, or no clipboard: nothing to do
+    }
+  };
+  return (
+    <div className="pointer-events-none fixed inset-x-0 bottom-3 z-40 flex justify-center px-4">
+      <div className="pointer-events-auto flex max-w-full items-center gap-2 rounded-full bg-[#0f1b2d]/90 py-1.5 pl-5 pr-1.5 text-sm text-white shadow-lg shadow-black/20 ring-1 ring-white/10 backdrop-blur-md">
+        <span className="min-w-0 truncate font-medium max-sm:hidden">Share this match</span>
+        <button type="button" onClick={share} className="shrink-0 cursor-pointer rounded-full bg-ball px-4 py-1.5 font-bold text-[#0b0d12] transition hover:brightness-105">
+          {copied ? "Link copied ✓" : "Copy link"}
+        </button>
+        {guest && (
+          <Link href="/signup" className="shrink-0 rounded-full px-3 py-1.5 font-semibold text-white ring-1 ring-white/30 transition hover:bg-white/10">
+            Sign up free
+          </Link>
+        )}
+      </div>
+    </div>
+  );
+}
+
 /** In the landing's demo, the star button leads to signing up */
 function StarDemo() {
   return (
@@ -1145,11 +1178,13 @@ export function ExploreSection({
   story,
   missing,
   slam,
+  guest = false,
   start: startData,
 }: {
   story: Story | null;
   missing: boolean;
   slam: string | null;
+  guest?: boolean; // signed out, from a shared link: no starring, a way to sign up instead
   start: StartData;
 }) {
   // The Slam picked on the start page, which Surprise me then keeps to
@@ -1185,12 +1220,13 @@ export function ExploreSection({
               <SurpriseSmall slam={slam} />
             </div>
             <Crumbs story={story} follow={follow} />
-            <StoryView story={story} follow={follow} pending={pending} page={page} logHref={(id) => `/star?m=${encodeURIComponent(id)}`} star={<StarPanel story={story} />} starOf={starOf} />
+            <StoryView story={story} follow={follow} pending={pending} page={page} logHref={(id) => `/star?m=${encodeURIComponent(id)}`} star={guest ? <StarDemo /> : <StarPanel story={story} />} starOf={starOf} />
             {/* At the foot of the story: keep this match, or try another */}
             <div className="mt-12 flex flex-col items-center gap-8">
-              <StarPanel story={story} ask />
+              {guest ? <StarDemo /> : <StarPanel story={story} ask />}
               <SurpriseMe again slam={slam} />
             </div>
+            <ShareBar story={story} guest={guest} />
           </>
         ) : (
           <>

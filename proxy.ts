@@ -28,7 +28,8 @@ export const config = {
       ],
     },
     {
-      source: "/(star|explore|saga|account)",
+      // Explore opens signed out too, so a shared match's link works for anyone
+      source: "/(star|saga|account)",
       missing: [
         { type: "header", key: "next-router-prefetch" },
         { type: "header", key: "purpose", value: "prefetch" },
