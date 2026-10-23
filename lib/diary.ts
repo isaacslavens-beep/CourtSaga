@@ -351,6 +351,16 @@ export async function findMatches(ids: string[]) {
   return ids.flatMap((id) => byId.get(id) ?? []);
 }
 
+/** Every Slam final in the data, both tours, newest first: where Explore starts */
+export async function slamFinals() {
+  "use cache";
+  cacheLife("days");
+  const rows = await selectMatches()
+    .where(and(eq(matches.tier, "slam"), eq(matches.round, "F"), eq(matches.searchable, true)))
+    .orderBy(desc(matches.playedOn), asc(matches.tour));
+  return rows.map(toRow);
+}
+
 /** How many pages a diary has */
 export async function pageCount(userId: string) {
   const [row] = await getDb()

@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { glideTo } from "../glide";
@@ -111,11 +110,6 @@ export function MatchFinder({ seasons, explore = false }: { seasons: [number, nu
               {q}
             </button>
           ))}
-          {explore && (
-            <Link href="/explore?m=random" scroll={false} className="rounded-full bg-court px-2.5 py-0.5 font-semibold text-court-ink transition hover:brightness-110">
-              Surprise me
-            </Link>
-          )}
         </p>
       )}
 

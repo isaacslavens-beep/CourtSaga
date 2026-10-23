@@ -2,8 +2,9 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { requireUser } from "@/lib/auth";
-import { findMatches, latestPage, loadDiary, seasonRange } from "@/lib/diary";
-import { matchStory, randomStoryId, thisWeekInPast } from "@/lib/story";
+import { findMatches, latestPage, loadDiary, seasonRange, slamFinals } from "@/lib/diary";
+import { matchStory, randomStoryId } from "@/lib/story";
+import { classics } from "../../diary/classics";
 import { diaryPages, toFanEntry, toMatches } from "../../diary/library";
 import { ExploreSection } from "../../diary/explore";
 import { MatchFinder } from "../../diary/finder";
@@ -47,24 +48,32 @@ async function Exploring({ searchParams }: Pick<PageProps<"/explore">, "searchPa
     redirect(id ? `/explore?m=${encodeURIComponent(id)}` : "/explore");
   }
   const wanted = typeof m === "string" ? m.slice(0, 120) : null;
-  const today = new Date().toISOString().slice(0, 10);
-  const [diary, seasons, story, week] = await Promise.all([loadDiary(user.id), seasonRange(), wanted ? matchStory(wanted) : null, wanted ? [] : thisWeekInPast(today)]);
+  const [diary, seasons, story, finals, classicRows] = await Promise.all([
+    loadDiary(user.id),
+    seasonRange(),
+    wanted ? matchStory(wanted) : null,
+    wanted ? [] : slamFinals(),
+    wanted ? [] : findMatches(classics.map((c) => c.id)),
+  ]);
 
-  // With no match open: the diary's latest pages, and big finals from this week in other years
+  // With no match open: the Slams' finals, matches everyone remembers, and the diary's latest pages
   let recent: string[] = [];
   if (!wanted) {
     const named = toMatches(diary.rows);
     const pages = diaryPages(Object.fromEntries(Object.entries(diary.entries).map(([id, e]) => [id, toFanEntry(e, named[id])])), named);
     recent = [...pages.entries()].sort((a, b) => b[1] - a[1]).slice(0, 6).map(([id]) => id);
   }
-  const weekRows = await findMatches(week.slice(0, 6));
   const recentRows = recent.map((id) => diary.rows.find((r) => r.id === id)!).filter(Boolean);
 
   return (
     <LogProvider key={diary.version} mode="diary" rows={diary.rows} entries={diary.entries} order={diary.order} focusId={latestPage(diary)} saver={saver}>
       <div className="space-y-8">
         <MatchFinder seasons={seasons} explore />
-        <ExploreSection story={story} missing={!!wanted && !story} diary={recentRows} week={weekRows} />
+        <ExploreSection
+          story={story}
+          missing={!!wanted && !story}
+          start={{ finals, classics: classicRows.map((row) => ({ row, why: classics.find((c) => c.id === row.id)!.why })), diary: recentRows }}
+        />
       </div>
     </LogProvider>
   );

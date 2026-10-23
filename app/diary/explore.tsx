@@ -4,13 +4,14 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { glideTo } from "../glide";
-import { HighlightsLink, TournamentLabel } from "../match-ui";
-import { Avatar, CourtArt, chartStyles } from "./fun";
-import { diaryPages, roundName, scoreText, type Match, type MatchRow, type Round } from "./library";
+import { HighlightsLink, SlamLogo, TournamentLabel } from "../match-ui";
+import { Avatar, CourtArt, TennisBall, chartStyles } from "./fun";
+import { diaryPages, roundName, scoreText, toMatches, type Match, type MatchRow, type Round } from "./library";
 import { highlightVideos } from "./media";
 import { Scoreboard } from "./log";
 import { useLog } from "./store";
 import type { DrawVisual, EventVisual, Fact, H2HVisual, Part, SeasonVisual, StatsVisual, Story, Thread } from "./story";
+import { ShapeChart, type Glance } from "./saga-ui";
 
 /* Exploring one match at a time: the story around it from the whole record (see story.ts), with every
    match it mentions one click away. Signed in, each match is its own address (/explore?m=…), so the
@@ -66,52 +67,40 @@ const shortSeason = (y: number) => `’${String(y).slice(2)}`;
 
 /* ---------- The pictures ---------- */
 
-/** Every meeting, in order: wins for the first player above the line, for the second below it */
-function H2HStrip({ v, story, colors, follow }: { v: H2HVisual; story: Story; colors: Record<"a" | "b", string>; follow: Follow }) {
-  const n = v.meetings.length;
-  const labels = new Set<number>();
-  let lastAt = -99;
-  v.meetings.forEach((m, i) => {
-    if ((i === 0 || m.year !== v.meetings[i - 1].year) && i - lastAt >= Math.max(3, Math.ceil(n / 8))) {
-      labels.add(i);
-      lastAt = i;
-    }
-  });
-  const dot = (m: H2HVisual["meetings"][number], on: "a" | "b") =>
-    m.winner === on ? (
-      <span
-        className={`block aspect-square w-full max-w-3 rounded-full ${m.focus ? "ring-2 ring-ball ring-offset-2 ring-offset-surface" : ""}`}
-        style={{ background: colors[on], opacity: m.big || m.focus ? 1 : 0.45 }}
-      />
-    ) : (
-      <span className="block aspect-square w-full max-w-3" />
-    );
+/** Every meeting, drawn exactly as the saga draws a rivalry: the head-to-head after each one */
+function H2HChart({ v, story, follow, page }: { v: H2HVisual; story: Story; follow: Follow; page: (id: string) => number | null }) {
+  const [A, B] = [story.names[story.a.key], story.names[story.b.key]];
+  const glance: Glance = {
+    faces: [A, B],
+    stripMode: "rivalry",
+    strip: v.meetings.map((m) => {
+      const winner = m.winner === "a" ? A : B;
+      const p = page(m.id);
+      return {
+        key: m.id,
+        group: String(m.year),
+        color: winner,
+        value: 3,
+        side: m.winner === "a" ? 1 : -1,
+        watched: !!p,
+        title: `${m.label}: ${winner} won${p ? ` · page ${p} of your diary` : ""}`,
+        logId: m.id,
+      };
+    }),
+    stripLegend: [
+      { color: A, label: `${A} won` },
+      { color: B, label: `${B} won` },
+      { color: "", label: "Not in your log", faded: true },
+    ],
+  };
   return (
-    <div>
-      <div className="grid items-center gap-x-0.5" style={{ gridTemplateColumns: `repeat(${n}, minmax(0, 1fr))` }}>
-        {v.meetings.map((m) => (
-          <button
-            key={m.id}
-            type="button"
-            title={`${m.label}: ${story.names[m.winner === "a" ? story.a.key : story.b.key]} won`}
-            onClick={() => !m.focus && follow(m.id)}
-            className={`group flex flex-col items-center gap-1.5 rounded-sm py-1 ${m.focus ? "cursor-default" : "cursor-pointer hover:bg-court/10"}`}
-          >
-            {dot(m, "a")}
-            <span className="block h-px w-full bg-line" />
-            {dot(m, "b")}
-          </button>
-        ))}
-      </div>
-      <div className="relative mt-1 h-4 text-[11px] text-muted">
-        {[...labels].map((i) => (
-          <span key={i} className="absolute -translate-x-1/2 tabular-nums" style={{ left: `${((i + 0.5) / n) * 100}%` }}>
-            {v.meetings[i].year}
-          </span>
-        ))}
-      </div>
-      <p className="mt-1 text-xs text-muted">Solid dots are finals and the last eight of Slams. Ringed: this match.</p>
-    </div>
+    <ShapeChart
+      book={glance}
+      caption={`The head-to-head after every meeting: above the middle line ${A} leads, below it ${B} does. Filled dots are the meetings in your diary; the ringed one is this match.`}
+      spotId={story.id}
+      onMark={(x) => x.key !== story.id && follow(x.key)}
+      markVerb="Explore it."
+    />
   );
 }
 
@@ -172,42 +161,42 @@ function EventBars({ v, story, colors, follow }: { v: EventVisual; story: Story;
   );
 }
 
-/** Each player's season, event by event: a tick for every match, tall for a win */
-function SeasonTicks({ v, story, colors, follow }: { v: SeasonVisual; story: Story; colors: Record<"a" | "b", string>; follow: Follow }) {
+/** Each player's season, drawn as the saga draws a collection: one bar each, a block per match */
+function SeasonChart({ v, story, follow }: { v: SeasonVisual; story: Story; follow: Follow }) {
+  const [A, B] = [story.names[story.a.key], story.names[story.b.key]];
+  const glance: Glance = {
+    faces: [A, B],
+    stripMode: "rows",
+    strip: v.rows.flatMap((row) => {
+      const name = row.side === "a" ? A : B;
+      const group = `${name} · ${row.record[0]}–${row.record[1]}`;
+      return row.events.flatMap((e) =>
+        e.matches.map((m) => ({
+          key: m.id,
+          group,
+          color: m.won ? name : "other",
+          value: 3,
+          side: 1 as const,
+          watched: true,
+          title: `${e.event}: ${m.won ? "beat" : "lost to"} ${story.names[m.opp] ?? ""}${e.result === "W" ? " · won the title" : ""}`,
+          logId: m.id,
+        })),
+      );
+    }),
+    stripLegend: [
+      { color: A, label: `${A} won` },
+      { color: B, label: `${B} won` },
+      { color: "other", label: "Lost" },
+    ],
+  };
   return (
-    <div className="space-y-4">
-      {v.rows.map((row) => {
-        const key = row.side === "a" ? story.a.key : story.b.key;
-        return (
-          <div key={row.side}>
-            <p className="flex items-center gap-2 text-sm">
-              <Avatar name={story.names[key]} size="h-6 w-6 text-[10px]" />
-              <span className="font-semibold">{story.names[key]}</span>
-              <span className="text-muted">
-                {row.record[0]}–{row.record[1]} in {story.season}
-              </span>
-            </p>
-            <div className="mt-2 flex flex-wrap items-end gap-x-2 gap-y-2">
-              {row.events.map((e, ei) => (
-                <span key={ei} className={`flex items-end gap-[2px] border-b-2 pb-0.5 ${e.result === "W" ? "border-ball" : "border-transparent"}`} title={`${e.event}: ${resultTitle[e.result] ?? e.result}`}>
-                  {e.matches.map((m) => (
-                    <button
-                      key={m.id}
-                      type="button"
-                      title={`${e.event}: ${m.won ? "beat" : "lost to"} ${story.names[m.opp] ?? ""}`}
-                      onClick={() => !m.focus && follow(m.id)}
-                      className={`w-1.5 rounded-[2px] ${m.won ? "h-4" : "h-2"} ${m.focus ? "outline-2 outline-offset-2 outline-[var(--ball)] [outline-style:solid]" : "cursor-pointer hover:brightness-110"}`}
-                      style={{ background: m.won ? colors[row.side] : "var(--line)" }}
-                    />
-                  ))}
-                </span>
-              ))}
-            </div>
-          </div>
-        );
-      })}
-      <p className="text-xs text-muted">A tall tick is a win, a short one a loss; a yellow line under an event, a title.</p>
-    </div>
+    <ShapeChart
+      book={glance}
+      caption={`Every match each of them played in ${story.season}, in order. The marked one is this match.`}
+      spotId={story.id}
+      onMark={(x) => x.key !== story.id && follow(x.key)}
+      markVerb="Explore it."
+    />
   );
 }
 
@@ -281,12 +270,12 @@ function StatsTable({ v, story, colors }: { v: StatsVisual; story: Story; colors
   );
 }
 
-function Picture({ thread, story, colors, follow }: { thread: Thread; story: Story; colors: Record<"a" | "b", string>; follow: Follow }) {
+function Picture({ thread, story, colors, follow, page }: { thread: Thread; story: Story; colors: Record<"a" | "b", string>; follow: Follow; page: (id: string) => number | null }) {
   const v = thread.visual;
   if (!v) return null;
-  if (v.kind === "h2h") return <H2HStrip v={v} story={story} colors={colors} follow={follow} />;
+  if (v.kind === "h2h") return <H2HChart v={v} story={story} follow={follow} page={page} />;
   if (v.kind === "event") return <EventBars v={v} story={story} colors={colors} follow={follow} />;
-  if (v.kind === "season") return <SeasonTicks v={v} story={story} colors={colors} follow={follow} />;
+  if (v.kind === "season") return <SeasonChart v={v} story={story} follow={follow} />;
   if (v.kind === "draw") return <DrawPaths v={v} story={story} follow={follow} />;
   return <StatsTable v={v} story={story} colors={colors} />;
 }
@@ -294,7 +283,7 @@ function Picture({ thread, story, colors, follow }: { thread: Thread; story: Sto
 /* ---------- The story ---------- */
 
 // Threads whose pictures need the page's whole width
-const wide = new Set(["draw", "season"]);
+const wide = new Set(["draw", "season", "h2h"]);
 
 /** What the site calls a match from a story: enough for the scoreboard and labels */
 const asMatch = (story: Story): Match => ({
@@ -461,7 +450,7 @@ export function StoryView({
             )}
             {t.visual && (
               <div className={t.facts.length ? "mt-5 border-t border-line pt-4" : "mt-4"}>
-                <Picture thread={t} story={story} colors={colors} follow={follow} />
+                <Picture thread={t} story={story} colors={colors} follow={follow} page={page} />
               </div>
             )}
           </section>
@@ -473,7 +462,13 @@ export function StoryView({
 
 /* ---------- Ways in, for a signed-in fan with no match open ---------- */
 
-function MatchCard({ row, why, page, onOpen }: { row: MatchRow; why?: string; page: number | null; onOpen: () => void }) {
+// What to call both players of a list of matches, so two Williamses are told apart
+const namesOf = (rows: MatchRow[]) => {
+  const named = toMatches(rows);
+  return (row: MatchRow) => [named[row.id].winner, named[row.id].loser] as const;
+};
+
+function MatchCard({ row, why, page, onOpen, names }: { row: MatchRow; why?: string; page: number | null; onOpen: () => void; names: readonly [string, string] }) {
   return (
     <button
       type="button"
@@ -481,8 +476,8 @@ function MatchCard({ row, why, page, onOpen }: { row: MatchRow; why?: string; pa
       className="group flex h-full w-full cursor-pointer items-center gap-3 rounded-2xl border border-line bg-surface px-3.5 py-3 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-court hover:shadow-md"
     >
       <span className="flex shrink-0 -space-x-2">
-        <Avatar name={row.winner.short} size="h-9 w-9 text-sm ring-2 ring-surface" />
-        <Avatar name={row.loser.short} size="h-9 w-9 text-sm ring-2 ring-surface" />
+        <Avatar name={names[0]} size="h-9 w-9 text-sm ring-2 ring-surface" />
+        <Avatar name={names[1]} size="h-9 w-9 text-sm ring-2 ring-surface" />
       </span>
       <span className="min-w-0 flex-1">
         {why && <span className="block truncate text-xs font-semibold uppercase tracking-wide text-muted">{why}</span>}
@@ -490,7 +485,7 @@ function MatchCard({ row, why, page, onOpen }: { row: MatchRow; why?: string; pa
           {row.event} {row.season} · {roundName({ ...row, event: row.event })}
         </span>
         <span className="block truncate text-sm text-muted">
-          {row.winner.short} beat {row.loser.short} <span className="font-mono">{scoreText(row.score)}</span>
+          {names[0]} beat {names[1]} <span className="font-mono">{scoreText(row.score)}</span>
         </span>
       </span>
       {page ? <span className="shrink-0 rounded-full bg-ball/50 px-2 py-0.5 text-xs font-semibold">p. {page}</span> : null}
@@ -498,36 +493,127 @@ function MatchCard({ row, why, page, onOpen }: { row: MatchRow; why?: string; pa
   );
 }
 
-function WaysIn({ diary, week, follow }: { diary: MatchRow[]; week: MatchRow[]; follow: Follow }) {
-  const page = usePages();
-  const groups: { title: string; body: string; rows: MatchRow[] }[] = [
-    { title: "From your diary", body: "The story around matches you've logged.", rows: diary },
-    { title: "This week, other years", body: "Big finals played around this time of year.", rows: week },
-  ];
+type StartData = { finals: MatchRow[]; classics: { row: MatchRow; why: string }[]; diary: MatchRow[] };
+
+const slamTiles = ["Australian Open", "Roland Garros", "Wimbledon", "US Open"] as const;
+
+/** One final in a Slam's list: the year, then who beat whom */
+function FinalRow({ row, page, onOpen, names }: { row: MatchRow; page: number | null; onOpen: () => void; names: readonly [string, string] }) {
   return (
-    <div className="space-y-8">
-      {groups
-        .filter((g) => g.rows.length)
-        .map((g) => (
-          <section key={g.title}>
-            <h2 className="font-display text-xl font-bold tracking-tight">{g.title}</h2>
-            <p className="text-muted">{g.body}</p>
-            <ul className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-              {g.rows.map((row) => (
-                <li key={row.id}>
-                  <MatchCard row={row} page={page(row.id)} onOpen={() => follow(row.id)} />
-                </li>
-              ))}
-            </ul>
-          </section>
-        ))}
+    <button type="button" onClick={onOpen} className="group flex w-full cursor-pointer items-center gap-3 rounded-xl px-2 py-2 text-left transition hover:bg-court/10">
+      <span className="w-12 shrink-0 font-display text-lg font-bold tabular-nums">{row.season}</span>
+      <span className="flex shrink-0 -space-x-2">
+        <Avatar name={names[0]} size="h-8 w-8 text-xs ring-2 ring-surface" />
+        <Avatar name={names[1]} size="h-8 w-8 text-xs ring-2 ring-surface" />
+      </span>
+      <span className="min-w-0 flex-1 truncate text-sm">
+        <span className="font-semibold">{names[0]}</span> <span className="text-muted">beat {names[1]}</span>{" "}
+        <span className="font-mono text-xs text-muted max-sm:hidden">{scoreText(row.score)}</span>
+      </span>
+      {page ? <span className="shrink-0 rounded-full bg-ball/50 px-2 py-0.5 text-xs font-semibold">p. {page}</span> : null}
+    </button>
+  );
+}
+
+/** With no match open: pick a Slam and a final, a match everyone talks about, or let chance pick */
+function Start({ start, follow }: { start: StartData; follow: Follow }) {
+  const page = usePages();
+  const [slam, setSlam] = useState<string | null>(null);
+  const finals = start.finals.filter((r) => r.event === slam);
+  const finalNames = useMemo(() => namesOf(start.finals), [start.finals]);
+  const cardNames = useMemo(() => namesOf([...start.classics.map((c) => c.row), ...start.diary]), [start.classics, start.diary]);
+  const panel = useRef<HTMLDivElement>(null);
+  const pick = (t: string) => {
+    setSlam(t === slam ? null : t);
+    requestAnimationFrame(() => panel.current && panel.current.getBoundingClientRect().top > innerHeight * 0.6 && glideTo(panel.current, "center"));
+  };
+  return (
+    <div className="space-y-12">
+      <section>
+        <h2 className="font-display text-2xl font-bold tracking-tight">Start at a Slam</h2>
+        <p className="text-muted">Pick one for every final played there since {Math.min(...start.finals.map((r) => r.season))}, then follow the story from any of them.</p>
+        <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {slamTiles.map((t) => (
+            <button
+              key={t}
+              type="button"
+              aria-pressed={slam === t}
+              onClick={() => pick(t)}
+              className={`flex cursor-pointer flex-col items-center gap-3 rounded-3xl border-2 px-3 py-5 font-semibold shadow-sm transition hover:-translate-y-1 hover:shadow-lg ${
+                slam === t ? "border-court bg-surface shadow-lg" : "border-line bg-surface/80"
+              }`}
+            >
+              <SlamLogo event={t} size="h-16 w-16 sm:h-20 sm:w-20" />
+              <span className="text-center">{t}</span>
+            </button>
+          ))}
+        </div>
+        {slam && (
+          <div ref={panel} className="fade-in mt-4 grid gap-6 rounded-3xl border border-line bg-surface p-4 shadow-sm sm:p-6 lg:grid-cols-2">
+            {(["atp", "wta"] as const).map((tour) => (
+              <div key={tour} className="min-w-0">
+                <h3 className="px-2 font-display text-lg font-bold">{tour === "atp" ? "Men's finals" : "Women's finals"}</h3>
+                <ul className="mt-1 divide-y divide-line">
+                  {finals
+                    .filter((r) => r.tour === tour)
+                    .map((row) => (
+                      <li key={row.id}>
+                        <FinalRow row={row} page={page(row.id)} onOpen={() => follow(row.id)} names={finalNames(row)} />
+                      </li>
+                    ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        )}
+        <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-2">
+          <Link
+            href="/explore?m=random"
+            scroll={false}
+            className="group inline-flex items-center gap-4 rounded-full bg-ball py-3 pl-3 pr-9 font-display text-2xl font-bold text-[#0b0d12] shadow-lg shadow-black/15 transition hover:-translate-y-0.5 hover:shadow-xl sm:text-3xl"
+          >
+            <span className="flex h-12 w-12 items-center justify-center rounded-full bg-[#0b0d12] transition-transform group-hover:rotate-180 sm:h-14 sm:w-14">
+              <TennisBall filled className="h-8 w-8 sm:h-9 sm:w-9" />
+            </span>
+            Surprise me
+          </Link>
+          <span className="text-muted">A random Slam semifinal or final.</span>
+        </div>
+      </section>
+
+      {start.classics.length > 0 && (
+        <section>
+          <h2 className="font-display text-2xl font-bold tracking-tight">Matches everyone talks about</h2>
+          <p className="text-muted">Start with one you&apos;ve heard of.</p>
+          <ul className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {start.classics.map(({ row, why }) => (
+              <li key={row.id}>
+                <MatchCard row={row} why={why} page={page(row.id)} onOpen={() => follow(row.id)} names={cardNames(row)} />
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {start.diary.length > 0 && (
+        <section>
+          <h2 className="font-display text-xl font-bold tracking-tight">From your diary</h2>
+          <ul className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {start.diary.map((row) => (
+              <li key={row.id}>
+                <MatchCard row={row} page={page(row.id)} onOpen={() => follow(row.id)} names={cardNames(row)} />
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
     </div>
   );
 }
 
 /* ---------- Signed in ---------- */
 
-export function ExploreSection({ story, missing, diary, week }: { story: Story | null; missing: boolean; diary: MatchRow[]; week: MatchRow[] }) {
+export function ExploreSection({ story, missing, start: startData }: { story: Story | null; missing: boolean; start: StartData }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const page = usePages();
@@ -547,7 +633,7 @@ export function ExploreSection({ story, missing, diary, week }: { story: Story |
   return (
     <div ref={top} className="scroll-mt-6">
       {missing && <p className="mb-6 rounded-2xl bg-fault/10 px-4 py-3 font-medium text-fault">That match isn&apos;t in the record. Try finding it above.</p>}
-      {story ? <StoryView story={story} follow={follow} pending={pending} page={page} logHref={(id) => `/log?m=${encodeURIComponent(id)}`} /> : <WaysIn diary={diary} week={week} follow={follow} />}
+      {story ? <StoryView story={story} follow={follow} pending={pending} page={page} logHref={(id) => `/log?m=${encodeURIComponent(id)}`} /> : <Start start={startData} follow={follow} />}
     </div>
   );
 }

@@ -119,7 +119,7 @@ function dotStyle(color: string, hollow: boolean, spot: boolean): CSSProperties 
 
 type Tip = { item: StripItem; x: number; y: number } | null;
 // Hovering or focusing a mark shows its tooltip; `pick` (when given) opens the chapter it belongs to
-type Hover = { show: (x: StripItem) => (e: { currentTarget: HTMLElement }) => void; hide: () => void; pick?: (x: StripItem) => void };
+type Hover = { show: (x: StripItem) => (e: { currentTarget: HTMLElement }) => void; hide: () => void; pick?: (x: StripItem) => void; verb: string };
 
 /** Everything a mark needs to answer the pointer, the keyboard and a click. */
 const markProps = (x: StripItem, hover: Hover) => ({
@@ -127,7 +127,7 @@ const markProps = (x: StripItem, hover: Hover) => ({
   onMouseLeave: hover.hide,
   onFocus: hover.show(x),
   onBlur: hover.hide,
-  ...(hover.pick ? { onClick: () => hover.pick!(x), "aria-label": `${x.title}. Read its chapter.` } : { tabIndex: -1, "aria-hidden": true }),
+  ...(hover.pick ? { onClick: () => hover.pick!(x), "aria-label": `${x.title}. ${hover.verb}` } : { tabIndex: -1, "aria-hidden": true }),
 });
 
 /** The match under the pointer: where and when first, then what happened. */
@@ -154,7 +154,7 @@ const slamNames = ["Australian Open", "Roland Garros", "Wimbledon", "US Open"];
  * each meeting is a dot in its winner's colour, hollow if it isn't in your log. Years run underneath,
  * and each year's band opens its chapter.
  */
-function LeadChart({ book, players, spotId, onGroup, hover }: { book: BookData; players: Tones; spotId: string | null; onGroup?: (group: string) => void; hover: Hover }) {
+function LeadChart({ book, players, spotId, onGroup, hover }: { book: Glance; players: Tones; spotId: string | null; onGroup?: (group: string) => void; hover: Hover }) {
   const [A, B] = book.faces;
   const n = book.strip.length;
   // The head-to-head after each meeting: +1 for every win by the first player, -1 for the second
@@ -253,7 +253,7 @@ function LeadChart({ book, players, spotId, onGroup, hover }: { book: BookData; 
 }
 
 /** A collection at a glance: one bar per row, one segment per match, the count at the tip. */
-function RowsChart({ book, players, spotId, hover }: { book: BookData; players: Tones; spotId: string | null; hover: Hover }) {
+function RowsChart({ book, players, spotId, hover }: { book: Glance; players: Tones; spotId: string | null; hover: Hover }) {
   const groups = [...new Set(book.strip.map((x) => x.group))];
   const most = Math.max(...groups.map((g) => book.strip.filter((x) => x.group === g).length));
   let n = 0;
@@ -288,6 +288,9 @@ function RowsChart({ book, players, spotId, hover }: { book: BookData; players: 
   );
 }
 
+/** What a chart draws: a book's, or any set of matches shaped like one (Explore draws its own) */
+export type Glance = Pick<BookData, "faces" | "strip" | "stripLegend" | "stripMode">;
+
 /** The at-a-glance chart for any book, with its legend, caption and a tooltip for the match under the pointer. */
 export function ShapeChart({
   book,
@@ -295,12 +298,14 @@ export function ShapeChart({
   spotId = null,
   onGroup,
   onMark,
+  markVerb = "Read its chapter.",
 }: {
-  book: BookData;
+  book: Glance;
   caption: string;
   spotId?: string | null;
   onGroup?: (group: string) => void; // open the chapter a year's meetings belong to
   onMark?: (item: StripItem) => void; // open the chapter one match belongs to
+  markVerb?: string; // what clicking a mark does, for screen readers
 }) {
   const [tip, setTip] = useState<Tip>(null);
   const fig = useRef<HTMLElement>(null);
@@ -316,6 +321,7 @@ export function ShapeChart({
     },
     hide: () => setTip(null),
     pick: onMark,
+    verb: markVerb,
   };
   const label = book.strip.map((x) => x.title).join("; ");
 

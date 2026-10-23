@@ -134,42 +134,12 @@ export async function matchStory(id: string): Promise<Story | null> {
   return tellStory({ focus, players: known, careers: { [focus.w]: careerA, [focus.l]: careerB }, draw, event, peers, ...range });
 }
 
-/** Matches from the data to start exploring from: big finals played in this week of other years. */
-export async function thisWeekInPast(today: string) {
-  "use cache";
-  cacheLife("days");
-  cacheTag("matches");
-  const day = today.slice(5, 10);
-  const rows = await getDb()
-    .select({ id: matches.id })
-    .from(matches)
-    .where(
-      and(
-        eq(matches.round, "F"),
-        eq(matches.searchable, true),
-        inArray(matches.tier, ["slam", "1000", "finals", "olympics"]),
-        sql`abs(extract(doy from ${matches.playedOn}) - extract(doy from ${`2001-${day}`}::date)) <= 7`,
-        sql`extract(year from ${matches.playedOn}) < extract(year from ${today}::date)`,
-      ),
-    )
-    .orderBy(sql`${matches.playedOn} desc`)
-    .limit(12);
-  return rows.map((r) => r.id);
-}
-
-/** A match worth exploring, picked at random: a late round at a big event between two well-ranked players */
+/** A match worth exploring, picked at random: a Slam semifinal or final, either tour */
 export async function randomStoryId() {
   const [row] = await getDb()
     .select({ id: matches.id })
     .from(matches)
-    .where(
-      and(
-        eq(matches.searchable, true),
-        inArray(matches.tier, ["slam", "1000", "finals", "olympics"]),
-        inArray(matches.round, ["QF", "SF", "F"]),
-        sql`${matches.winnerRank} <= 30 and ${matches.loserRank} <= 30`,
-      ),
-    )
+    .where(and(eq(matches.searchable, true), eq(matches.tier, "slam"), inArray(matches.round, ["SF", "F"])))
     .orderBy(sql`random()`)
     .limit(1);
   return row?.id ?? null;

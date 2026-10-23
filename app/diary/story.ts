@@ -1058,7 +1058,7 @@ export function tellStory(input: StoryInput): Story {
   const seasonVisual: SeasonVisual = {
     kind: "season",
     rows: [A, B].map((p) => {
-      const year = allOf(p).filter((m) => m.season === F.season && m.tier !== "team");
+      const year = allOf(p).filter((m) => m.season === F.season);
       const byEvent = [...new Set(year.map((m) => m.tourneyId))].map((t) => {
         const xs = year.filter((m) => m.tourneyId === t);
         const lastMatch = xs[xs.length - 1];
@@ -1120,7 +1120,7 @@ export function tellStory(input: StoryInput): Story {
       visual: h2hVisual,
     },
     event: { title: cap(atEvent(F.event)), kicker: `Every year, ${editions[0] ?? F.season} on`, visual: eventVisual },
-    season: { title: `The ${seasonWord} season`, kicker: "Event by event", visual: seasonVisual },
+    season: { title: `The ${seasonWord} season`, kicker: "Match by match", visual: seasonVisual },
     draw: { title: "The draw", kicker: drawVisual?.champion ? `Won by ${who(drawVisual.champion)}` : "", visual: drawVisual },
     after: { title: "What came next", kicker: "", visual: null },
   };
