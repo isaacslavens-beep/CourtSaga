@@ -1,16 +1,14 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState, useTransition, type ReactNode } from "react";
-import { starMatch } from "../(app)/actions";
+import { useEffect, useMemo, useState } from "react";
 import { glideTo } from "../glide";
 import { TournamentLabel } from "../match-ui";
 import { Avatar } from "./fun";
 import { diaryPages, eventLabel, scoreText, toMatches, type MatchRow } from "./library";
 import { useLog } from "./store";
 
-/* Finding a match: players, tournament, year and round, in any order. In the log, picking one opens its
-   page below, logged or not; when exploring, it opens the story around it. */
+/* Finding a match to star: players, tournament, year and round, in any order. Picking one opens its page
+   below, starred or not; from there it can be explored. */
 
 type Results = { results: MatchRow[]; total: number; page: number; pages: number; size: number; query: string; corrected: string | null };
 
@@ -21,34 +19,8 @@ const notInYet = (query: string, last: number) => (query.match(/\b(19|20)\d{2}\b
 /** A search for a season before the first one in the data */
 const tooEarly = (query: string, first: number) => (query.match(/\b(19|20)\d{2}\b/g) ?? []).some((y) => Number(y) < first);
 
-/** Star a search result without opening it */
-function QuickStar({ id, starred }: { id: string; starred: boolean }) {
-  const router = useRouter();
-  const [pending, start] = useTransition();
-  return (
-    <button
-      type="button"
-      disabled={starred || pending}
-      title={starred ? "Starred" : "Star this match"}
-      aria-label={starred ? "Starred" : "Star this match"}
-      onClick={() =>
-        start(async () => {
-          await starMatch(id);
-          router.refresh();
-        })
-      }
-      className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-2xl transition ${
-        starred ? "text-[#b08d00]" : "cursor-pointer text-muted hover:scale-110 hover:bg-ball/30 hover:text-foreground"
-      } ${pending ? "animate-pulse" : ""}`}
-    >
-      {starred || pending ? "★" : "☆"}
-    </button>
-  );
-}
-
-export function MatchFinder({ seasons, explore = false, inside }: { seasons: [number, number] | null; explore?: boolean; inside?: ReactNode }) {
+export function MatchFinder({ seasons }: { seasons: [number, number] | null }) {
   const { matches, entries, view } = useLog();
-  const router = useRouter();
   const pages = diaryPages(entries, matches);
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
@@ -87,10 +59,6 @@ export function MatchFinder({ seasons, explore = false, inside }: { seasons: [nu
     setPage(1);
   };
   const open = (row: MatchRow) => {
-    if (explore) {
-      setQuery("");
-      return router.push(`/explore?m=${encodeURIComponent(row.id)}`, { scroll: false });
-    }
     view(row);
     glideTo(document.getElementById("your-log"), "start", 0);
   };
@@ -122,10 +90,8 @@ export function MatchFinder({ seasons, explore = false, inside }: { seasons: [nu
             placeholder={`Try "${examples[0]}" or "${examples[1]}"`}
             autoComplete="off"
             spellCheck={false}
-            className={`w-full rounded-full border-2 border-line bg-background py-3 pl-12 text-lg font-medium placeholder:text-muted/70 focus:border-court focus:outline-none focus:ring-4 focus:ring-court/15 ${inside ? "pr-40 sm:pr-48" : "pr-4"}`}
+            className="w-full rounded-full border-2 border-line bg-background py-3 pl-12 pr-4 text-lg font-medium placeholder:text-muted/70 focus:border-court focus:outline-none focus:ring-4 focus:ring-court/15"
           />
-          {/* Something to press inside the bar's right end, e.g. Surprise me */}
-          {inside && <span className="absolute right-1.5 top-1/2 -translate-y-1/2">{inside}</span>}
         </div>
       </div>
 
@@ -175,12 +141,11 @@ export function MatchFinder({ seasons, explore = false, inside }: { seasons: [nu
                   const m = named[row.id];
                   const page = pages.get(row.id);
                   return (
-                    <li key={row.id} className="flex items-center gap-1">
-                      {explore && <QuickStar id={row.id} starred={!!page} />}
+                    <li key={row.id}>
                       <button
                         type="button"
                         onClick={() => open(row)}
-                        className="group flex min-w-0 flex-1 cursor-pointer items-center gap-3 rounded-2xl px-2 py-2.5 text-left transition hover:bg-court/5 sm:px-3"
+                        className="group flex w-full cursor-pointer items-center gap-3 rounded-2xl px-2 py-2.5 text-left transition hover:bg-court/5 sm:px-3"
                       >
                         <span className="flex shrink-0 -space-x-2 max-sm:hidden">
                           <Avatar name={m.winner} size="h-10 w-10 text-sm ring-2 ring-surface" />
@@ -193,11 +158,11 @@ export function MatchFinder({ seasons, explore = false, inside }: { seasons: [nu
                             <span className="whitespace-nowrap font-mono text-muted">{scoreText(row.score)}</span>
                           </span>
                         </span>
-                        {page && !explore ? (
+                        {page ? (
                           <span className="shrink-0 rounded-full bg-ball/40 px-2.5 py-1 text-sm font-semibold">Page {page}</span>
                         ) : (
                           <span className="shrink-0 rounded-full border-2 border-line px-2.5 py-0.5 text-sm font-semibold text-court transition group-hover:border-court">
-                            {explore ? "Explore" : "Open"}
+                            Open
                           </span>
                         )}
                       </button>

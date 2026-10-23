@@ -555,8 +555,18 @@ export function LogSection() {
                 {log.note}
               </p>
             </div>
+            {/* A starred match leads on to its story */}
+            {!isDraft && (
+              <button
+                type="button"
+                onClick={() => goTo("explore", match.id)}
+                className="mt-5 flex w-full cursor-pointer items-center justify-center gap-2 rounded-full bg-court px-5 py-3 font-display text-lg font-bold text-court-ink shadow-md shadow-black/10 transition hover:-translate-y-0.5 hover:shadow-lg"
+              >
+                Explore this match <span aria-hidden>→</span>
+              </button>
+            )}
             {diary && !isDraft && (
-              <button type="button" onClick={tearOut} className="mt-5 cursor-pointer text-sm font-semibold text-muted underline-offset-4 hover:text-fault hover:underline">
+              <button type="button" onClick={tearOut} className="mt-4 block cursor-pointer text-sm font-semibold text-muted underline-offset-4 hover:text-fault hover:underline">
                 Remove this star
               </button>
             )}

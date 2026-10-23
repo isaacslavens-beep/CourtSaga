@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { requireUser } from "@/lib/auth";
-import { findMatches, latestPage, loadDiary, seasonRange, slamFinals } from "@/lib/diary";
+import { findMatches, latestPage, loadDiary, slamFinals } from "@/lib/diary";
 import { matchStory, randomStoryId } from "@/lib/story";
 import { classics } from "../../diary/classics";
 import { diaryPages, slams, toFanEntry, toMatches } from "../../diary/library";
@@ -26,7 +26,7 @@ export default function ExplorePage({ searchParams }: PageProps<"/explore">) {
           n={2}
           verb="Explore"
           title="Explore a match"
-          body="Pick any match and follow the story around it, one match to the next."
+          body="Start at a Slam, or from any match you star, and follow the story one match to the next."
         />
       </CourtBand>
       <section className="court-page flex-1 pb-16 pt-6 sm:pt-8">
@@ -50,9 +50,8 @@ async function Exploring({ searchParams }: Pick<PageProps<"/explore">, "searchPa
     redirect(id ? `/explore?m=${encodeURIComponent(id)}${atSlam ? `&slam=${encodeURIComponent(atSlam)}` : ""}` : "/explore");
   }
   const wanted = typeof m === "string" ? m.slice(0, 120) : null;
-  const [diary, seasons, story, finals, classicRows] = await Promise.all([
+  const [diary, story, finals, classicRows] = await Promise.all([
     loadDiary(user.id),
-    seasonRange(),
     wanted ? matchStory(wanted) : null,
     wanted ? [] : slamFinals(),
     wanted ? [] : findMatches(classics.map((c) => c.id)),
@@ -74,7 +73,6 @@ async function Exploring({ searchParams }: Pick<PageProps<"/explore">, "searchPa
           story={story}
           missing={!!wanted && !story}
           slam={atSlam ?? null}
-          seasons={seasons}
           start={{ finals, classics: classicRows.map((row) => ({ row, why: classics.find((c) => c.id === row.id)!.why })), diary: recentRows }}
         />
       </div>

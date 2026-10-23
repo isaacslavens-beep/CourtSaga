@@ -9,7 +9,6 @@ import { Avatar, BallScore, CourtArt, chartStyles } from "./fun";
 import { diaryPages, roundName, scoreText, toMatches, watched, watchedHow, type Match, type MatchRow, type Round, type WatchMode } from "./library";
 import { starMatch, updateEntry } from "../(app)/actions";
 import { highlightVideos } from "./media";
-import { MatchFinder } from "./finder";
 import { Scoreboard } from "./log";
 import { useLog } from "./store";
 import type { Bracket, BracketSlot, DrawVisual, EventVisual, Fact, H2HVisual, Part, SeasonVisual, StatsVisual, Story, Thread } from "./story";
@@ -889,8 +888,8 @@ function SurpriseMe({ className = "", again = false, slam = null }: { className?
   );
 }
 
-/** Surprise me inside the search bar */
-function SurpriseInside({ slam }: { slam: string | null }) {
+/** Surprise me, small: at the top of a story, beside the way back to the Slams */
+function SurpriseSmall({ slam }: { slam: string | null }) {
   return (
     <Link
       href={surpriseHref(slam)}
@@ -1079,13 +1078,11 @@ export function ExploreSection({
   story,
   missing,
   slam,
-  seasons,
   start: startData,
 }: {
   story: Story | null;
   missing: boolean;
   slam: string | null;
-  seasons: [number, number] | null;
   start: StartData;
 }) {
   // The Slam picked on the start page, which Surprise me then keeps to
@@ -1109,11 +1106,17 @@ export function ExploreSection({
 
   return (
     <div className="space-y-8">
-      <MatchFinder seasons={seasons} explore inside={<SurpriseInside slam={story ? slam : picked} />} />
       <div ref={top} className="scroll-mt-6">
-        {missing && <p className="mb-6 rounded-2xl bg-fault/10 px-4 py-3 font-medium text-fault">That match isn&apos;t in the record. Try finding it above.</p>}
+        {missing && <p className="mb-6 rounded-2xl bg-fault/10 px-4 py-3 font-medium text-fault">That match isn&apos;t in the record.</p>}
         {story ? (
           <>
+            {/* Back to the Slams, or somewhere new */}
+            <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+              <Link href="/explore" className="font-semibold text-court underline-offset-4 hover:underline">
+                ← All Slams
+              </Link>
+              <SurpriseSmall slam={slam} />
+            </div>
             <Crumbs story={story} follow={follow} />
             <StoryView story={story} follow={follow} pending={pending} page={page} logHref={(id) => `/star?m=${encodeURIComponent(id)}`} star={<StarPanel story={story} />} starOf={starOf} />
             {/* At the foot of the story: keep this match, or try another */}
@@ -1123,7 +1126,19 @@ export function ExploreSection({
             </div>
           </>
         ) : (
-          <Start start={startData} follow={follow} slam={picked} setSlam={setPicked} />
+          <>
+            <div className="mb-10 flex flex-col items-start gap-3 rounded-3xl border border-line bg-surface p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between sm:p-6">
+              <p className="max-w-xl text-muted">
+                <span className="font-display text-lg font-bold text-foreground">Looking for a match you saw?</span> Find it on the{" "}
+                <Link href="/star" className="font-semibold text-court underline underline-offset-4">
+                  Star page
+                </Link>
+                , rate it, and explore it from there. Or let chance pick one.
+              </p>
+              <SurpriseSmall slam={picked} />
+            </div>
+            <Start start={startData} follow={follow} slam={picked} setSlam={setPicked} />
+          </>
         )}
       </div>
     </div>
