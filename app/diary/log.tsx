@@ -1,13 +1,13 @@
 "use client";
 
 import Image, { type StaticImageData } from "next/image";
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import alcarazDjokovicAo2026 from "@/public/photos/alcaraz-djokovic-ao-2026-trophies.jpg";
 import rybakinaUso2026Trophy from "@/public/photos/rybakina-uso-2026-trophy.jpg";
 import sinnerWimbledon2025Trophy from "@/public/photos/sinner-wimbledon-2025-trophy.jpg";
 import { HighlightsLink, SlamLogo, TournamentLabel } from "../match-ui";
 import { Avatar, BallRating, BallScore, Burst, CourtArt, IconHeart, NextStep, PageArrow, playerStyle, watchIcons } from "./fun";
-import { diaryPages, endingOf, eventLabel, finished, monthLabel, parseScore, roundName, setWinner, watchedHow, type FanEntry, type Match, type WatchMode } from "./library";
+import { diaryPages, endingOf, eventLabel, finished, monthLabel, parseScore, roundName, setWinner, watched, watchedHow, type FanEntry, type Match, type WatchMode } from "./library";
 import { highlightVideos, sameMatch } from "./media";
 import { useLog } from "./store";
 
@@ -30,12 +30,17 @@ const photos: Record<string, { src: StaticImageData; alt: string; position: stri
   },
 };
 
-/** A new page for a match you've just found: watched on TV as it happened, three balls */
-function blankEntry(m: Match): FanEntry {
+const thisMonth = () => {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+};
+
+/** A new star for a match you've just found: not watched (say if you did), starred this month, no rating yet */
+function blankEntry(): FanEntry {
   return {
-    watchedOn: "TV",
-    watchedDate: m.date.slice(0, 7),
-    rating: 3,
+    watchedOn: null,
+    watchedDate: thisMonth(),
+    rating: null,
     cheering: null,
     pick: null,
     tags: [],
@@ -99,6 +104,8 @@ const watchModes: { mode: WatchMode; label: string }[] = [
   { mode: "Stream", label: "Streamed" },
 ];
 
+const noSubscribe = () => () => {};
+
 const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 const chip = (on: boolean) =>
@@ -106,27 +113,41 @@ const chip = (on: boolean) =>
     on ? "border-court bg-court text-court-ink shadow-md" : "border-line bg-surface text-muted hover:-translate-y-0.5 hover:border-court hover:text-court"
   }`;
 
-/** How and when you watched */
+/** Whether you watched it, and if so how and when. A match can be starred without being watched. */
 function WatchQuestion({ step, match, log, set }: { step: number; match: Match; log: FanEntry; set: (patch: Partial<FanEntry>) => void }) {
   const played = match.date.slice(0, 7);
+  const seen = log.watchedOn !== null;
   const later = log.watchedDate !== played;
   const [year, month] = log.watchedDate.split("-").map(Number);
   const firstYear = Number(played.slice(0, 4));
-  const years = Array.from({ length: Math.max(1, new Date().getFullYear() - firstYear + 1) }, (_, i) => firstYear + i);
+  // Up to this year once in the browser; while the page is built, up to the year already chosen
+  const thisYear = useSyncExternalStore(noSubscribe, () => new Date().getFullYear(), () => year);
+  const years = Array.from({ length: Math.max(1, Math.max(thisYear, year) - firstYear + 1) }, (_, i) => firstYear + i);
   // Never before it was played
   const setWatched = (y: number, m: number) => set({ watchedDate: `${y}-${String(m).padStart(2, "0")}` < played ? played : `${y}-${String(m).padStart(2, "0")}` });
 
   return (
-    <Question step={step} title="How did you watch?">
+    <Question step={step} title="Did you watch it?">
       {watchModes.map(({ mode, label }) => {
         const Icon = watchIcons[mode];
         return (
-          <button key={mode} type="button" aria-pressed={log.watchedOn === mode} onClick={() => set({ watchedOn: mode })} className={chip(log.watchedOn === mode)}>
+          <button
+            key={mode}
+            type="button"
+            aria-pressed={log.watchedOn === mode}
+            // Watching it for the first time here: as it happened, unless said otherwise
+            onClick={() => set(seen ? { watchedOn: mode } : { watchedOn: mode, watchedDate: played })}
+            className={chip(log.watchedOn === mode)}
+          >
             <Icon className="h-4 w-4" />
             {label}
           </button>
         );
       })}
+      <button type="button" aria-pressed={!seen} onClick={() => set({ watchedOn: null, watchedDate: thisMonth() })} className={chip(!seen)}>
+        ☆ Didn&apos;t watch it
+      </button>
+      {seen && (
       <span className="flex w-full flex-wrap items-center gap-2 pt-1">
         <button type="button" aria-pressed={!later} onClick={() => set({ watchedDate: played })} className={chip(!later)}>
           As it happened · {monthLabel(played)}
@@ -157,6 +178,7 @@ function WatchQuestion({ step, match, log, set }: { step: number; match: Match; 
           </span>
         )}
       </span>
+      )}
     </Question>
   );
 }
@@ -223,9 +245,9 @@ export function LogSection() {
   // A match found but not yet logged is a new page: its answers are kept here until it's added
   const [draft, setDraft] = useState<{ id: string; entry: FanEntry } | null>(null);
   const match = focusId ? matches[focusId] : null;
-  if (match && !entries[match.id] && draft?.id !== match.id) setDraft({ id: match.id, entry: blankEntry(match) });
+  if (match && !entries[match.id] && draft?.id !== match.id) setDraft({ id: match.id, entry: blankEntry() });
   const isDraft = !!match && !entries[match.id];
-  const log = match ? (entries[match.id] ?? (draft?.id === match.id ? draft.entry : blankEntry(match))) : null;
+  const log = match ? (entries[match.id] ?? (draft?.id === match.id ? draft.entry : blankEntry())) : null;
 
   // Key controls glow until the visitor tries something
   const [touched, setTouched] = useState(false);
@@ -249,7 +271,7 @@ export function LogSection() {
     setEditedId(match.id);
   };
   const tearOut = () => {
-    if (!match || !window.confirm(`Tear out page ${pages.get(match.id)}? Everything you wrote about this match goes with it.`)) return;
+    if (!match || !window.confirm(`Remove your star from ${eventLabel(match)}? Everything you wrote about it goes with it.`)) return;
     const rest = Object.keys(entries).filter((id) => id !== match.id);
     remove(match.id);
     if (editedId === match.id) setEditedId(null);
@@ -290,7 +312,7 @@ export function LogSection() {
   const page = match ? pages.get(match.id) : undefined;
   const photo = match ? photos[sameMatch[match.id] ?? match.id] : undefined;
   const nextId = editedId && entries[editedId] ? editedId : null;
-  const wordsStep = diary ? 4 : 3;
+  const wordsStep = 4;
 
   return (
     <div className="scroll-mt-6 overflow-hidden rounded-3xl border border-line bg-surface shadow-xl shadow-court/5">
@@ -310,20 +332,20 @@ export function LogSection() {
         <p className="relative px-4 text-sm font-semibold sm:px-5">
           {diary ? (
             <>
-              {pageCount ? "Open a page" : "Your pages"}{" "}
+              Your stars{" "}
               <span className="font-normal text-white/70">
-                · {pageCount === 1 ? "1 page" : `${pageCount} pages`} logged{pageCount > 4 ? ", scroll for more" : ""}
+                · {pageCount === 1 ? "1 match" : `${pageCount} matches`} starred, {Object.values(entries).filter(watched).length} watched{pageCount > 4 ? ", scroll for more" : ""}
               </span>
             </>
           ) : (
             <>
-              Pick a match <span className="font-normal text-white/70">· {pageCount} pages in this diary, scroll for more</span>
+              Pick a match <span className="font-normal text-white/70">· {pageCount} starred in this diary, scroll for more</span>
             </>
           )}
         </p>
         {pageCount === 0 ? (
           <p className="relative mx-4 mt-2 rounded-xl border-2 border-dashed border-white/30 px-4 py-6 text-center font-medium text-white/85 sm:mx-5">
-            Every match you log becomes a page here. Find your first one above.
+            Every match you star becomes a page here, watched or not. Find your first one above.
           </p>
         ) : (
           <div className="relative mt-2">
@@ -385,7 +407,7 @@ export function LogSection() {
                           <span className="block truncate text-sm font-semibold">{m.event}</span>
                           <span className="mt-0.5 flex items-center justify-between gap-2">
                             <span className="truncate text-sm text-muted">{roundName(m)}</span>
-                            <BallScore value={entries[m.id].rating} size="xs" />
+                            {watched(entries[m.id]) ? <BallScore value={entries[m.id].rating} size="xs" /> : <span className="text-xs font-semibold text-muted">☆ Starred</span>}
                           </span>
                         </span>
                       </button>
@@ -404,10 +426,12 @@ export function LogSection() {
           <div className="min-w-0 space-y-7">
             {diary && isDraft && (
               <p className="rounded-2xl bg-ball/25 px-4 py-3 font-medium">
-                A new page for <span className="font-semibold">{event}</span>. Answer what you like, then save it.
+                Starring <span className="font-semibold">{event}</span>. Say if you watched it and anything else you like, then star it.
               </p>
             )}
-            <Question step={1} title="Rate it">
+            <WatchQuestion step={1} match={match} log={log} set={set} />
+
+            <Question step={2} title="Rate it · if you like">
               <span className="relative">
                 <BallRating
                   value={log.rating}
@@ -427,7 +451,7 @@ export function LogSection() {
               )}
             </Question>
 
-            <Question step={2} title="Who were you backing?">
+            <Question step={3} title="Who were you backing?">
               {[...players, null].map((p) => {
                 const on = log.cheering === p;
                 const st = playerStyle(p);
@@ -466,21 +490,19 @@ export function LogSection() {
               })}
             </Question>
 
-            {diary && <WatchQuestion step={3} match={match} log={log} set={set} />}
-
             <div>
               <label className="block">
                 <span className="flex items-center gap-2 font-display text-lg font-bold">
                   <span className="flex h-6 w-6 items-center justify-center rounded-full bg-court/15 text-sm text-court">{wordsStep}</span>
                   Your words
-                  <span className="font-sans text-sm font-normal text-muted">· anything you like</span>
+                  <span className="font-sans text-sm font-normal text-muted">· why it matters to you, or anything else</span>
                 </span>
                 <textarea
                   value={log.note}
                   onChange={(e) => set({ note: e.target.value })}
                   rows={3}
                   maxLength={diary ? 2000 : undefined}
-                  placeholder="Where you watched, who with, how it felt…"
+                  placeholder="Where you watched, who with, why it's one to remember…"
                   className="paper mt-2.5 w-full resize-none rounded-xl border border-line bg-surface pb-1 pr-3 pt-0 leading-[var(--rule)] shadow-sm [--rule:1.75rem] placeholder:text-muted/70 focus:border-court focus:outline-none focus:ring-2 focus:ring-court/20"
                 />
               </label>
@@ -494,7 +516,7 @@ export function LogSection() {
                   onClick={addDraft}
                   className="inline-flex cursor-pointer items-center gap-2.5 rounded-full bg-ball px-6 py-3 text-lg font-bold text-[#0b0d12] shadow-lg shadow-black/15 transition hover:-translate-y-0.5 hover:shadow-xl"
                 >
-                  Save this match
+                  ★ Star this match
                 </button>
               ) : (
                 <p className="text-sm text-muted" role="status" aria-live="polite">
@@ -522,12 +544,12 @@ export function LogSection() {
                     </>
                   ) : (
                     <>
-                      New page <span className="font-normal text-muted">· not saved yet</span>
+                      New page <span className="font-normal text-muted">· not starred yet</span>
                     </>
                   )}
                 </span>
                 <span className="text-muted">
-                  {monthLabel(log.watchedDate)}, {watchedHow(log.watchedOn)}
+                  {watched(log) ? `${monthLabel(log.watchedDate)}, ${watchedHow(log.watchedOn)}` : `☆ Starred ${monthLabel(log.watchedDate)} · not watched`}
                 </span>
               </p>
               <div className="relative">
@@ -598,7 +620,7 @@ export function LogSection() {
             </div>
             {diary && !isDraft && (
               <button type="button" onClick={tearOut} className="mt-5 cursor-pointer text-sm font-semibold text-muted underline-offset-4 hover:text-fault hover:underline">
-                Tear out this page
+                Remove this star
               </button>
             )}
           </div>
@@ -624,7 +646,7 @@ export function LogSection() {
               <span className="font-bold underline decoration-2 underline-offset-4">Save this match as a new page</span>
             ) : (
               <>
-                ✓ Saved to page {pages.get(nextId ?? editedId ?? match.id)} of your diary.{" "}
+                ★ Starred: page {pages.get(nextId ?? editedId ?? match.id)} of your diary.{" "}
                 <span className="font-bold underline decoration-2 underline-offset-4">Explore the story around it</span>
               </>
             )

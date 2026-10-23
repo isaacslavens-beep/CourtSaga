@@ -199,7 +199,7 @@ export function LogProvider({ mode, rows: initialRows, matches: fixed, entries: 
 
   const openInLog = useCallback(
     (id: string) => {
-      if (mode === "diary") return router.push(`/log?m=${encodeURIComponent(id)}`);
+      if (mode === "diary") return router.push(`/star?m=${encodeURIComponent(id)}`);
       setFocusId(id);
     },
     [mode, router],

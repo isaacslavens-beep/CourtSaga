@@ -11,9 +11,13 @@ const nextConfig: NextConfig = {
     qualities: [75, 90],
   },
   partialPrefetching: true,
-  // The ranking was replaced by exploring a match
+  // The ranking was replaced by exploring a match, and
   async redirects() {
-    return [{ source: "/rank", destination: "/explore", permanent: true }];
+    // Logging became starring
+    return [
+      { source: "/rank", destination: "/explore", permanent: true },
+      { source: "/log", destination: "/star", permanent: true },
+    ];
   },
   turbopack: {
     rules: {

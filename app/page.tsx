@@ -17,11 +17,11 @@ import djokovicCentreCourt from "@/public/photos/djokovic-wimbledon-centre-court
 
 const steps = [
   {
-    id: "log",
+    id: "star",
     demo: <LogSection />,
-    verb: "Write",
-    title: "Log a match",
-    body: "Every match you log is a page in your diary. Rate it, say who you were backing, and add a few words if you like.",
+    verb: "Keep",
+    title: "Star a match",
+    body: "Star any match you want to remember, whether you watched it or not. Say how you saw it, rate it, back a player, add a few words.",
     hint: "Pick any match below and change the answers.",
   },
   {
@@ -41,7 +41,7 @@ const steps = [
     demo: <SagaSection />,
     verb: "Read back",
     title: "Read your saga",
-    body: "Your diary, read back to you. It builds itself from the matches you log: your rivalries, your five-setters, the calls you got right, and the meetings you missed.",
+    body: "Your diary, read back to you. It builds itself from the matches you star, watched or not: your rivalries, your five-setters, the calls you got right, and the meetings you missed.",
     hint: "Pick a rivalry or a collection, then turn the pages.",
     room: true, // the saga's own reading room, not a court
   },

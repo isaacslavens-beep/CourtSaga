@@ -10,13 +10,13 @@ import { StepHeading } from "../../step-heading";
 import { OpeningDiary } from "../loading-page";
 import { saver } from "../saver";
 
-export const metadata: Metadata = { title: "Log a match · CourtSaga" };
+export const metadata: Metadata = { title: "Star a match · CourtSaga" };
 
-export default function LogPage({ searchParams }: PageProps<"/log">) {
+export default function StarPage({ searchParams }: PageProps<"/star">) {
   return (
     <div className="court-wimbledon flex flex-1 flex-col">
       <CourtBand compact>
-        <StepHeading as="h1" onCourt compact n={1} verb="Write" title="Log a match" body="Find a match, rate it, and add a few words if you like." />
+        <StepHeading as="h1" onCourt compact n={1} verb="Keep" title="Star a match" body="Star any match you want to remember, and say if you watched it." />
       </CourtBand>
       <section className="court-page flex-1 pb-16 pt-6 sm:pt-8">
         <div className="mx-auto w-full max-w-6xl px-4 sm:px-8">
@@ -29,11 +29,11 @@ export default function LogPage({ searchParams }: PageProps<"/log">) {
   );
 }
 
-async function Log({ searchParams }: Pick<PageProps<"/log">, "searchParams">) {
+async function Log({ searchParams }: Pick<PageProps<"/star">, "searchParams">) {
   const user = await requireUser();
   const [{ m }, diary, seasons] = await Promise.all([searchParams, loadDiary(user.id), seasonRange()]);
   const wanted = typeof m === "string" ? m : null;
-  // A match asked for by link that isn't logged yet opens as a new page
+  // A match asked for by link that isn't starred yet opens as a new page
   const found = wanted && !diary.entries[wanted] ? await findMatch(wanted) : null;
   const rows = found ? [...diary.rows, found] : diary.rows;
   const focus = wanted && rows.some((r) => r.id === wanted) ? wanted : latestPage(diary);

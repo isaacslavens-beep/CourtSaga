@@ -8,7 +8,7 @@ import { useEffect, useState } from "react";
 
 // Each step's line, then a shorter one for a phone
 const lines: Record<string, [string, string]> = {
-  log: ["Sign up free to log any match", "Log any match"],
+  star: ["Sign up free to star any match", "Star any match"],
   explore: ["Sign up free to explore any tennis match", "Explore any match"],
   story: ["Sign up free to build your own saga", "Build your own saga"],
 };

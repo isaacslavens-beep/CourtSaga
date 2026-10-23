@@ -167,7 +167,7 @@ export const matches = pgTable(
   ],
 );
 
-/* ---------- The diary: one page per match a fan logs ---------- */
+/* ---------- The diary: one page per match a fan stars, watched or not ---------- */
 
 export const diaryEntries = pgTable(
   "diary_entries",
@@ -178,9 +178,11 @@ export const diaryEntries = pgTable(
     matchId: text("match_id")
       .notNull()
       .references(() => matches.id),
-    watchedOn: text("watched_on").notNull(), // Live | TV | Stream
-    watchedDate: text("watched_date").notNull(), // "YYYY-MM"
-    rating: smallint("rating").notNull(), // 1 to 5
+    // A starred match the fan watched says how (Live | TV | Stream); one starred without watching has none
+    watchedOn: text("watched_on"),
+    // "YYYY-MM": when it was watched, or for a match not watched, when it was starred
+    watchedDate: text("watched_date").notNull(),
+    rating: smallint("rating"), // 1 to 5, or none
     // Sides rather than names, so they hold whatever a player is called
     cheering: text("cheering"), // "winner" | "loser" | null
     pickWinner: text("pick_winner"), // "winner" | "loser" | null: your call on who wins

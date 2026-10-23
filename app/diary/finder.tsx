@@ -1,7 +1,8 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, useTransition, type ReactNode } from "react";
+import { starMatch } from "../(app)/actions";
 import { glideTo } from "../glide";
 import { TournamentLabel } from "../match-ui";
 import { Avatar } from "./fun";
@@ -19,6 +20,31 @@ const examples = ["alcaraz sinner", "wimbledon 2008 final", "sabalenka ao 2023"]
 const notInYet = (query: string, last: number) => (query.match(/\b(19|20)\d{2}\b/g) ?? []).some((y) => Number(y) > last);
 /** A search for a season before the first one in the data */
 const tooEarly = (query: string, first: number) => (query.match(/\b(19|20)\d{2}\b/g) ?? []).some((y) => Number(y) < first);
+
+/** Star a search result without opening it */
+function QuickStar({ id, starred }: { id: string; starred: boolean }) {
+  const router = useRouter();
+  const [pending, start] = useTransition();
+  return (
+    <button
+      type="button"
+      disabled={starred || pending}
+      title={starred ? "Starred" : "Star this match"}
+      aria-label={starred ? "Starred" : "Star this match"}
+      onClick={() =>
+        start(async () => {
+          await starMatch(id);
+          router.refresh();
+        })
+      }
+      className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-2xl transition ${
+        starred ? "text-[#b08d00]" : "cursor-pointer text-muted hover:scale-110 hover:bg-ball/30 hover:text-foreground"
+      } ${pending ? "animate-pulse" : ""}`}
+    >
+      {starred || pending ? "★" : "☆"}
+    </button>
+  );
+}
 
 export function MatchFinder({ seasons, explore = false, inside }: { seasons: [number, number] | null; explore?: boolean; inside?: ReactNode }) {
   const { matches, entries, view } = useLog();
@@ -149,11 +175,12 @@ export function MatchFinder({ seasons, explore = false, inside }: { seasons: [nu
                   const m = named[row.id];
                   const page = pages.get(row.id);
                   return (
-                    <li key={row.id}>
+                    <li key={row.id} className="flex items-center gap-1">
+                      {explore && <QuickStar id={row.id} starred={!!page} />}
                       <button
                         type="button"
                         onClick={() => open(row)}
-                        className="group flex w-full cursor-pointer items-center gap-3 rounded-2xl px-2 py-2.5 text-left transition hover:bg-court/5 sm:px-3"
+                        className="group flex min-w-0 flex-1 cursor-pointer items-center gap-3 rounded-2xl px-2 py-2.5 text-left transition hover:bg-court/5 sm:px-3"
                       >
                         <span className="flex shrink-0 -space-x-2 max-sm:hidden">
                           <Avatar name={m.winner} size="h-10 w-10 text-sm ring-2 ring-surface" />

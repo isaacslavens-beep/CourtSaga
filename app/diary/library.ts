@@ -27,10 +27,11 @@ export type Match = {
   bestOf: 3 | 5;
 };
 
+/** A starred match: one the fan watched (watchedOn says how), or one starred to remember without watching */
 export type FanEntry = {
-  watchedOn: WatchMode;
-  watchedDate: string; // "YYYY-MM"
-  rating: number; // 1 to 5
+  watchedOn: WatchMode | null; // null: starred, not watched
+  watchedDate: string; // "YYYY-MM": when it was watched, or when it was starred if it wasn't
+  rating: number | null; // 1 to 5, or none
   cheering: string | null;
   pick: { winner: string } | null; // your call on who wins: whoever you backed
   tags: string[];
@@ -285,9 +286,9 @@ export function findRivalries(log: Record<string, FanEntry>, matches: Record<str
 
 export const rivalryOf = (m: Match, rivalries: Rivalry[]) => rivalries.find((r) => involves(m, ...r.players));
 
-/** Where a newly logged match goes in the order: above every match you rated lower. */
-export function placeByRating(order: string[], ratingOf: (id: string) => number, id: string, rating: number) {
-  const at = order.findIndex((other) => ratingOf(other) < rating);
+/** Where a newly starred match goes in the order: above every match you rated lower (no rating counts as none). */
+export function placeByRating(order: string[], ratingOf: (id: string) => number | null, id: string, rating: number | null) {
+  const at = order.findIndex((other) => (ratingOf(other) ?? 0) < (rating ?? 0));
   return at < 0 ? [...order, id] : [...order.slice(0, at), id, ...order.slice(at)];
 }
 
@@ -299,8 +300,8 @@ export function monthLabel(ym: string) {
 }
 
 /**
- * Every logged match is a page in the diary, numbered in the order you watched them (matches
- * watched the same month go in the order they were played). Match id -> page number, from 1.
+ * Every starred match is a page in the diary, numbered in the order you watched them, or starred them if
+ * you didn't (matches from the same month go in the order they were played). Match id -> page number, from 1.
  */
 export function diaryPages(log: Record<string, FanEntry>, matches: Record<string, Match>) {
   const order = Object.values(matches)
@@ -313,11 +314,15 @@ const rounds: Round[] = ["RR", "R128", "R64", "R32", "R16", "QF", "SF", "BR", "3
 /** Early rounds first, so a tournament's matches go in the order they were played. */
 export const roundOrder = (m: { round: Round }) => rounds.indexOf(m.round);
 
-/** How you watched it, as a diary would put it: "in person", "on TV", "streamed" */
-export const watchedHow = (mode: WatchMode) => ({ Live: "in person", TV: "on TV", Stream: "streamed" })[mode];
+/** How you watched it, as a diary would put it: "in person", "on TV", "streamed", or "starred" if you didn't */
+export const watchedHow = (mode: WatchMode | null) => (mode ? { Live: "in person", TV: "on TV", Stream: "streamed" }[mode] : "starred");
 
-/** Watched at least a few months after it was played. */
+/** Whether a starred match was watched, not just starred */
+export const watched = (fan: FanEntry) => fan.watchedOn !== null;
+
+/** Watched at least a few months after it was played. A match starred without watching is never a rewatch. */
 export function isRewatch(m: Match, fan: FanEntry) {
+  if (!watched(fan)) return false;
   const toMonths = (ym: string) => Number(ym.slice(0, 4)) * 12 + Number(ym.slice(5, 7));
   return toMonths(fan.watchedDate) - toMonths(m.date) >= 3;
 }

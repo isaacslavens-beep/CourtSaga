@@ -108,7 +108,9 @@ export function TennisBall({ filled, className = "h-5 w-5" }: { filled: boolean;
 const ballSizes = { xs: "h-3 w-3", sm: "h-4 w-4", md: "h-5 w-5", lg: "h-8 w-8" } as const;
 
 /** Read-only rating as tennis balls. */
-export function BallScore({ value, size = "sm" }: { value: number; size?: keyof typeof ballSizes }) {
+export function BallScore({ value, size = "sm" }: { value: number | null; size?: keyof typeof ballSizes }) {
+  // Not rated: nothing to show
+  if (value === null) return null;
   return (
     <span className="inline-flex items-center gap-0.5" role="img" aria-label={`Rated ${value} out of 5`}>
       {[1, 2, 3, 4, 5].map((n) => (
@@ -126,20 +128,20 @@ export function BallRating({
   nudge = false,
   nudgeDelay = "0s",
 }: {
-  value: number;
-  onChange: (n: number) => void;
+  value: number | null; // null: not rated
+  onChange: (n: number | null) => void; // clicking the current rating again clears it
   size?: keyof typeof ballSizes;
   nudge?: boolean; // glow to invite a first try
   nudgeDelay?: string;
 }) {
   const [hover, setHover] = useState<number | null>(null);
   const [bounce, setBounce] = useState({ n: 0, key: 0 });
-  const shown = hover ?? value;
+  const shown = hover ?? value ?? 0;
 
   return (
     <span
       role="group"
-      aria-label={`Your rating: ${value} out of 5`}
+      aria-label={value ? `Your rating: ${value} out of 5` : "Not rated"}
       onMouseLeave={() => setHover(null)}
       style={nudge ? { animationDelay: nudgeDelay } : undefined}
       className={`inline-flex items-center gap-0.5 rounded-full bg-surface px-1.5 py-1 shadow-sm ring-1 ring-line transition hover:ring-ball ${
@@ -152,12 +154,12 @@ export function BallRating({
           type="button"
           title={`Rate ${n} of 5`}
           aria-label={`Rate ${n} ball${n > 1 ? "s" : ""}`}
-          aria-pressed={n <= value}
+          aria-pressed={n <= (value ?? 0)}
           onMouseEnter={() => setHover(n)}
           onFocus={() => setHover(n)}
           onBlur={() => setHover(null)}
           onClick={() => {
-            onChange(n);
+            onChange(n === value ? null : n);
             setBounce((b) => ({ n, key: b.key + 1 }));
           }}
           className="cursor-pointer rounded-full p-0.5 transition-transform duration-150 focus-visible:outline-2 focus-visible:outline-court motion-safe:hover:-translate-y-0.5 motion-safe:hover:scale-110"

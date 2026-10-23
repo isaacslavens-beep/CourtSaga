@@ -46,7 +46,7 @@ export function DeleteAccountForm() {
   async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const form = new FormData(e.currentTarget);
-    if (!window.confirm("Delete your account and everything you've logged? This can't be undone.")) return;
+    if (!window.confirm("Delete your account and every match you've starred? This can't be undone.")) return;
     setPending(true);
     setError(null);
     const { error } = await authClient.deleteUser({ password: String(form.get("password")) });

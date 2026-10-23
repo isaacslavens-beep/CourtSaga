@@ -13,9 +13,9 @@ import { placeByRating, type StoredEntry } from "../diary/library";
 
 const side = z.enum(["winner", "loser"]);
 const entry = z.strictObject({
-  watchedOn: z.enum(["Live", "TV", "Stream"]),
+  watchedOn: z.enum(["Live", "TV", "Stream"]).nullable(), // null: starred without watching
   watchedDate: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/),
-  rating: z.number().int().min(1).max(5),
+  rating: z.number().int().min(1).max(5).nullable(),
   cheering: side.nullable(),
   pick: z.strictObject({ side }).nullable(),
   tags: z.array(z.string().trim().min(1).max(24)).max(8),
@@ -59,11 +59,11 @@ async function saveOrder(tx: Tx, userId: string, order: string[]) {
     where d.user_id = ${userId} and d.match_id = v.id and d.position <> v.position`);
 }
 
-/** Log a match. It goes in above every match rated lower, which is how the saga picks favourites. */
+/** Star a match, with whatever the fan said about it. It goes in above every match rated lower, which is how the saga picks favourites. */
 export async function addEntry(id: string, page: StoredEntry) {
   const user = await requireUser();
   const valid = { id: matchId.parse(id), entry: entry.parse(page) };
-  if (!(await findMatch(valid.id))) throw new Error("That match can't be logged.");
+  if (!(await findMatch(valid.id))) throw new Error("That match can't be starred.");
   await getDb().transaction(async (tx) => {
     await lockDiary(tx, user.id);
     const rows = await currentOrder(tx, user.id);
@@ -71,7 +71,7 @@ export async function addEntry(id: string, page: StoredEntry) {
     const ratings = new Map(rows.map((r) => [r.id, r.rating]));
     const order = placeByRating(
       rows.map((r) => r.id),
-      (other) => ratings.get(other) ?? 0,
+      (other) => ratings.get(other) ?? null,
       valid.id,
       valid.entry.rating,
     );
@@ -85,6 +85,24 @@ export async function addEntry(id: string, page: StoredEntry) {
       ...columns(valid.entry),
     });
     await saveOrder(tx, user.id, order);
+  });
+}
+
+/**
+ * Star a match in one click, from Explore: not watched, starred this month, nothing else said yet. A
+ * match already starred is left as it is.
+ */
+export async function starMatch(id: string) {
+  const now = new Date();
+  await addEntry(id, {
+    watchedOn: null,
+    watchedDate: `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}`,
+    rating: null,
+    cheering: null,
+    pick: null,
+    tags: [],
+    note: "",
+    classic: false,
   });
 }
 

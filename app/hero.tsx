@@ -59,12 +59,12 @@ export function Hero() {
               Explore and remember the story of tennis.
             </h1>
             <p className="mt-6 max-w-lg text-lg font-medium leading-relaxed text-white/90 sm:text-xl">
-              Explore the story behind any match, and turn the ones you&apos;ve seen into a saga of your
+              Explore the story behind any match, and star the ones you care about to build a saga of your
               own to share.
             </p>
             <div className="mt-8 flex flex-wrap items-center gap-x-5 gap-y-3">
               <a
-                href="#log"
+                href="#star"
                 className="inline-flex items-center gap-2.5 rounded-full bg-ball px-6 py-3 text-lg font-bold text-[#0b0d12] shadow-lg shadow-black/25 transition hover:-translate-y-0.5 hover:shadow-xl"
               >
                 Try it out
@@ -72,7 +72,7 @@ export function Hero() {
                   <path d="M8 3v10M4 9l4 4 4-4" />
                 </svg>
               </a>
-              <p className="max-w-[16rem] text-sm text-white/80">A working demo with a sample fan&apos;s log. Nothing you change is saved.</p>
+              <p className="max-w-[16rem] text-sm text-white/80">A working demo with a sample fan&apos;s diary. Nothing you change is saved.</p>
             </div>
             <p className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-2">
               <Link

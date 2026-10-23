@@ -7,6 +7,7 @@ import {
   findRivalries,
   finished,
   isRewatch,
+  watched,
   monthLabel,
   parseSets,
   roundName,
@@ -53,14 +54,15 @@ export type StripItem = {
   key: string;
   group: string; // rivalries: the year it sits under; collections: the row it counts towards
   color: string; // a player's name, "right"/"wrong" for calls, "other", or "" for no side
-  value: number; // your rating (1–5), or 3 for a meeting you didn't log
+  value: number; // your rating (1–5), or 3 for a meeting you didn't rate or star
   side: 1 | -1; // rivalries: above the line for the first player, below for the second
-  watched: boolean;
+  watched: boolean; // in your diary and watched
+  starred?: boolean; // in your diary, starred without watching
   title: string;
   logId?: string;
 };
 
-export type StripLegend = { color: string; label: string; faded?: boolean }[];
+export type StripLegend = { color: string; label: string; faded?: boolean; starred?: boolean }[];
 
 export type BookData = {
   id: string;
@@ -162,7 +164,13 @@ const loggedItems = ({ matches, entries }: Diary): Item[] =>
 
 type Item = { m: Match; fan: FanEntry };
 const s = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
-const avg = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0);
+/** The average rating of the rated ones, or a dash if none are */
+const avgRating = (xs: { fan: FanEntry }[]) => {
+  const rated = xs.flatMap((x) => (x.fan.rating === null ? [] : [x.fan.rating]));
+  return rated.length ? (rated.reduce((a, b) => a + b, 0) / rated.length).toFixed(1) : "–";
+};
+/** " · you rated it 4", " · starred, not watched", both, or neither */
+const yourMarks = (fan: FanEntry) => `${fan.rating ? ` · you rated it ${fan.rating}` : ""}${watched(fan) ? "" : " · starred, not watched"}`;
 const shortEvent = (m: Match) => m.event.replace(/ \d{4}$/, "");
 const byWatched = (a: Item, b: Item) => a.fan.watchedDate.localeCompare(b.fan.watchedDate) || a.m.date.localeCompare(b.m.date);
 const called = (x: Item) => !!x.fan.pick && x.fan.pick.winner === x.m.winner;
@@ -188,7 +196,7 @@ const fifthLong = (m: Match) => {
 function epigraphOf(items: Item[]) {
   const notes = items.filter((x) => x.fan.note);
   if (!notes.length) return null;
-  const best = notes.reduce((b, x) => (x.fan.rating >= b.fan.rating ? x : b));
+  const best = notes.reduce((b, x) => ((x.fan.rating ?? 0) >= (b.fan.rating ?? 0) ? x : b));
   return { note: best.fan.note, date: best.fan.watchedDate, id: best.m.id };
 }
 
@@ -261,10 +269,11 @@ function rowsOf(items: Item[], rowOf: (x: Item) => string, colorBy: (x: Item) =>
         key: x.m.id,
         group: row,
         color: colour(x),
-        value: x.fan.rating,
+        value: x.fan.rating ?? 3,
         side: 1 as const,
-        watched: true,
-        title: `${eventLabel(x.m)}: ${x.m.winner} won · you rated it ${x.fan.rating}`,
+        watched: watched(x.fan),
+        starred: !watched(x.fan),
+        title: `${eventLabel(x.m)}: ${x.m.winner} won${yourMarks(x.fan)}`,
         logId: x.m.id,
       })),
   );
@@ -329,6 +338,8 @@ function bindRivalry(id: string, diary: Diary): BookData {
     return { meet, m: meet.logId ? diary.matches[meet.logId] : undefined, fan: meet.logId ? entries[meet.logId] : undefined, marks, ended, i, a, b };
   });
   const yours = beats.filter((x): x is Beat & Item => !!x.fan && !!x.m);
+  // Watching counts for some things (a lucky charm, what you saw); starring alone puts a meeting in the book
+  const seenBy = yours.filter((x) => watched(x.fan));
 
   let prevTitle = "";
   let beenLevel = false;
@@ -389,7 +400,8 @@ function bindRivalry(id: string, diary: Diary): BookData {
     let side: string;
     if (!mine.length) side = n === 1 ? "Not in your log." : `None of these ${n} in your log.`;
     else {
-      const seen = mine.length < n ? `You watched ${mine.length} of ${n}. ` : "";
+      const w = mine.filter((x) => watched(x.fan)).length;
+      const seen = mine.length < n || w < mine.length ? `You starred ${mine.length} of ${n}${w < mine.length ? `, watched ${w}` : ""}. ` : "";
       const backers = [...new Set(mine.map((x) => x.fan.cheering).filter((p): p is string => !!p))];
       let backing = "No side taken.";
       if (backers.length > 1) backing = `Backed ${backers.join(", then ")}.`;
@@ -422,47 +434,49 @@ function bindRivalry(id: string, diary: Diary): BookData {
     };
   });
 
-  const view = { a: yours.filter((x) => x.meet.winner === A).length, b: yours.filter((x) => x.meet.winner === B).length };
+  const view = { a: seenBy.filter((x) => x.meet.winner === A).length, b: seenBy.filter((x) => x.meet.winner === B).length };
   const swings = beats.filter((x) => x.i > 0 && lead(x.a, x.b) !== lead(x.a - (x.meet.winner === A ? 1 : 0), x.b - (x.meet.winner === B ? 1 : 0)));
   const finals = beats.filter((x) => isFinal(x.meet.round));
   const backed = yours.filter((x) => x.fan.cheering);
   const calls = yours.filter((x) => x.fan.pick);
 
   // A lucky charm: one of them clearly does better in the meetings you watch than in the ones you don't
-  const missed = beats.filter((x) => !x.fan);
+  const missed = beats.filter((x) => !x.fan || !watched(x.fan));
   const share = (xs: Beat[], p: string) => xs.filter((x) => x.meet.winner === p).length / xs.length;
   const record = (xs: Beat[], p: string) => `${xs.filter((x) => x.meet.winner === p).length}–${xs.filter((x) => x.meet.winner !== p).length}`;
-  const charm = yours.length >= 3 && missed.length >= 3 ? [A, B].find((p) => share(yours, p) > 0.5 && share(yours, p) - share(missed, p) >= 0.25) : undefined;
+  const charm = seenBy.length >= 3 && missed.length >= 3 ? [A, B].find((p) => share(seenBy, p) > 0.5 && share(seenBy, p) - share(missed, p) >= 0.25) : undefined;
 
   return {
     id,
     kind: "rivalry",
     title: rivalryTitle([A, B]),
     faces: [A, B],
-    subtitle: `${nicknameOf([A, B]) ? `${A} and ${B}. ` : ""}All ${beats.length} meetings, ${beats[0].meet.date.slice(0, 4)}–${beats[beats.length - 1].meet.date.slice(0, 4)}. You watched ${yours.length}.`,
+    subtitle: `${nicknameOf([A, B]) ? `${A} and ${B}. ` : ""}All ${beats.length} meetings, ${beats[0].meet.date.slice(0, 4)}–${beats[beats.length - 1].meet.date.slice(0, 4)}. You starred ${yours.length}${seenBy.length < yours.length ? `, watched ${seenBy.length}` : ""}.`,
     strip: beats.map((x) => ({
       key: String(x.i),
       group: x.meet.date.slice(0, 4),
       color: x.meet.winner,
-      value: x.fan ? x.fan.rating : 3,
+      value: x.fan?.rating ?? 3,
       side: x.meet.winner === A ? 1 : -1,
-      watched: !!x.fan,
-      title: `${x.meet.event} ${x.meet.date.slice(0, 4)}: ${x.meet.winner} won${x.fan ? ` · you rated it ${x.fan.rating}` : " · not in your log"}`,
+      watched: !!x.fan && watched(x.fan),
+      starred: !!x.fan && !watched(x.fan),
+      title: `${x.meet.event} ${x.meet.date.slice(0, 4)}: ${x.meet.winner} won${x.fan ? yourMarks(x.fan) || " · in your diary" : " · not starred"}`,
       logId: x.meet.logId,
     })),
     stripMode: "rivalry",
-    stripCaption: `The head-to-head after every meeting: above the middle line ${A} leads, below it ${B} does. Filled dots are the meetings you watched.`,
+    stripCaption: `The head-to-head after every meeting: above the middle line ${A} leads, below it ${B} does. Filled dots are the meetings you watched; a dot in a ring, one you starred without watching.`,
     stripLegend: [
       { color: A, label: `${A} won` },
       { color: B, label: `${B} won` },
-      { color: "", label: "Not in your log", faded: true },
+      { color: "", label: "Starred, not watched", starred: true },
+      { color: "", label: "Not starred", faded: true },
     ],
     facts: [
       ["Overall", standing(a, b)],
       charm
-        ? [say(id, "You're a lucky charm", "Lucky when you watch").text, `${charm}: ${record(yours, charm)} when you watch, ${record(missed, charm)} when you don't`]
+        ? [say(id, "You're a lucky charm", "Lucky when you watch").text, `${charm}: ${record(seenBy, charm)} when you watch, ${record(missed, charm)} when you don't`]
         : ["In the ones you watched", view.a === view.b ? `${view.a}–${view.b}` : `${view.a > view.b ? A : B} ${score(view.a, view.b)}`],
-      ["Lead changes you saw", swings.length ? `${swings.filter((x) => x.fan).length} of ${swings.length}` : "None yet"],
+      ["Lead changes you saw", swings.length ? `${swings.filter((x) => x.fan && watched(x.fan)).length} of ${swings.length}` : "None yet"],
     ],
     chapters,
     epilogue: {
@@ -471,7 +485,7 @@ function bindRivalry(id: string, diary: Diary): BookData {
         { label: B, n: b, face: true },
       ],
       facts: [
-        ["Finals", finals.length ? `${finals.filter((x) => x.meet.winner === A).length}–${finals.filter((x) => x.meet.winner === B).length} (you saw ${finals.filter((x) => x.fan).length})` : "None yet"],
+        ["Finals", finals.length ? `${finals.filter((x) => x.meet.winner === A).length}–${finals.filter((x) => x.meet.winner === B).length} (you starred ${finals.filter((x) => x.fan).length})` : "None yet"],
         ["Your player won", backed.length ? `${backed.filter((x) => x.fan.cheering === x.meet.winner).length} of ${backed.length}` : "No side taken"],
         ["Your calls", calls.length ? `${calls.filter(called).length} of ${calls.length} right` : "None made"],
       ],
@@ -545,23 +559,26 @@ function bindSeasons(items: Item[], order: string[]): BookData {
     kind: "collection",
     title: "Seasons",
     faces: [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3).map(([p]) => p),
-    subtitle: `Your whole log: ${items.length} matches, ${years[0].year}–${years[years.length - 1].year}.`,
+    subtitle: `Your whole diary: ${items.length} matches, ${years[0].year}–${years[years.length - 1].year}.`,
     ...(() => {
       const r = rowsOf(items, (x) => x.fan.watchedDate.slice(0, 4), (x) => x.fan.cheering ?? "", years.map((y) => y.year), (c) => (c ? `Backed ${c}` : "No side"));
       return { ...r, stripCaption: "Each year's matches, by who you backed." };
     })(),
     facts: [
-      ["Matches logged", String(items.length)],
+      ["Matches starred", String(items.length)],
       ["Backed most", top ? `${top.player} (${top.n})` : "No one yet"],
       ["In person", String(items.filter((x) => x.fan.watchedOn === "Live").length)],
     ],
     chapters,
     epilogue: {
-      big: (["Live", "TV", "Stream"] as const).map((mode) => ({ label: mode, n: items.filter((x) => x.fan.watchedOn === mode).length, face: false })),
+      big: [
+        ...(["Live", "TV", "Stream"] as const).map((mode) => ({ label: mode, n: items.filter((x) => x.fan.watchedOn === mode).length, face: false })),
+        { label: "Not watched", n: items.filter((x) => !watched(x.fan)).length, face: false },
+      ],
       facts: [
         ["Your player won", `${backed.filter((x) => x.fan.cheering === x.m.winner).length} of ${backed.length}`],
         ["Your calls", `${calls.filter(called).length} of ${calls.length} right`],
-        ["Your average", `${avg(items.map((x) => x.fan.rating)).toFixed(1)} balls`],
+        ["Your average", avgRating(items) === "–" ? "Nothing rated" : `${avgRating(items)} balls`],
       ],
       favourite: favouriteOf(items, order),
     },
@@ -634,7 +651,7 @@ function bindFinals(all: Item[], order: string[]): BookData {
     kind: "collection",
     title: "Finals",
     faces: winners.slice(0, 3).map(([p]) => p),
-    subtitle: `Every final you watched: ${items.length} so far.`,
+    subtitle: `Every final you starred: ${items.length} so far.`,
     ...rowsOf(items, (x) => tournamentOf(x.m), (x) => x.m.winner, groups.map((g) => g.t), (c) => `${c} won`),
     stripCaption: "Each tournament's finals, and who won.",
     facts: [
@@ -648,7 +665,7 @@ function bindFinals(all: Item[], order: string[]): BookData {
       facts: [
         ["Won the most", `${winners[0][0]} (${winners[0][1]})`],
         ["Five-set finals", String(items.filter((x) => isFive(x.m)).length)],
-        ["Your average", `${avg(items.map((x) => x.fan.rating)).toFixed(1)} (${avg(others.map((x) => x.fan.rating)).toFixed(1)} for the rest)`],
+        ["Your average", `${avgRating(items)} (${avgRating(others)} for the rest)`],
       ],
       favourite: favouriteOf(items, order),
     },
@@ -697,7 +714,7 @@ function bindFive(all: Item[], order: string[]): BookData {
     kind: "collection",
     title: "Five-Setters",
     faces: [...new Set(items.map((x) => x.m.winner))].slice(0, 3),
-    subtitle: `Every match you watched that went the distance: ${items.length} so far.`,
+    subtitle: `Every match you starred that went the distance: ${items.length} so far.`,
     ...(() => {
       const t = new Map<string, number>();
       for (const x of items) t.set(tournamentOf(x.m), (t.get(tournamentOf(x.m)) ?? 0) + 1);
@@ -705,8 +722,8 @@ function bindFive(all: Item[], order: string[]): BookData {
       return { ...rowsOf(items, (x) => tournamentOf(x.m), (x) => x.m.winner, rows, (c) => `${c} won`), stripCaption: "Where they happened, and who won." };
     })(),
     facts: [
-      ["Five-setters watched", String(items.length)],
-      ["Your average", `${avg(items.map((x) => x.fan.rating)).toFixed(1)} (${avg(others.map((x) => x.fan.rating)).toFixed(1)} for the rest)`],
+      ["Five-setters starred", String(items.length)],
+      ["Your average", `${avgRating(items)} (${avgRating(others)} for the rest)`],
       ["From two sets down", String(items.filter((x) => twoDown(x.m)).length)],
     ],
     chapters,
@@ -767,7 +784,7 @@ function bindComebacks(all: Item[], order: string[]): BookData {
     kind: "collection",
     title: "Comebacks",
     faces: [...c.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3).map(([p]) => p),
-    subtitle: `Every winner you watched who lost the first set: ${items.length} so far.`,
+    subtitle: `Every winner you starred who lost the first set: ${items.length} so far.`,
     ...(() => {
       const down = (x: Item) => (deficit(x.m) >= 2 ? "From 2 sets down" : "From 1 set down");
       return { ...rowsOf(items, down, (x) => x.m.winner, ["From 1 set down", "From 2 sets down"], (c) => `${c} came back`), stripCaption: "How far behind they were, and who came back." };
@@ -783,7 +800,7 @@ function bindComebacks(all: Item[], order: string[]): BookData {
         { label: "for your player", n: items.filter(forYou).length, face: false },
         { label: "against", n: items.filter(against).length, face: false },
       ],
-      facts: [["Your average", `${avg(items.map((x) => x.fan.rating)).toFixed(1)} (${avg(others.map((x) => x.fan.rating)).toFixed(1)} for the rest)`]],
+      facts: [["Your average", `${avgRating(items)} (${avgRating(others)} for the rest)`]],
       favourite: favouriteOf(items, order),
     },
   };

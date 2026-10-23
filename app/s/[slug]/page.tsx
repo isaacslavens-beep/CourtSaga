@@ -52,7 +52,7 @@ async function Shared({ params }: Pick<PageProps<"/s/[slug]">, "params">) {
       <div className="mt-10">
         {diary.order.length < SAGA_MIN_MATCHES ? (
           <p className="rounded-2xl border-2 border-dashed border-line p-8 text-center text-lg font-medium text-muted">
-            This saga starts once {owner.name} has logged {SAGA_MIN_MATCHES} matches.
+            This saga starts once {owner.name} has starred {SAGA_MIN_MATCHES} matches.
           </p>
         ) : (
           <LogProvider mode="shared" rows={diary.rows} entries={diary.entries} order={diary.order} records={diary.records}>

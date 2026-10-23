@@ -108,9 +108,13 @@ function markColor(color: string, players: Tones) {
   return players.get(color)?.color ?? "var(--muted)";
 }
 
-/** A meeting you didn't watch is a ring in the winner's colour; one you did is a filled dot. */
-function dotStyle(color: string, hollow: boolean, spot: boolean): CSSProperties {
+/**
+ * A meeting you watched is a filled dot in the winner's colour; one you starred without watching, a dot in
+ * a ring; one you didn't star, an empty ring.
+ */
+function dotStyle(color: string, hollow: boolean, spot: boolean, starred = false): CSSProperties {
   const ring = spot ? "0 0 0 3px var(--foreground)" : "0 0 0 2px var(--surface)";
+  if (starred) return { background: color, boxShadow: `inset 0 0 0 2px ${color}, inset 0 0 0 3.5px var(--surface), ${ring}` };
   return {
     background: hollow ? "var(--surface)" : color,
     boxShadow: hollow ? `inset 0 0 0 2px ${color}, ${ring}` : ring,
@@ -222,7 +226,7 @@ function LeadChart({ book, players, spotId, onGroup, hover }: { book: Glance; pl
             >
               <span
                 className={`tile-in block h-3.5 w-3.5 rounded-full ${spotId && spotId === p.x.logId ? "spot-tile" : ""}`}
-                style={{ animationDelay: `${i * 35}ms`, ...dotStyle(markColor(p.x.color, players), !p.x.watched, !!spotId && spotId === p.x.logId) }}
+                style={{ animationDelay: `${i * 35}ms`, ...dotStyle(markColor(p.x.color, players), !p.x.watched, !!spotId && spotId === p.x.logId, !!p.x.starred) }}
               />
             </button>
           ))}
@@ -276,7 +280,8 @@ function RowsChart({ book, players, spotId, hover }: { book: Glance; players: To
                     type="button"
                     {...markProps(x, hover)}
                     className={`grow-x h-full min-w-px flex-1 sm:min-w-[3px] cursor-pointer transition-[filter] last:rounded-r-[4px] hover:brightness-125 focus-visible:outline-2 focus-visible:outline-court ${spotId && spotId === x.logId ? "spot-tile rounded-[4px]" : ""}`}
-                    style={{ "--i": n++, background: markColor(x.color, players) } as CSSProperties}
+                    // A match starred without watching is a paler block
+                    style={{ "--i": n++, background: markColor(x.color, players), opacity: x.starred ? 0.45 : undefined } as CSSProperties}
                   />
                 ))}
               </span>
@@ -332,7 +337,7 @@ export function ShapeChart({
         <ul className="mb-4 flex flex-wrap gap-x-5 gap-y-1 text-sm text-muted">
           {book.stripLegend.map((l) => (
             <li key={l.label} className="flex items-center gap-1.5">
-              <span aria-hidden className="h-2.5 w-2.5 rounded-full" style={dotStyle(markColor(l.color, players), !!l.faded && l.color === "", false)} />
+              <span aria-hidden className="h-2.5 w-2.5 rounded-full" style={dotStyle(markColor(l.color, players), !!l.faded && l.color === "", false, !!l.starred)} />
               {l.label}
             </li>
           ))}

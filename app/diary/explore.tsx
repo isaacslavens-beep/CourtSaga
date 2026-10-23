@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore, useTransition, type ReactNode } from "react";
 import { glideTo } from "../glide";
 import { HighlightsLink, SlamLogo, TournamentLabel } from "../match-ui";
 import { Avatar, CourtArt, chartStyles } from "./fun";
-import { diaryPages, roundName, scoreText, toMatches, type Match, type MatchRow, type Round } from "./library";
+import { diaryPages, roundName, scoreText, toMatches, watched, type Match, type MatchRow, type Round, type WatchMode } from "./library";
+import { starMatch, updateEntry } from "../(app)/actions";
 import { highlightVideos } from "./media";
 import { MatchFinder } from "./finder";
 import { Scoreboard } from "./log";
@@ -70,7 +71,9 @@ const shortSeason = (y: number) => `’${String(y).slice(2)}`;
 /* ---------- The pictures ---------- */
 
 /** Every meeting, drawn exactly as the saga draws a rivalry: the head-to-head after each one */
-function H2HChart({ v, story, follow, page }: { v: H2HVisual; story: Story; follow: Follow; page: (id: string) => number | null }) {
+type StarOf = (id: string) => "watched" | "starred" | null;
+
+function H2HChart({ v, story, follow, page, starOf }: { v: H2HVisual; story: Story; follow: Follow; page: (id: string) => number | null; starOf: StarOf }) {
   const [A, B] = [story.names[story.a.key], story.names[story.b.key]];
   const glance: Glance = {
     faces: [A, B],
@@ -78,27 +81,30 @@ function H2HChart({ v, story, follow, page }: { v: H2HVisual; story: Story; foll
     strip: v.meetings.map((m) => {
       const winner = m.winner === "a" ? A : B;
       const p = page(m.id);
+      const st = starOf(m.id);
       return {
         key: m.id,
         group: String(m.year),
         color: winner,
         value: 3,
         side: m.winner === "a" ? 1 : -1,
-        watched: !!p,
-        title: `${m.label}: ${winner} won${p ? ` · page ${p} of your diary` : ""}`,
+        watched: st === "watched",
+        starred: st === "starred",
+        title: `${m.label}: ${winner} won${p ? ` · page ${p} of your diary${st === "starred" ? ", not watched" : ""}` : ""}`,
         logId: m.id,
       };
     }),
     stripLegend: [
       { color: A, label: `${A} won` },
       { color: B, label: `${B} won` },
-      { color: "", label: "Not in your log", faded: true },
+      { color: "", label: "Starred, not watched", starred: true },
+      { color: "", label: "Not starred", faded: true },
     ],
   };
   return (
     <ShapeChart
       book={glance}
-      caption={`The head-to-head after every meeting: above the middle line ${A} leads, below it ${B} does. Filled dots are the meetings in your diary; the ringed one is this match.`}
+      caption={`The head-to-head after every meeting: above the middle line ${A} leads, below it ${B} does. Filled dots are meetings you watched, a dot in a ring one you starred without watching; the dark-ringed one is this match.`}
       spotId={story.id}
       onMark={(x) => x.key !== story.id && follow(x.key)}
       markVerb="Explore it."
@@ -311,10 +317,10 @@ function StatsTable({ v, story, colors }: { v: StatsVisual; story: Story; colors
   );
 }
 
-function Picture({ thread, story, colors, follow, page }: { thread: Thread; story: Story; colors: Record<"a" | "b", string>; follow: Follow; page: (id: string) => number | null }) {
+function Picture({ thread, story, colors, follow, page, starOf }: { thread: Thread; story: Story; colors: Record<"a" | "b", string>; follow: Follow; page: (id: string) => number | null; starOf: StarOf }) {
   const v = thread.visual;
   if (!v) return null;
-  if (v.kind === "h2h") return <H2HChart v={v} story={story} follow={follow} page={page} />;
+  if (v.kind === "h2h") return <H2HChart v={v} story={story} follow={follow} page={page} starOf={starOf} />;
   if (v.kind === "event") return <EventGrid v={v} story={story} colors={colors} follow={follow} />;
   if (v.kind === "season") return <SeasonChart v={v} story={story} follow={follow} />;
   if (v.kind === "draw") return <DrawPaths v={v} story={story} follow={follow} />;
@@ -431,13 +437,17 @@ export function StoryView({
   pending,
   page,
   logHref,
+  star,
+  starOf = () => null,
   lite = false,
 }: {
   story: Story;
   follow: Follow;
   pending: boolean;
   page: (id: string) => number | null;
-  logHref?: (id: string) => string; // signed in: where to log a match
+  logHref?: (id: string) => string; // signed in: where a starred match's diary page is
+  star?: ReactNode; // the star button, beside the title
+  starOf?: StarOf; // whether a match is starred, and watched
   lite?: boolean; // the landing's demo: on a phone, only the threads that read quickest
 }) {
   const match = asMatch(story);
@@ -468,7 +478,7 @@ export function StoryView({
       )}
       {t.visual && (
         <div className={t.facts.length ? "mt-5 border-t border-line pt-4" : "mt-4"}>
-          <Picture thread={t} story={story} colors={colors} follow={follow} page={page} />
+          <Picture thread={t} story={story} colors={colors} follow={follow} page={page} starOf={starOf} />
         </div>
       )}
     </section>
@@ -477,7 +487,7 @@ export function StoryView({
   return (
     <div className={`transition-opacity duration-300 ${pending ? "opacity-50" : ""}`} aria-busy={pending}>
       {/* Which match this is, before anything else */}
-      <header key={story.id} className="fade-in mb-8 flex items-center gap-4 sm:gap-5">
+      <header key={story.id} className="fade-in mb-8 flex flex-wrap items-center gap-x-5 gap-y-4">
         <span className="text-5xl sm:text-7xl">
           <SlamLogo event={story.event} size="h-14 w-14 sm:h-20 sm:w-20" />
         </span>
@@ -490,6 +500,7 @@ export function StoryView({
             <span className="whitespace-nowrap font-mono text-base">{scoreText(story.score)}</span>
           </p>
         </div>
+        {star && <div className="w-full sm:ml-auto sm:w-auto">{star}</div>}
       </header>
 
       <div className="grid gap-8 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1fr)] lg:gap-10">
@@ -524,14 +535,12 @@ export function StoryView({
                 <SideLine side={story.a} name={story.a.name} />
                 <SideLine side={story.b} name={story.b.name} />
               </div>
-              {logHref && (
+              {logHref && here && (
                 <Link
                   href={logHref(story.id)}
-                  className={`flex items-center justify-center gap-2 rounded-full px-4 py-2.5 font-semibold transition ${
-                    here ? "border-2 border-line text-court hover:border-court" : "bg-ball text-[#0b0d12] shadow-md shadow-black/10 hover:brightness-105"
-                  }`}
+                  className="flex items-center justify-center gap-2 rounded-full border-2 border-line px-4 py-2.5 font-semibold text-court transition hover:border-court"
                 >
-                  {here ? `Open page ${here} in your diary` : "Watched it? Log this match"}
+                  Open page {here} in your diary
                 </Link>
               )}
             </div>
@@ -693,6 +702,85 @@ function StoryCard({
         </span>
       </span>
     </button>
+  );
+}
+
+/* ---------- Starring a match from its story ---------- */
+
+/** Whether a match is in the diary, and watched or only starred */
+function useStarState(toLocal: (id: string) => string | undefined = (id) => id) {
+  const { entries } = useLog();
+  return (id: string): "watched" | "starred" | null => {
+    const e = entries[toLocal(id) ?? ""];
+    return e ? (watched(e) ? "watched" : "starred") : null;
+  };
+}
+
+const starModes: { mode: WatchMode; label: string }[] = [
+  { mode: "Live", label: "In person" },
+  { mode: "TV", label: "On TV" },
+  { mode: "Stream", label: "Streamed" },
+];
+
+/** Star this match in one click; once starred, say if you watched it, or go and add more */
+function StarPanel({ story }: { story: Story }) {
+  const router = useRouter();
+  const [pending, start] = useTransition();
+  const state = useStarState()(story.id);
+  const run = (action: () => Promise<void>) =>
+    start(async () => {
+      await action();
+      router.refresh();
+    });
+  if (!state)
+    return (
+      <button
+        type="button"
+        disabled={pending}
+        onClick={() => run(() => starMatch(story.id))}
+        className="inline-flex cursor-pointer items-center gap-2 rounded-full bg-ball px-6 py-3 font-display text-lg font-bold text-[#0b0d12] shadow-lg shadow-black/15 transition hover:-translate-y-0.5 hover:shadow-xl disabled:opacity-60"
+      >
+        <span aria-hidden className="text-xl">☆</span> {pending ? "Starring…" : "Star this match"}
+      </button>
+    );
+  return (
+    <div className={`rise-in rounded-2xl bg-surface px-4 py-3 shadow-md ring-1 ring-line transition ${pending ? "opacity-60" : ""}`}>
+      <p className="flex items-center gap-2 font-display text-lg font-bold">
+        <span aria-hidden className="text-xl text-[#b08d00]">★</span> Starred
+        <span className="font-sans text-sm font-normal text-muted">{state === "watched" ? "· watched" : "· not watched"}</span>
+      </p>
+      {state === "starred" && (
+        <p className="mt-2 flex flex-wrap items-center gap-1.5 text-sm">
+          <span className="font-semibold text-muted">Watched it?</span>
+          {starModes.map(({ mode, label }) => (
+            <button
+              key={mode}
+              type="button"
+              disabled={pending}
+              onClick={() => run(() => updateEntry(story.id, { watchedOn: mode, watchedDate: story.date.slice(0, 7) }))}
+              className="cursor-pointer rounded-full border border-line px-2.5 py-0.5 font-semibold text-court transition hover:border-court"
+            >
+              {label}
+            </button>
+          ))}
+        </p>
+      )}
+      <Link href={`/star?m=${encodeURIComponent(story.id)}`} className="mt-2 inline-block text-sm font-semibold text-court underline-offset-4 hover:underline">
+        Add a rating, your pick or a note →
+      </Link>
+    </div>
+  );
+}
+
+/** In the landing's demo, the star button leads to signing up */
+function StarDemo() {
+  return (
+    <Link
+      href="/signup"
+      className="inline-flex items-center gap-2 rounded-full bg-ball px-6 py-3 font-display text-lg font-bold text-[#0b0d12] shadow-lg shadow-black/15 transition hover:-translate-y-0.5 hover:shadow-xl"
+    >
+      <span aria-hidden className="text-xl">☆</span> Star this match
+    </Link>
   );
 }
 
@@ -982,6 +1070,7 @@ export function ExploreSection({
   const router = useRouter();
   const [pending, start] = useTransition();
   const page = usePages();
+  const starOf = useStarState();
   const top = useRef<HTMLDivElement>(null);
   const follow = (id: string) => start(() => router.push(`/explore?m=${encodeURIComponent(id)}`, { scroll: false }));
   const first = useRef(true);
@@ -1003,7 +1092,7 @@ export function ExploreSection({
         {story ? (
           <>
             <Crumbs story={story} follow={follow} />
-            <StoryView story={story} follow={follow} pending={pending} page={page} logHref={(id) => `/log?m=${encodeURIComponent(id)}`} />
+            <StoryView story={story} follow={follow} pending={pending} page={page} logHref={(id) => `/star?m=${encodeURIComponent(id)}`} star={<StarPanel story={story} />} starOf={starOf} />
             <SurpriseMe className="mt-12 justify-center" again slam={slam} />
           </>
         ) : (
@@ -1027,6 +1116,7 @@ export function ExploreDemo({ initial, choices, toData, toSample }: { initial: S
   const [failed, setFailed] = useState(false);
   const root = useRef<HTMLDivElement>(null);
   const page = usePages((id) => toSample[id]);
+  const starOf = useStarState((id) => toSample[id]);
   const asked = useRef(0);
 
   const follow = async (id: string, scroll = true) => {
@@ -1074,7 +1164,7 @@ export function ExploreDemo({ initial, choices, toData, toSample }: { initial: S
         ))}
       </div>
       {failed && <p className="mb-4 rounded-2xl bg-fault/10 px-4 py-3 font-medium text-fault">That story didn&apos;t load. Check your connection and try again.</p>}
-      {story ? <StoryView story={story} follow={(id) => void follow(id)} pending={pending} page={page} lite /> : <p className="text-muted">The match data isn&apos;t available right now.</p>}
+      {story ? <StoryView story={story} follow={(id) => void follow(id)} pending={pending} page={page} lite star={<StarDemo />} starOf={starOf} /> : <p className="text-muted">The match data isn&apos;t available right now.</p>}
     </div>
   );
 }

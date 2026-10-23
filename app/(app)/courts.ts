@@ -4,7 +4,7 @@
 export type Court = "wimbledon" | "rg" | "uso" | "saga";
 
 export const pageCourts: Record<string, Court> = {
-  "/log": "wimbledon",
+  "/star": "wimbledon",
   "/explore": "uso",
   "/saga": "saga",
   "/account": "uso",

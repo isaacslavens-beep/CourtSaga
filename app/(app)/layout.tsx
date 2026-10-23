@@ -10,7 +10,7 @@ export default function DiaryLayout({ children }: { children: React.ReactNode })
     <div className="flex flex-1 flex-col">
       <CourtHeader>
         <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center gap-x-3 gap-y-3 px-4 py-3 sm:flex-nowrap sm:px-8 sm:py-4">
-          <Link href="/log" className="order-1 flex items-center gap-2">
+          <Link href="/star" className="order-1 flex items-center gap-2">
             <span aria-hidden className="text-2xl leading-none">
               🎾
             </span>

@@ -23,7 +23,7 @@ type Example = {
   // The 4:5 frame crops each photo to the frame's height, so the photo is drawn wider than the frame (1.9×
   // for a 3:2 photo, 2.2× for 16:9). Ask for that, or the browser fetches a copy too small and stretches it.
   sizes: string;
-  opensIn: "log" | "explore";
+  opensIn: "star" | "explore";
 };
 
 const examples: Example[] = [
@@ -33,7 +33,7 @@ const examples: Example[] = [
     alt: "Elena Rybakina on court at the 2026 US Open, racket in hand",
     position: "object-[44%_50%]",
     sizes: "(min-width: 1280px) 28rem, (min-width: 1024px) 24rem, (min-width: 640px) 28rem, 75vw",
-    opensIn: "log",
+    opensIn: "star",
   },
   {
     id: "ao26", // Alcaraz beat Djokovic, Australian Open 2026 final
@@ -139,9 +139,9 @@ function ExampleCard({ ex, onOpen, className = "", children }: { ex: Example; on
           </span>
         )}
         <span className="mt-2.5 block text-sm font-semibold text-court transition group-hover:translate-y-0.5">
-          {ex.opensIn === "log" ? "Open in the log ↓" : "Explore this match ↓"}
+          {ex.opensIn === "star" ? "Open in your stars ↓" : "Explore this match ↓"}
         </span>
-        <span className="sr-only">{ex.opensIn === "log" ? "Open this match in the log below" : "Explore the story around this match below"}</span>
+        <span className="sr-only">{ex.opensIn === "star" ? "Open this match in your stars below" : "Explore the story around this match below"}</span>
       </span>
     </button>
   );
@@ -150,11 +150,11 @@ function ExampleCard({ ex, onOpen, className = "", children }: { ex: Example; on
 export function HeroShowcase() {
   const { setFocusId, goTo } = useLog();
 
-  // The log opens on the match; Explore opens the story around it and glides there itself
+  // Your stars open on the match; Explore opens the story around it and glides there itself
   const open = (ex: Example) => () => {
     if (ex.opensIn === "explore") return goTo("explore", ex.id);
     setFocusId(ex.id);
-    glideTo(document.getElementById("log"), "start", 0);
+    glideTo(document.getElementById("star"), "start", 0);
   };
 
   const [rybakina, alcaraz] = examples;

@@ -1,6 +1,6 @@
-// A sample fan's log for the landing page's demos. Results and scores are real; everything in `fan` (when
-// and how it was watched, rating, who they cheered for, their call, tags, notes) is example
-// data. All three demo sections read and edit this one log, and nothing is saved.
+// A sample fan's starred matches for the landing page's demos, most watched and a couple only starred. Results
+// and scores are real; everything in `fan` (when and how it was watched, if it was, rating, who they cheered
+// for, their call, tags, notes) is example data. All three demo sections read and edit this one log, and nothing is saved.
 
 import { toStoredEntry, type FanEntry, type Match, type StoredEntry } from "../diary/library";
 
@@ -70,7 +70,7 @@ const logged: Logged[] = [
   {
     id: "rg24sf", event: "Roland Garros 2024", date: "2024-06", round: "SF", tour: "atp", surface: "clay",
     winner: "Alcaraz", loser: "Sinner", score: "2-6 6-3 3-6 6-4 6-3", bestOf: 5,
-    fan: { watchedOn: "Stream", watchedDate: "2024-06", rating: 4, cheering: "Sinner", pick: { winner: "Sinner" }, tags: [], note: "", classic: false },
+    fan: { watchedOn: null, watchedDate: "2024-08", rating: null, cheering: "Sinner", pick: { winner: "Sinner" }, tags: [], note: "Missed it. Starring it for the rivalry.", classic: false },
   },
   {
     id: "wim24", event: "Wimbledon 2024", date: "2024-07", round: "F", tour: "atp", surface: "grass",
@@ -100,7 +100,7 @@ const logged: Logged[] = [
   {
     id: "rom25", event: "Rome 2025", date: "2025-05", round: "F", tour: "atp", surface: "clay",
     winner: "Alcaraz", loser: "Sinner", score: "7-6(5) 6-1", bestOf: 3,
-    fan: { watchedOn: "Stream", watchedDate: "2025-05", rating: 3, cheering: "Sinner", pick: { winner: "Sinner" }, tags: [], note: "", classic: false },
+    fan: { watchedOn: null, watchedDate: "2025-05", rating: null, cheering: "Sinner", pick: { winner: "Sinner" }, tags: [], note: "", classic: false },
   },
   {
     id: "rg25", event: "Roland Garros 2025", date: "2025-06", round: "F", tour: "atp", surface: "clay",
@@ -166,4 +166,4 @@ export const sampleEntries: Record<string, StoredEntry> = Object.fromEntries(
 // The sample fan's ranking: their ratings, best first, newest first among equals
 export const sampleOrder = logged
   .map((m) => m.id)
-  .sort((a, b) => sampleLog[b].rating - sampleLog[a].rating || sampleMatches[b].date.localeCompare(sampleMatches[a].date));
+  .sort((a, b) => (sampleLog[b].rating ?? 0) - (sampleLog[a].rating ?? 0) || sampleMatches[b].date.localeCompare(sampleMatches[a].date));

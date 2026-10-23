@@ -9,7 +9,7 @@ const hasSession = (request: NextRequest) =>
 
 export function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
-  if (pathname === "/") return hasSession(request) ? NextResponse.redirect(new URL("/log", request.url)) : NextResponse.next();
+  if (pathname === "/") return hasSession(request) ? NextResponse.redirect(new URL("/star", request.url)) : NextResponse.next();
   if (hasSession(request)) return NextResponse.next();
   const login = new URL("/login", request.url);
   login.searchParams.set("next", pathname + search);
@@ -28,7 +28,7 @@ export const config = {
       ],
     },
     {
-      source: "/(log|rank|saga|account)",
+      source: "/(star|explore|saga|account)",
       missing: [
         { type: "header", key: "next-router-prefetch" },
         { type: "header", key: "purpose", value: "prefetch" },

@@ -14,7 +14,7 @@ import { ShareSaga } from "./share";
 
 export const metadata: Metadata = { title: "Your saga · CourtSaga" };
 
-const body = "Your matches, turned into a story. Automatically built from what you log: look through your tennis Saga anytime or share it with friends.";
+const body = "Your matches, turned into a story. Automatically built from the matches you star: look through your tennis Saga anytime or share it with friends.";
 
 export default function SagaPage({ searchParams }: PageProps<"/saga">) {
   return (
@@ -55,8 +55,8 @@ async function Saga({ searchParams }: Pick<PageProps<"/saga">, "searchParams">) 
       {!enough && (
         <p className="mt-4 text-center text-muted">
           {diary.order.length === 1 ? "1 match" : `${diary.order.length} matches`} so far.{" "}
-          <Link href="/log" className="font-semibold text-court underline underline-offset-4">
-            Log a match
+          <Link href="/star" className="font-semibold text-court underline underline-offset-4">
+            Star a match
           </Link>
         </p>
       )}

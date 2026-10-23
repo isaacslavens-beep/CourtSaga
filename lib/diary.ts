@@ -122,7 +122,7 @@ export async function loadDiary(userId: string, { records = false } = {}): Promi
     rows.map((r): [string, StoredEntry] => [
       r.id,
       {
-        watchedOn: r.watchedOn as WatchMode,
+        watchedOn: r.watchedOn as WatchMode | null,
         watchedDate: r.watchedDate,
         rating: r.rating,
         cheering: r.cheering as StoredEntry["cheering"],

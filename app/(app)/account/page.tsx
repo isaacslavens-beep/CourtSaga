@@ -45,7 +45,7 @@ async function Account() {
           <p className="text-muted">
             {user.email}
             <br />
-            {pages === 1 ? "1 match" : `${pages} matches`} logged
+            {pages === 1 ? "1 match" : `${pages} matches`} starred
           </p>
           <LogOutButton />
         </div>
@@ -55,7 +55,7 @@ async function Account() {
       </Card>
       <Card title="Delete your account">
         <p className="mb-4 text-muted">
-          Deleting your account deletes everything you&apos;ve logged: every match, your saga and its share link. It can&apos;t be undone.
+          Deleting your account deletes everything you&apos;ve starred: every match, your saga and its share link. It can&apos;t be undone.
         </p>
         <DeleteAccountForm />
       </Card>

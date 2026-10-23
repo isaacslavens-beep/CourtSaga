@@ -18,7 +18,7 @@ import {
   type StripItem,
 } from "./books";
 import { Avatar, BallScore, CollectionIcon, IconArrowUp, PageArrow, chartStyles } from "./fun";
-import { diaryPages, endingOf, eventLabel, monthLabel, roundName, scoreText } from "./library";
+import { diaryPages, endingOf, eventLabel, monthLabel, roundName, scoreText, watched, watchedHow } from "./library";
 import { HighlightsLink, SlamLogo } from "../match-ui";
 import { useLog } from "./store";
 import { glideTo } from "../glide";
@@ -486,7 +486,7 @@ function MatchLine({ entry, pages, compact, isEpigraph, flash, onEdit }: { entry
           <span className="truncate">
             {meet.event} {meet.date.slice(0, 4)} · {roundName(meet)}
           </span>
-          <span className="shrink-0 text-xs">Not in your log</span>
+          <span className="shrink-0 text-xs">Not starred</span>
         </p>
         <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1.5 text-sm text-muted">
           <span>
@@ -517,6 +517,7 @@ function MatchLine({ entry, pages, compact, isEpigraph, flash, onEdit }: { entry
           <span className="block truncate text-sm font-semibold">{eventLabel(m)}</span>
           <span className="block truncate text-xs text-muted">
             {m.winner} beat {m.loser}
+            {!watched(fan) && " · starred, not watched"}
             {entry.marks.length > 0 && <span className="font-semibold text-[var(--ink)]"> · {entry.marks.join(" · ")}</span>}
           </span>
         </span>
@@ -540,6 +541,12 @@ function MatchLine({ entry, pages, compact, isEpigraph, flash, onEdit }: { entry
       </p>
       {entry.detail && <p className="mt-0.5 text-sm text-muted">{entry.detail}</p>}
       <div className="mt-2 flex flex-wrap items-center gap-1.5">
+        {/* Watched, or starred to remember without watching */}
+        {watched(fan) ? (
+          <span className="whitespace-nowrap rounded-full bg-[var(--ink)] px-2 py-0.5 text-xs font-semibold text-white">Watched {watchedHow(fan.watchedOn)}</span>
+        ) : (
+          <span className="whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-semibold text-muted ring-1 ring-line">☆ Starred, not watched</span>
+        )}
         {entry.marks.map((t) => (
           <Tag key={t}>{t}</Tag>
         ))}
@@ -759,7 +766,7 @@ export function SagaSection() {
       ? undefined
       : (id: string) => {
           openInLog(id);
-          if (mode === "demo") glideTo(document.getElementById("log"), "start", 0);
+          if (mode === "demo") glideTo(document.getElementById("star"), "start", 0);
         };
 
   // The best thing you wrote anywhere in the book, for the page facing its title
@@ -767,7 +774,7 @@ export function SagaSection() {
     book.chapters
       .flatMap((c) => c.entries)
       .flatMap((e) => (e.kind === "logged" && e.fan.note ? [e] : []))
-      .sort((a, b) => b.fan.rating - a.fan.rating || b.fan.watchedDate.localeCompare(a.fan.watchedDate))
+      .sort((a, b) => (b.fan.rating ?? 0) - (a.fan.rating ?? 0) || b.fan.watchedDate.localeCompare(a.fan.watchedDate))
       .map((e) => ({ note: e.fan.note, id: e.id, date: e.fan.watchedDate }))[0] ?? null;
 
   /* Every turn goes through here. On a phone the spread just changes; on wider screens a leaf turns over. */
@@ -992,10 +999,10 @@ export function SagaSection() {
             +
           </span>
           <span>
-            The more matches you log, the more your saga grows.{" "}
+            The more matches you star, the more your saga grows.{" "}
             {mode === "diary" && (
-              <Link href="/log" className="font-semibold text-foreground underline underline-offset-4">
-                Log a match
+              <Link href="/star" className="font-semibold text-foreground underline underline-offset-4">
+                Star a match
               </Link>
             )}
           </span>
