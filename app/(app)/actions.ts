@@ -89,14 +89,15 @@ export async function addEntry(id: string, page: StoredEntry) {
 }
 
 /**
- * Star a match in one click, from Explore: not watched, starred this month, nothing else said yet. A
- * match already starred is left as it is.
+ * Star a match in one click, from Explore: not watched, so it sits in the diary by when it was played, and
+ * nothing else said yet. A match already starred is left as it is.
  */
 export async function starMatch(id: string) {
-  const now = new Date();
+  const match = await findMatch(matchId.parse(id));
+  if (!match) throw new Error("That match can't be starred.");
   await addEntry(id, {
     watchedOn: null,
-    watchedDate: `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}`,
+    watchedDate: match.date.slice(0, 7),
     rating: null,
     cheering: null,
     pick: null,

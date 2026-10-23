@@ -43,6 +43,13 @@
       "when": 1792790873571,
       "tag": "0005_optional-watch-and-rating",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1792791714812,
+      "tag": "0006_unwatched-stars-take-match-month",
+      "breakpoints": true
     }
   ]
 }

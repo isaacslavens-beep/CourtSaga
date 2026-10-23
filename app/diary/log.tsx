@@ -30,16 +30,11 @@ const photos: Record<string, { src: StaticImageData; alt: string; position: stri
   },
 };
 
-const thisMonth = () => {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-};
-
-/** A new star for a match you've just found: not watched (say if you did), starred this month, no rating yet */
-function blankEntry(): FanEntry {
+/** A new star for a match you've just found: not watched (say if you did), so dated when it was played; no rating yet */
+function blankEntry(m: Match): FanEntry {
   return {
     watchedOn: null,
-    watchedDate: thisMonth(),
+    watchedDate: m.date.slice(0, 7),
     rating: null,
     cheering: null,
     pick: null,
@@ -144,7 +139,7 @@ function WatchQuestion({ step, match, log, set }: { step: number; match: Match; 
           </button>
         );
       })}
-      <button type="button" aria-pressed={!seen} onClick={() => set({ watchedOn: null, watchedDate: thisMonth() })} className={chip(!seen)}>
+      <button type="button" aria-pressed={!seen} onClick={() => set({ watchedOn: null, watchedDate: played })} className={chip(!seen)}>
         ☆ Didn&apos;t watch it
       </button>
       {seen && (
@@ -245,9 +240,9 @@ export function LogSection() {
   // A match found but not yet logged is a new page: its answers are kept here until it's added
   const [draft, setDraft] = useState<{ id: string; entry: FanEntry } | null>(null);
   const match = focusId ? matches[focusId] : null;
-  if (match && !entries[match.id] && draft?.id !== match.id) setDraft({ id: match.id, entry: blankEntry() });
+  if (match && !entries[match.id] && draft?.id !== match.id) setDraft({ id: match.id, entry: blankEntry(match) });
   const isDraft = !!match && !entries[match.id];
-  const log = match ? (entries[match.id] ?? (draft?.id === match.id ? draft.entry : blankEntry())) : null;
+  const log = match ? (entries[match.id] ?? (draft?.id === match.id ? draft.entry : blankEntry(match))) : null;
 
   // Key controls glow until the visitor tries something
   const [touched, setTouched] = useState(false);
@@ -549,7 +544,7 @@ export function LogSection() {
                   )}
                 </span>
                 <span className="text-muted">
-                  {watched(log) ? `${monthLabel(log.watchedDate)}, ${watchedHow(log.watchedOn)}` : `☆ Starred ${monthLabel(log.watchedDate)} · not watched`}
+                  {watched(log) ? `${monthLabel(log.watchedDate)}, ${watchedHow(log.watchedOn)}` : "☆ Starred · not watched"}
                 </span>
               </p>
               <div className="relative">

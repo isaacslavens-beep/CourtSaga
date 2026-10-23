@@ -30,7 +30,7 @@ export type Match = {
 /** A starred match: one the fan watched (watchedOn says how), or one starred to remember without watching */
 export type FanEntry = {
   watchedOn: WatchMode | null; // null: starred, not watched
-  watchedDate: string; // "YYYY-MM": when it was watched, or when it was starred if it wasn't
+  watchedDate: string; // "YYYY-MM": when it was watched, or when it was played if it wasn't
   rating: number | null; // 1 to 5, or none
   cheering: string | null;
   pick: { winner: string } | null; // your call on who wins: whoever you backed
@@ -300,8 +300,8 @@ export function monthLabel(ym: string) {
 }
 
 /**
- * Every starred match is a page in the diary, numbered in the order you watched them, or starred them if
- * you didn't (matches from the same month go in the order they were played). Match id -> page number, from 1.
+ * Every starred match is a page in the diary, numbered in the order you watched them, or by when they were
+ * played if you didn't (matches from the same month go in the order they were played). Match id -> page number, from 1.
  */
 export function diaryPages(log: Record<string, FanEntry>, matches: Record<string, Match>) {
   const order = Object.values(matches)

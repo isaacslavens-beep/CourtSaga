@@ -88,8 +88,7 @@ function H2HChart({ v, story, follow, page, starOf }: { v: H2HVisual; story: Sto
         color: winner,
         value: 3,
         side: m.winner === "a" ? 1 : -1,
-        watched: st === "watched",
-        starred: st === "starred",
+        watched: st !== null,
         title: `${m.label}: ${winner} won${p ? ` · page ${p} of your diary${st === "starred" ? ", not watched" : ""}` : ""}`,
         logId: m.id,
       };
@@ -97,14 +96,13 @@ function H2HChart({ v, story, follow, page, starOf }: { v: H2HVisual; story: Sto
     stripLegend: [
       { color: A, label: `${A} won` },
       { color: B, label: `${B} won` },
-      { color: "", label: "Starred, not watched", starred: true },
       { color: "", label: "Not starred", faded: true },
     ],
   };
   return (
     <ShapeChart
       book={glance}
-      caption={`The head-to-head after every meeting: above the middle line ${A} leads, below it ${B} does. Filled dots are meetings you watched, a dot in a ring one you starred without watching; the dark-ringed one is this match.`}
+      caption={`The head-to-head after every meeting: above the middle line ${A} leads, below it ${B} does. Filled dots are the meetings you starred; the dark-ringed one is this match.`}
       spotId={story.id}
       onMark={(x) => x.key !== story.id && follow(x.key)}
       markVerb="Explore it."
@@ -1093,7 +1091,14 @@ export function ExploreSection({
           <>
             <Crumbs story={story} follow={follow} />
             <StoryView story={story} follow={follow} pending={pending} page={page} logHref={(id) => `/star?m=${encodeURIComponent(id)}`} star={<StarPanel story={story} />} starOf={starOf} />
-            <SurpriseMe className="mt-12 justify-center" again slam={slam} />
+            {/* At the foot of the story: keep this match, or try another */}
+            <div className="mt-12 flex flex-col items-center gap-8">
+              <div className="flex flex-col items-center gap-3 text-center">
+                <p className="font-display text-2xl font-bold tracking-tight">Want to remember this one?</p>
+                <StarPanel story={story} />
+              </div>
+              <SurpriseMe className="justify-center" again slam={slam} />
+            </div>
           </>
         ) : (
           <Start start={startData} follow={follow} slam={picked} setSlam={setPicked} />

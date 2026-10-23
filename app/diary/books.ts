@@ -56,13 +56,13 @@ export type StripItem = {
   color: string; // a player's name, "right"/"wrong" for calls, "other", or "" for no side
   value: number; // your rating (1–5), or 3 for a meeting you didn't rate or star
   side: 1 | -1; // rivalries: above the line for the first player, below for the second
-  watched: boolean; // in your diary and watched
-  starred?: boolean; // in your diary, starred without watching
+  watched: boolean; // in your diary (rivalries), or watched (collections)
+  starred?: boolean; // collections: in your diary, starred without watching
   title: string;
   logId?: string;
 };
 
-export type StripLegend = { color: string; label: string; faded?: boolean; starred?: boolean }[];
+export type StripLegend = { color: string; label: string; faded?: boolean }[];
 
 export type BookData = {
   id: string;
@@ -458,17 +458,15 @@ function bindRivalry(id: string, diary: Diary): BookData {
       color: x.meet.winner,
       value: x.fan?.rating ?? 3,
       side: x.meet.winner === A ? 1 : -1,
-      watched: !!x.fan && watched(x.fan),
-      starred: !!x.fan && !watched(x.fan),
+      watched: !!x.fan,
       title: `${x.meet.event} ${x.meet.date.slice(0, 4)}: ${x.meet.winner} won${x.fan ? yourMarks(x.fan) || " · in your diary" : " · not starred"}`,
       logId: x.meet.logId,
     })),
     stripMode: "rivalry",
-    stripCaption: `The head-to-head after every meeting: above the middle line ${A} leads, below it ${B} does. Filled dots are the meetings you watched; a dot in a ring, one you starred without watching.`,
+    stripCaption: `The head-to-head after every meeting: above the middle line ${A} leads, below it ${B} does. Filled dots are the meetings you starred.`,
     stripLegend: [
       { color: A, label: `${A} won` },
       { color: B, label: `${B} won` },
-      { color: "", label: "Starred, not watched", starred: true },
       { color: "", label: "Not starred", faded: true },
     ],
     facts: [

@@ -70,7 +70,7 @@ const logged: Logged[] = [
   {
     id: "rg24sf", event: "Roland Garros 2024", date: "2024-06", round: "SF", tour: "atp", surface: "clay",
     winner: "Alcaraz", loser: "Sinner", score: "2-6 6-3 3-6 6-4 6-3", bestOf: 5,
-    fan: { watchedOn: null, watchedDate: "2024-08", rating: null, cheering: "Sinner", pick: { winner: "Sinner" }, tags: [], note: "Missed it. Starring it for the rivalry.", classic: false },
+    fan: { watchedOn: null, watchedDate: "2024-06", rating: null, cheering: "Sinner", pick: { winner: "Sinner" }, tags: [], note: "Missed it. Starring it for the rivalry.", classic: false },
   },
   {
     id: "wim24", event: "Wimbledon 2024", date: "2024-07", round: "F", tour: "atp", surface: "grass",

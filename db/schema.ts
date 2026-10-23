@@ -180,7 +180,7 @@ export const diaryEntries = pgTable(
       .references(() => matches.id),
     // A starred match the fan watched says how (Live | TV | Stream); one starred without watching has none
     watchedOn: text("watched_on"),
-    // "YYYY-MM": when it was watched, or for a match not watched, when it was starred
+    // "YYYY-MM": when it was watched, or for a match not watched, when it was played
     watchedDate: text("watched_date").notNull(),
     rating: smallint("rating"), // 1 to 5, or none
     // Sides rather than names, so they hold whatever a player is called
