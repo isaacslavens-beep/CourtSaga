@@ -794,14 +794,13 @@ function StarPanel({ story, ask = false }: { story: Story; ask?: boolean }) {
   );
 }
 
-/** Floating at the foot of a story, always: copy its link to share it (or the phone's share sheet) */
-function ShareBar({ story, guest }: { story: Story; guest: boolean }) {
+/** Under the star button: copy the match's link to share it (a phone's share sheet on touch screens) */
+function ShareLink({ story }: { story: Story }) {
   const [copied, setCopied] = useState(false);
   const share = async () => {
     const url = `${location.origin}/explore?m=${encodeURIComponent(story.id)}`;
     const title = `${story.event} ${story.season} · ${roundName(asMatch(story))}`;
     try {
-      // A phone offers its own share sheet; a computer copies the link
       if (navigator.share && matchMedia("(pointer: coarse)").matches) return await navigator.share({ title, url });
       await navigator.clipboard.writeText(url);
       setCopied(true);
@@ -811,19 +810,16 @@ function ShareBar({ story, guest }: { story: Story; guest: boolean }) {
     }
   };
   return (
-    <div className="pointer-events-none fixed inset-x-0 bottom-3 z-40 flex justify-center px-4">
-      <div className="pointer-events-auto flex max-w-full items-center gap-2 rounded-full bg-[#0f1b2d]/90 py-1.5 pl-5 pr-1.5 text-sm text-white shadow-lg shadow-black/20 ring-1 ring-white/10 backdrop-blur-md">
-        <span className="min-w-0 truncate font-medium max-sm:hidden">Share this match</span>
-        <button type="button" onClick={share} className="shrink-0 cursor-pointer rounded-full bg-ball px-4 py-1.5 font-bold text-[#0b0d12] transition hover:brightness-105">
-          {copied ? "Link copied ✓" : "Copy link"}
-        </button>
-        {guest && (
-          <Link href="/signup" className="shrink-0 rounded-full px-3 py-1.5 font-semibold text-white ring-1 ring-white/30 transition hover:bg-white/10">
-            Sign up free
-          </Link>
-        )}
-      </div>
-    </div>
+    <button
+      type="button"
+      onClick={share}
+      className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-line bg-surface px-3.5 py-1.5 text-sm font-semibold text-court shadow-sm transition hover:border-court"
+    >
+      <svg viewBox="0 0 20 20" aria-hidden className="h-4 w-4 fill-none stroke-current stroke-2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M8.5 11.5a3.5 3.5 0 0 0 5 0l2.5-2.5a3.5 3.5 0 0 0-5-5L10 5M11.5 8.5a3.5 3.5 0 0 0-5 0L4 11a3.5 3.5 0 0 0 5 5l1-1" />
+      </svg>
+      {copied ? "Link copied ✓" : "Copy link"}
+    </button>
   );
 }
 
@@ -1220,13 +1216,19 @@ export function ExploreSection({
               <SurpriseSmall slam={slam} />
             </div>
             <Crumbs story={story} follow={follow} />
-            <StoryView story={story} follow={follow} pending={pending} page={page} logHref={(id) => `/star?m=${encodeURIComponent(id)}`} star={guest ? <StarDemo /> : <StarPanel story={story} />} starOf={starOf} />
+            <StoryView story={story} follow={follow} pending={pending} page={page} logHref={(id) => `/star?m=${encodeURIComponent(id)}`} star={
+                <div className="flex flex-col items-start gap-2 sm:items-end">
+                  {guest ? <StarDemo /> : <StarPanel story={story} />}
+                  <ShareLink story={story} />
+                </div>
+              }
+              starOf={starOf}
+            />
             {/* At the foot of the story: keep this match, or try another */}
             <div className="mt-12 flex flex-col items-center gap-8">
               {guest ? <StarDemo /> : <StarPanel story={story} ask />}
               <SurpriseMe again slam={slam} />
             </div>
-            <ShareBar story={story} guest={guest} />
           </>
         ) : (
           <>

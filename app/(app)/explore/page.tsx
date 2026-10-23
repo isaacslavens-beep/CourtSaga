@@ -41,7 +41,7 @@ export default function ExplorePage({ searchParams }: PageProps<"/explore">) {
           body="Start at a Slam, or from any match you star, and follow the story one match to the next."
         />
       </CourtBand>
-      <section className="court-page flex-1 pb-28 pt-6 sm:pt-8">
+      <section className="court-page flex-1 pb-16 pt-6 sm:pt-8">
         <div className="mx-auto w-full max-w-6xl px-4 sm:px-8">
           <Suspense fallback={<OpeningDiary />}>
             <Exploring searchParams={searchParams} />
