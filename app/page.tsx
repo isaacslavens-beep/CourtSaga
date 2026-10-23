@@ -11,7 +11,7 @@ import { LogSection } from "./diary/log";
 import { dataToSample, sampleToData } from "./diary/media";
 import { SagaSection } from "./diary/saga";
 import { LogProvider } from "./diary/store";
-import { SignupNudge } from "./signup-nudge";
+import { SignupBar } from "./signup-nudge";
 import { StepHeading } from "./step-heading";
 import djokovicCentreCourt from "@/public/photos/djokovic-wimbledon-centre-court.jpg";
 
@@ -23,7 +23,6 @@ const steps = [
     title: "Log a match",
     body: "Every match you log is a page in your diary. Rate it, say who you were backing, and add a few words if you like.",
     hint: "Pick any match below and change the answers.",
-    nudge: { title: "Sign up free to log any match since 2003", body: "Every page you write is saved to your own diary: ratings, who you backed, your calls and notes." },
   },
   {
     id: "explore",
@@ -36,7 +35,6 @@ const steps = [
     title: "Explore any match",
     body: "Pick a match and follow the story around it: the head-to-head, each player's season and history at the tournament, the draw, and what came next.",
     hint: "Pick a match, then follow any underlined one.",
-    nudge: { title: "Sign up free to explore any tennis match", body: "Search every tour-level match since 2003, start from any Slam final, or let Surprise me pick one." },
   },
   {
     id: "story",
@@ -46,7 +44,6 @@ const steps = [
     body: "Your diary, read back to you. It builds itself from the matches you log: your rivalries, your five-setters, the calls you got right, and the meetings you missed.",
     hint: "Pick a rivalry or a collection, then turn the pages.",
     room: true, // the saga's own reading room, not a court
-    nudge: { title: "Sign up free to build your own saga", body: "It writes itself from the matches you log, and you can share it with a link." },
   },
 ];
 
@@ -102,7 +99,6 @@ export default function Home() {
                 {/* The diary's three parts: write it, explore around it, read it back */}
                 <StepHeading n={i + 1} verb={s.verb} title={s.title} body={s.body} hint={s.hint} id={`${s.id}-title`} />
                 <div className="mt-10">{s.demo}</div>
-                <SignupNudge step={s.id} {...s.nudge} />
               </div>
             </section>
           ))}
@@ -126,7 +122,8 @@ export default function Home() {
         </main>
 
         {/* Credits for the photos and the match data, quietly at the very end */}
-        <footer className="border-t border-line">
+        {/* Room under the credits for the sign-up bar floating over the page's foot */}
+        <footer className="border-t border-line pb-16">
           <div className="mx-auto max-w-6xl space-y-2 px-4 py-6 text-xs leading-relaxed text-muted sm:px-8">
             <p>
               <span className="font-semibold">Photos:</span>{" "}
@@ -141,6 +138,7 @@ export default function Home() {
             </p>
           </div>
         </footer>
+        <SignupBar />
       </LogProvider>
     </div>
   );

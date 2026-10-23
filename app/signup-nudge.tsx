@@ -1,107 +1,49 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 
-/* Under each step's demo on the landing page: what signing up gets you there, as a strip under the demo
-   and, once per visit, a card in the corner after a few seconds in the step or a first click in it. */
+/* One small sign-up bar floating at the foot of the landing page, always there. Its line follows the
+   step being looked at, so it says what an account adds to the demo on screen. */
 
-const SEEN = "courtsaga:nudged";
-// How long a step has to be on screen before its card shows, if nothing in it is clicked first
-const LINGER_MS = 6000;
-
-const seen = () => {
-  try {
-    return new Set<string>(JSON.parse(sessionStorage.getItem(SEEN) ?? "[]"));
-  } catch {
-    return new Set<string>();
-  }
+const lines: Record<string, string> = {
+  log: "Sign up free to log any match since 2003",
+  explore: "Sign up free to explore any tennis match",
+  story: "Sign up free to build your own saga",
 };
-const markSeen = (id: string) => {
-  try {
-    sessionStorage.setItem(SEEN, JSON.stringify([...seen(), id]));
-  } catch {
-    // No storage: the card may show again next time, nothing else lost
-  }
-};
+const fallback = "CourtSaga is free. Sign up to start your own";
 
-export function SignupNudge({ step, title, body }: { step: string; title: string; body: string }) {
-  const strip = useRef<HTMLDivElement>(null);
-  const [open, setOpen] = useState(false);
+export function SignupBar() {
+  const [step, setStep] = useState<string | null>(null);
 
   useEffect(() => {
-    const section = document.getElementById(step);
-    if (!section || seen().has(step)) return;
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    const show = () => {
-      if (seen().has(step)) return;
-      markSeen(step);
-      // Only one card at a time: a newer step's replaces an older one's
-      window.dispatchEvent(new CustomEvent("courtsaga-nudge", { detail: step }));
-      setOpen(true);
-    };
-    // A step counts as being looked at while it fills half the screen (steps are often taller than it)
-    let looking = false;
+    const sections = Object.keys(lines)
+      .map((id) => document.getElementById(id))
+      .filter((el): el is HTMLElement => !!el);
+    // The step covering the middle of the screen is the one being looked at
     const watch = new IntersectionObserver(
-      ([e]) => {
-        const now = e.intersectionRect.height >= innerHeight * 0.5;
-        if (now === looking) return;
-        looking = now;
-        clearTimeout(timer);
-        if (now) timer = setTimeout(show, LINGER_MS);
+      (entries) => {
+        for (const e of entries) {
+          if (e.isIntersecting) setStep(e.target.id);
+          else setStep((cur) => (cur === e.target.id ? null : cur));
+        }
       },
-      { threshold: Array.from({ length: 21 }, (_, i) => i / 20) },
+      { rootMargin: "-50% 0px -50% 0px" },
     );
-    watch.observe(section);
-    // A first click in the demo shows it sooner
-    const clicked = (e: Event) => {
-      if (strip.current?.contains(e.target as Node)) return;
-      clearTimeout(timer);
-      timer = setTimeout(show, 1200);
-    };
-    section.addEventListener("click", clicked, { once: true });
-    return () => {
-      watch.disconnect();
-      clearTimeout(timer);
-      section.removeEventListener("click", clicked);
-    };
-  }, [step]);
-
-  useEffect(() => {
-    const other = (e: Event) => (e as CustomEvent<string>).detail !== step && setOpen(false);
-    window.addEventListener("courtsaga-nudge", other);
-    return () => window.removeEventListener("courtsaga-nudge", other);
-  }, [step]);
+    sections.forEach((s) => watch.observe(s));
+    return () => watch.disconnect();
+  }, []);
 
   return (
-    <>
-      <div ref={strip} className="mt-8 flex flex-wrap items-center justify-between gap-x-6 gap-y-3 rounded-2xl border border-line bg-surface px-5 py-4 shadow-sm">
-        <div className="min-w-0">
-          <p className="font-display text-lg font-bold">{title}</p>
-          <p className="text-muted">{body}</p>
-        </div>
-        <Link href="/signup" className="shrink-0 rounded-full bg-ball px-6 py-2.5 font-bold text-[#0b0d12] shadow-md shadow-black/10 transition hover:-translate-y-0.5 hover:shadow-lg">
+    <div className="pointer-events-none fixed inset-x-0 bottom-3 z-40 flex justify-center px-4">
+      <div className="pointer-events-auto flex max-w-full items-center gap-3 rounded-full bg-[#0f1b2d]/90 py-1.5 pl-5 pr-1.5 text-sm text-white shadow-lg shadow-black/20 ring-1 ring-white/10 backdrop-blur-md">
+        <span key={step ?? "none"} className="fade-in min-w-0 truncate font-medium">
+          {step ? lines[step] : fallback}
+        </span>
+        <Link href="/signup" className="shrink-0 rounded-full bg-ball px-4 py-1.5 font-bold text-[#0b0d12] transition hover:brightness-105">
           Sign up free
         </Link>
       </div>
-
-      {open && (
-        <div role="dialog" aria-label={title} className="rise-in fixed bottom-4 right-4 z-50 w-[min(22rem,calc(100vw-2rem))] rounded-2xl bg-surface p-5 shadow-2xl ring-1 ring-line">
-          <button type="button" onClick={() => setOpen(false)} aria-label="Close" className="absolute right-3 top-3 flex h-8 w-8 cursor-pointer items-center justify-center rounded-full text-xl text-muted transition hover:bg-line/60">
-            ×
-          </button>
-          <p className="pr-8 font-display text-lg font-bold leading-snug">{title}</p>
-          <p className="mt-1 text-sm text-muted">{body}</p>
-          <div className="mt-4 flex items-center gap-3">
-            <Link href="/signup" className="rounded-full bg-ball px-5 py-2 font-bold text-[#0b0d12] shadow-md shadow-black/10 transition hover:-translate-y-0.5">
-              Sign up free
-            </Link>
-            <button type="button" onClick={() => setOpen(false)} className="cursor-pointer text-sm font-semibold text-muted hover:text-foreground">
-              Keep trying the demo
-            </button>
-          </div>
-        </div>
-      )}
-    </>
+    </div>
   );
 }
