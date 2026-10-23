@@ -885,12 +885,14 @@ function ShareLink({ story }: { story: Story }) {
     <button
       type="button"
       onClick={share}
-      className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-line bg-surface px-3.5 py-1.5 text-sm font-semibold text-court shadow-sm transition hover:border-court"
+      className={`group inline-flex cursor-pointer items-center gap-2 rounded-full px-5 py-2.5 font-display text-base font-bold text-white shadow-lg shadow-[#1f74d6]/30 ring-1 ring-black/10 transition hover:-translate-y-0.5 hover:shadow-xl ${
+        copied ? "bg-grass" : "bg-[#1f74d6] hover:bg-[#1a66bd]"
+      }`}
     >
-      <svg viewBox="0 0 20 20" aria-hidden className="h-4 w-4 fill-none stroke-current stroke-2" strokeLinecap="round" strokeLinejoin="round">
+      <svg viewBox="0 0 20 20" aria-hidden className="h-5 w-5 fill-none stroke-current stroke-2 transition-transform group-hover:-rotate-12" strokeLinecap="round" strokeLinejoin="round">
         <path d="M8.5 11.5a3.5 3.5 0 0 0 5 0l2.5-2.5a3.5 3.5 0 0 0-5-5L10 5M11.5 8.5a3.5 3.5 0 0 0-5 0L4 11a3.5 3.5 0 0 0 5 5l1-1" />
       </svg>
-      {copied ? "Link copied ✓" : "Copy link"}
+      {copied ? "Link copied ✓" : "Copy link to share"}
     </button>
   );
 }
