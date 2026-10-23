@@ -180,18 +180,33 @@ export function eventLabel(m: Match) {
 export const slams = ["Australian Open", "Roland Garros", "Wimbledon", "US Open"] as const;
 export type Tournament = (typeof slams)[number] | "Other events";
 export const tournaments: Tournament[] = [...slams, "Other events"];
-/** The nine Masters 1000s, in calendar order: the data's event name and the city to show */
-export const masters = [
-  { event: "Indian Wells", city: "Indian Wells" },
-  { event: "Miami", city: "Miami" },
-  { event: "Monte Carlo", city: "Monte Carlo" },
-  { event: "Madrid", city: "Madrid" },
-  { event: "Rome", city: "Rome" },
-  { event: "Canada", city: "Toronto / Montreal" },
-  { event: "Cincinnati", city: "Cincinnati" },
-  { event: "Shanghai", city: "Shanghai" },
-  { event: "Paris Masters", city: "Paris" },
-] as const;
+/**
+ * The big events after the Slams, in calendar order: the Masters 1000s, the WTA 1000s, the tour finals and
+ * the Olympics. Each names the data's events it covers and the tours that play it there (Doha, Dubai and
+ * Beijing are 1000s only for the women; the women's Canadian Open goes by its city).
+ */
+export const bigEvents: { key: string; label: string; flag: string | null; events: string[]; tours: Tour[] }[] = [
+  { key: "Doha", label: "Doha", flag: "🇶🇦", events: ["Doha"], tours: ["wta"] },
+  { key: "Dubai", label: "Dubai", flag: "🇦🇪", events: ["Dubai"], tours: ["wta"] },
+  { key: "Indian Wells", label: "Indian Wells", flag: "🇺🇸", events: ["Indian Wells"], tours: ["atp", "wta"] },
+  { key: "Miami", label: "Miami", flag: "🇺🇸", events: ["Miami"], tours: ["atp", "wta"] },
+  { key: "Monte Carlo", label: "Monte Carlo", flag: "🇲🇨", events: ["Monte Carlo"], tours: ["atp"] },
+  { key: "Madrid", label: "Madrid", flag: "🇪🇸", events: ["Madrid"], tours: ["atp", "wta"] },
+  { key: "Rome", label: "Rome", flag: "🇮🇹", events: ["Rome"], tours: ["atp", "wta"] },
+  { key: "Canada", label: "Toronto / Montreal", flag: "🇨🇦", events: ["Canada", "Toronto", "Montreal"], tours: ["atp", "wta"] },
+  { key: "Cincinnati", label: "Cincinnati", flag: "🇺🇸", events: ["Cincinnati"], tours: ["atp", "wta"] },
+  { key: "Beijing", label: "Beijing", flag: "🇨🇳", events: ["Beijing"], tours: ["wta"] },
+  { key: "Shanghai", label: "Shanghai", flag: "🇨🇳", events: ["Shanghai"], tours: ["atp"] },
+  { key: "Wuhan", label: "Wuhan", flag: "🇨🇳", events: ["Wuhan"], tours: ["wta"] },
+  { key: "Paris Masters", label: "Paris", flag: "🇫🇷", events: ["Paris Masters"], tours: ["atp"] },
+  { key: "WTA Finals", label: "WTA Finals", flag: null, events: ["WTA Finals"], tours: ["wta"] },
+  { key: "ATP Finals", label: "ATP Finals", flag: null, events: ["ATP Finals"], tours: ["atp"] },
+  { key: "Olympics", label: "Olympics", flag: null, events: ["Olympics"], tours: ["atp", "wta"] },
+];
+/** The rounds the big events' lists and surprises draw on */
+export const bigRounds: Round[] = ["F", "SF", "BR"];
+/** Which big event a match belongs to, if any */
+export const bigEventOf = (m: { event: string; tour: Tour }) => bigEvents.find((b) => b.events.includes(m.event) && b.tours.includes(m.tour)) ?? null;
 
 export const tournamentOf = (m: Match): Tournament => slams.find((t) => m.event.startsWith(t)) ?? "Other events";
 

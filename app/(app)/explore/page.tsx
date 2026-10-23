@@ -5,7 +5,7 @@ import { requireUser } from "@/lib/auth";
 import { bigFinals, findMatches, latestPage, loadDiary } from "@/lib/diary";
 import { matchStory, randomStoryId } from "@/lib/story";
 import { classics } from "../../diary/classics";
-import { diaryPages, masters, slams, toFanEntry, toMatches } from "../../diary/library";
+import { bigEvents, diaryPages, slams, toFanEntry, toMatches } from "../../diary/library";
 import { ExploreSection } from "../../diary/explore";
 import { LogProvider } from "../../diary/store";
 import { CourtBand } from "../../court-band";
@@ -43,8 +43,8 @@ export default function ExplorePage({ searchParams }: PageProps<"/explore">) {
 async function Exploring({ searchParams }: Pick<PageProps<"/explore">, "searchParams">) {
   const user = await requireUser();
   const { m, slam } = await searchParams;
-  // A Slam or a Masters 1000 picked on the start page, which Surprise me keeps to
-  const known: string[] = [...slams, ...masters.map((m) => m.event)];
+  // A Slam or a big event picked on the start page, which Surprise me keeps to
+  const known: string[] = [...slams, ...bigEvents.map((b) => b.key)];
   const atSlam = typeof slam === "string" && known.includes(slam) ? slam : undefined;
   if (m === "random") {
     const id = await randomStoryId(atSlam);

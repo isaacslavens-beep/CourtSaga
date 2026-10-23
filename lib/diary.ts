@@ -10,8 +10,9 @@ import { buildShelf, shelfCount } from "@/app/diary/books";
 import { vocabulary } from "./search-words";
 import {
   diaryPages,
+  bigEvents,
+  bigRounds,
   findRivalries,
-  masters,
   toFanEntry,
   toMatches,
   type MatchRow,
@@ -348,16 +349,19 @@ export async function findMatches(ids: string[]) {
   return ids.flatMap((id) => byId.get(id) ?? []);
 }
 
-/** Every final at the Slams and the Masters 1000s in the data, both tours, newest first: where Explore starts */
+/**
+ * Where Explore starts, newest first: every Slam final, and the finals, semifinals and bronze medal matches of
+ * the big events after them (bigEvents: the 1000s, the tour finals and the Olympics).
+ */
 export async function bigFinals() {
   "use cache";
   cacheLife("days");
+  const big = bigEvents.map((b) => and(inArray(matches.event, b.events), inArray(matches.tour, b.tours)));
   const rows = await selectMatches()
     .where(
       and(
-        or(eq(matches.tier, "slam"), inArray(matches.event, masters.map((m) => m.event))),
-        eq(matches.round, "F"),
         eq(matches.searchable, true),
+        or(and(eq(matches.tier, "slam"), eq(matches.round, "F")), and(inArray(matches.round, bigRounds), or(...big))),
       ),
     )
     .orderBy(desc(matches.playedOn), asc(matches.tour));

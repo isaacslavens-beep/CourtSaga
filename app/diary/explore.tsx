@@ -4,9 +4,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore, useTransition, type ReactNode } from "react";
 import { glideTo } from "../glide";
-import { HighlightsLink, SlamLogo, TournamentLabel, mastersFlag } from "../match-ui";
+import { HighlightsLink, SlamLogo, TournamentLabel } from "../match-ui";
 import { Avatar, BallScore, CourtArt, chartStyles } from "./fun";
-import { diaryPages, masters, roundName, scoreText, toMatches, watched, watchedHow, type Match, type MatchRow, type Round, type WatchMode } from "./library";
+import { bigEventOf, bigEvents, diaryPages, roundName, scoreText, toMatches, watched, watchedHow, type Match, type MatchRow, type Round, type WatchMode } from "./library";
 import { starMatch, updateEntry } from "../(app)/actions";
 import { highlightVideos } from "./media";
 import { Scoreboard } from "./log";
@@ -846,10 +846,34 @@ const slamTiles = ["Australian Open", "Roland Garros", "Wimbledon", "US Open"] a
 const slamColours: Record<(typeof slamTiles)[number], string> = { "Australian Open": "#1b84c9", "Roland Garros": "#c8501c", Wimbledon: "#54237f", "US Open": "#002f87" };
 
 /** One final in a Slam's list: the year, then who beat whom */
-function FinalRow({ row, page, onOpen, names, teaser, onPeek }: { row: MatchRow; page: number | null; onOpen: () => void; names: readonly [string, string]; teaser?: string; onPeek: () => void }) {
+const roundTags: Partial<Record<Round, string>> = { F: "Final", SF: "Semi", BR: "Bronze" };
+const roundRank = (r: Round) => ["F", "SF", "BR"].indexOf(r);
+
+function FinalRow({
+  row,
+  page,
+  onOpen,
+  names,
+  teaser,
+  onPeek,
+  tag,
+  sameYear = false,
+}: {
+  row: MatchRow;
+  page: number | null;
+  onOpen: () => void;
+  names: readonly [string, string];
+  teaser?: string;
+  onPeek: () => void;
+  tag?: string; // the round, where a list has more than finals
+  sameYear?: boolean; // the year is shown once, on its first row
+}) {
   return (
     <button type="button" onClick={onOpen} onPointerEnter={onPeek} onFocus={onPeek} className="group flex w-full cursor-pointer flex-wrap items-center gap-x-3 rounded-xl px-2 py-2 text-left transition hover:bg-court/10">
-      <span className="w-12 shrink-0 font-display text-lg font-bold tabular-nums">{row.season}</span>
+      <span className={`w-12 shrink-0 font-display text-lg font-bold tabular-nums ${sameYear ? "invisible" : ""}`}>{row.season}</span>
+      {tag && (
+        <span className={`w-14 shrink-0 rounded-full px-2 py-0.5 text-center text-[11px] font-bold ${tag === "Final" ? "bg-ball text-[#0b0d12]" : "bg-line/70 text-muted"}`}>{tag}</span>
+      )}
       <span className="flex shrink-0 -space-x-2">
         <Avatar name={names[0]} size="h-8 w-8 text-xs ring-2 ring-surface" />
         <Avatar name={names[1]} size="h-8 w-8 text-xs ring-2 ring-surface" />
@@ -906,7 +930,9 @@ function SurpriseSmall({ slam }: { slam: string | null }) {
 /** With no match open: pick a Slam and a final, a match everyone talks about, or let chance pick */
 function Start({ start, follow, slam, setSlam }: { start: StartData; follow: Follow; slam: string | null; setSlam: (slam: string | null) => void }) {
   const page = usePages();
-  const finals = start.finals.filter((r) => r.event === slam);
+  const isSlamTile = (slamTiles as readonly string[]).includes(slam ?? "");
+  // A Slam's finals, or a big event's finals, semifinals and bronze medal matches
+  const finals = start.finals.filter((r) => (isSlamTile ? r.event === slam : bigEventOf(r)?.key === slam));
   const finalNames = useMemo(() => namesOf(start.finals), [start.finals]);
   const teasers = useTeasers();
   const cardNames = useMemo(() => namesOf([...start.classics.map((c) => c.row), ...start.diary]), [start.classics, start.diary]);
@@ -915,20 +941,32 @@ function Start({ start, follow, slam, setSlam }: { start: StartData; follow: Fol
     setSlam(t === slam ? null : t);
     requestAnimationFrame(() => panel.current && panel.current.getBoundingClientRect().top > innerHeight * 0.6 && glideTo(panel.current, "center"));
   };
-  const isSlamTile = (slamTiles as readonly string[]).includes(slam ?? "");
-  // Each tour that plays the picked event gets a column of its finals
+  // Each tour that plays the picked event gets a column of its matches, year by year
   const tours = (["atp", "wta"] as const).filter((tour) => finals.some((r) => r.tour === tour));
   const finalsPanel = (
     <div ref={panel} className={`fade-in mt-4 grid gap-6 rounded-3xl border border-line bg-surface p-4 shadow-sm sm:p-6 ${tours.length > 1 ? "lg:grid-cols-2" : ""}`}>
       {tours.map((tour) => (
         <div key={tour} className="min-w-0">
-          <h3 className="px-2 font-display text-lg font-bold">{tour === "atp" ? "Men's finals" : "Women's finals"}</h3>
+          <h3 className="px-2 font-display text-lg font-bold">
+            {isSlamTile ? (tour === "atp" ? "Men's finals" : "Women's finals") : tour === "atp" ? "Men's" : "Women's"}
+          </h3>
           <ul className="mt-1 divide-y divide-line">
             {finals
               .filter((r) => r.tour === tour)
-              .map((row) => (
-                <li key={row.id}>
-                  <FinalRow row={row} page={page(row.id)} onOpen={() => follow(row.id)} names={finalNames(row)} teaser={teasers.get(row.id)} onPeek={() => teasers.want(row.id)} />
+              // Within a year: the final, then the semifinals, then a bronze medal match
+              .sort((a, b) => b.season - a.season || roundRank(a.round) - roundRank(b.round))
+              .map((row, i, rows) => (
+                <li key={row.id} className={!isSlamTile && i > 0 && rows[i - 1].season === row.season ? "border-t-0" : ""}>
+                  <FinalRow
+                    row={row}
+                    tag={isSlamTile ? undefined : roundTags[row.round]}
+                    sameYear={!isSlamTile && i > 0 && rows[i - 1].season === row.season}
+                    page={page(row.id)}
+                    onOpen={() => follow(row.id)}
+                    names={finalNames(row)}
+                    teaser={teasers.get(row.id)}
+                    onPeek={() => teasers.want(row.id)}
+                  />
                 </li>
               ))}
           </ul>
@@ -963,25 +1001,26 @@ function Start({ start, follow, slam, setSlam }: { start: StartData; follow: Fol
         </div>
         {slam && isSlamTile && finalsPanel}
 
-        {/* The Masters 1000s, smaller: a flag and the city */}
-        <h3 className="mt-8 font-display text-lg font-bold tracking-tight">Or a Masters 1000</h3>
-        <div className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-5 lg:grid-cols-9">
-          {masters.map(({ event, city }, i) => (
+        {/* The big events after the Slams, smaller: a flag and the city, or the event's own mark */}
+        <h3 className="mt-8 font-display text-lg font-bold tracking-tight">Masters &amp; 1000s, tour finals and the Olympics</h3>
+        <p className="text-sm text-muted">Finals, semifinals and bronze medal matches, men&apos;s and women&apos;s.</p>
+        <div className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-6 lg:grid-cols-8">
+          {bigEvents.map((b, i) => (
             <button
-              key={event}
+              key={b.key}
               type="button"
-              aria-pressed={slam === event}
-              onClick={() => pick(event)}
-              style={{ animationDelay: `${300 + i * 40}ms` }}
+              aria-pressed={slam === b.key}
+              onClick={() => pick(b.key)}
+              style={{ animationDelay: `${300 + i * 30}ms` }}
               className={`rise-in group flex cursor-pointer flex-col items-center gap-1 rounded-2xl border bg-surface px-2 py-3 text-center shadow-sm transition duration-200 hover:-translate-y-1 hover:shadow-md ${
-                slam === event ? "-translate-y-1 border-transparent shadow-md ring-4 ring-ball" : slam ? "border-line opacity-70 hover:opacity-100" : "border-line"
+                slam === b.key ? "-translate-y-1 border-transparent shadow-md ring-4 ring-ball" : slam ? "border-line opacity-70 hover:opacity-100" : "border-line"
               }`}
             >
-              <span aria-hidden className="text-3xl leading-none transition-transform duration-300 group-hover:scale-110">
-                {mastersFlag(event)}
+              <span aria-hidden className="flex h-8 items-center text-3xl leading-none transition-transform duration-300 group-hover:scale-110">
+                {b.key === "Olympics" ? <SlamLogo event="Olympics" size="h-8 w-8" /> : (b.flag ?? "🏆")}
               </span>
-              <span className="text-sm font-semibold leading-tight">{city}</span>
-              <span className="text-[11px] text-muted">{start.finals.filter((r) => r.event === event).length} finals</span>
+              <span className="text-sm font-semibold leading-tight">{b.label}</span>
+              <span className="text-[11px] text-muted">{b.tours.length > 1 ? "Men & women" : b.tours[0] === "atp" ? "Men" : "Women"}</span>
             </button>
           ))}
         </div>

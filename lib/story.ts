@@ -4,7 +4,7 @@ import { cacheLife, cacheTag } from "next/cache";
 import { getDb } from "@/db";
 import { matches, players } from "@/db/schema";
 import { tellStory, type Played, type PlayerInfo, type Story } from "@/app/diary/story";
-import type { Outcome, Round, Surface, Tier, Tour } from "@/app/diary/library";
+import { bigEvents, bigRounds, type Outcome, type Round, type Surface, type Tier, type Tour } from "@/app/diary/library";
 
 // The story around a match (app/diary/story.ts), from the match data. The record only changes when matches
 // are imported, so each piece is cached for days: a player's matches, a tournament's draw, an event's
@@ -143,8 +143,11 @@ const ATP_SHARE = 0.7;
  * just follow how many matches each has; an event one tour doesn't play falls back to the other.
  */
 export async function randomStoryId(event?: string) {
-  const first = Math.random() < ATP_SHARE ? "atp" : "wta";
-  for (const tour of [first, first === "atp" ? "wta" : "atp"]) {
+  // A big event after the Slams: its own events, the tours that play it, and its bronze medal matches too
+  const big = bigEvents.find((b) => b.key === event);
+  const first: Tour = Math.random() < ATP_SHARE ? "atp" : "wta";
+  for (const tour of [first, first === "atp" ? "wta" : "atp"] as Tour[]) {
+    if (big && !big.tours.includes(tour)) continue;
     const [row] = await getDb()
       .select({ id: matches.id })
       .from(matches)
@@ -152,8 +155,8 @@ export async function randomStoryId(event?: string) {
         and(
           eq(matches.searchable, true),
           eq(matches.tour, tour),
-          inArray(matches.round, ["SF", "F"]),
-          event ? eq(matches.event, event) : eq(matches.tier, "slam"),
+          inArray(matches.round, big ? bigRounds : ["SF", "F"]),
+          big ? inArray(matches.event, big.events) : event ? eq(matches.event, event) : eq(matches.tier, "slam"),
         ),
       )
       .orderBy(sql`random()`)
