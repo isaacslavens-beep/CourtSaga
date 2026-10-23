@@ -5,9 +5,10 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { glideTo } from "../glide";
 import { HighlightsLink, SlamLogo, TournamentLabel } from "../match-ui";
-import { Avatar, CourtArt, TennisBall, chartStyles } from "./fun";
+import { Avatar, CourtArt, chartStyles } from "./fun";
 import { diaryPages, roundName, scoreText, toMatches, type Match, type MatchRow, type Round } from "./library";
 import { highlightVideos } from "./media";
+import { MatchFinder } from "./finder";
 import { Scoreboard } from "./log";
 import { useLog } from "./store";
 import type { DrawVisual, EventVisual, Fact, H2HVisual, Part, SeasonVisual, StatsVisual, Story, Thread } from "./story";
@@ -597,29 +598,62 @@ function FinalRow({ row, page, onOpen, names }: { row: MatchRow; page: number | 
   );
 }
 
-/** A random Slam semifinal or final: on the start page, and above and below every story */
+/** A question mark with a tennis ball in its curl: Surprise me's symbol */
+function SurpriseIcon({ className }: { className: string }) {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden className={className}>
+      <path d="M6 8.6a6 6 0 1 1 9.6 4.8c-2 1.4-3.2 2.4-3.2 4.8" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" />
+      <circle cx="12.4" cy="22" r="1.35" fill="white" />
+      <circle cx="12" cy="8.6" r="4.2" className="fill-ball" />
+      <path d="M9 6.3c1.3 1.2 1.3 3.4 0 4.6M15 6.3c-1.3 1.2-1.3 3.4 0 4.6" fill="none" stroke="white" strokeWidth="0.9" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+const atSlamName = (slam: string) => (slam === "Roland Garros" || slam === "Wimbledon" ? slam : `the ${slam}`);
+const surpriseHref = (slam: string | null) => (slam ? `/explore?m=random&slam=${encodeURIComponent(slam)}` : "/explore?m=random");
+
+/** A random Slam semifinal or final, from one Slam once one is picked: above and below every story */
 function SurpriseMe({ className = "", again = false, slam = null }: { className?: string; again?: boolean; slam?: string | null }) {
   return (
     <div className={`flex flex-wrap items-center gap-x-5 gap-y-2 ${className}`}>
       <Link
-        href={slam ? `/explore?m=random&slam=${encodeURIComponent(slam)}` : "/explore?m=random"}
+        href={surpriseHref(slam)}
         scroll={false}
         className="group inline-flex items-center gap-4 rounded-full bg-ball py-3 pl-3 pr-9 font-display text-2xl font-bold text-[#0b0d12] shadow-lg shadow-black/15 transition hover:-translate-y-0.5 hover:shadow-xl sm:text-3xl"
       >
-        <span className="flex h-12 w-12 items-center justify-center rounded-full bg-[#0b0d12] transition-transform group-hover:rotate-180 sm:h-14 sm:w-14">
-          <TennisBall filled className="h-8 w-8 sm:h-9 sm:w-9" />
+        <span className="flex h-12 w-12 items-center justify-center rounded-full bg-[#0b0d12] transition-transform group-hover:-rotate-12 sm:h-14 sm:w-14">
+          <SurpriseIcon className="h-9 w-9 sm:h-10 sm:w-10" />
         </span>
         {again ? "Surprise me again" : "Surprise me"}
       </Link>
-      <span className="text-muted">{slam ? `A random semifinal or final at ${slam === "Roland Garros" || slam === "Wimbledon" ? slam : `the ${slam}`}.` : "A random Slam semifinal or final."}</span>
+      <span className="text-muted">{slam ? `A random semifinal or final at ${atSlamName(slam)}.` : "A random Slam semifinal or final."}</span>
     </div>
   );
 }
 
+/** Surprise me sized to sit beside the search bar, saying what it'll pick from */
+function SurpriseBeside({ slam }: { slam: string | null }) {
+  return (
+    <Link
+      href={surpriseHref(slam)}
+      scroll={false}
+      className="group inline-flex shrink-0 items-center gap-3 rounded-full bg-ball py-1.5 pl-1.5 pr-6 text-[#0b0d12] shadow-lg shadow-black/15 transition hover:-translate-y-0.5 hover:shadow-xl max-sm:w-full"
+    >
+      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#0b0d12] transition-transform group-hover:-rotate-12">
+        <SurpriseIcon className="h-8 w-8" />
+      </span>
+      <span className="flex flex-col leading-tight">
+        <span className="font-display text-xl font-bold">Surprise me</span>
+        <span className="text-xs font-semibold opacity-75">{slam ? `A ${slam} semifinal or final` : "A Slam semifinal or final"}</span>
+      </span>
+    </Link>
+  );
+}
+
 /** With no match open: pick a Slam and a final, a match everyone talks about, or let chance pick */
-function Start({ start, follow }: { start: StartData; follow: Follow }) {
+function Start({ start, follow, slam, setSlam }: { start: StartData; follow: Follow; slam: string | null; setSlam: (slam: string | null) => void }) {
   const page = usePages();
-  const [slam, setSlam] = useState<string | null>(null);
   const finals = start.finals.filter((r) => r.event === slam);
   const finalNames = useMemo(() => namesOf(start.finals), [start.finals]);
   const cardNames = useMemo(() => namesOf([...start.classics.map((c) => c.row), ...start.diary]), [start.classics, start.diary]);
@@ -667,7 +701,6 @@ function Start({ start, follow }: { start: StartData; follow: Follow }) {
             ))}
           </div>
         )}
-        <SurpriseMe className="mt-6" slam={slam} />
       </section>
 
       {start.classics.length > 0 && (
@@ -702,7 +735,21 @@ function Start({ start, follow }: { start: StartData; follow: Follow }) {
 
 /* ---------- Signed in ---------- */
 
-export function ExploreSection({ story, missing, slam, start: startData }: { story: Story | null; missing: boolean; slam: string | null; start: StartData }) {
+export function ExploreSection({
+  story,
+  missing,
+  slam,
+  seasons,
+  start: startData,
+}: {
+  story: Story | null;
+  missing: boolean;
+  slam: string | null;
+  seasons: [number, number] | null;
+  start: StartData;
+}) {
+  // The Slam picked on the start page, which Surprise me then keeps to
+  const [picked, setPicked] = useState<string | null>(null);
   const router = useRouter();
   const [pending, start] = useTransition();
   const page = usePages();
@@ -720,17 +767,20 @@ export function ExploreSection({ story, missing, slam, start: startData }: { sto
   }, [story?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
-    <div ref={top} className="scroll-mt-6">
-      {missing && <p className="mb-6 rounded-2xl bg-fault/10 px-4 py-3 font-medium text-fault">That match isn&apos;t in the record. Try finding it above.</p>}
-      {story ? (
-        <>
-          <SurpriseMe className="mb-10" slam={slam} />
-          <StoryView story={story} follow={follow} pending={pending} page={page} logHref={(id) => `/log?m=${encodeURIComponent(id)}`} />
-          <SurpriseMe className="mt-12 justify-center" again slam={slam} />
-        </>
-      ) : (
-        <Start start={startData} follow={follow} />
-      )}
+    <div className="space-y-8">
+      <MatchFinder seasons={seasons} explore aside={story ? undefined : <SurpriseBeside slam={picked} />} />
+      <div ref={top} className="scroll-mt-6">
+        {missing && <p className="mb-6 rounded-2xl bg-fault/10 px-4 py-3 font-medium text-fault">That match isn&apos;t in the record. Try finding it above.</p>}
+        {story ? (
+          <>
+            <SurpriseMe className="mb-10" slam={slam} />
+            <StoryView story={story} follow={follow} pending={pending} page={page} logHref={(id) => `/log?m=${encodeURIComponent(id)}`} />
+            <SurpriseMe className="mt-12 justify-center" again slam={slam} />
+          </>
+        ) : (
+          <Start start={startData} follow={follow} slam={picked} setSlam={setPicked} />
+        )}
+      </div>
     </div>
   );
 }

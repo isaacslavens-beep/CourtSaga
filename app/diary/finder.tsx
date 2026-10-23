@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { glideTo } from "../glide";
 import { TournamentLabel } from "../match-ui";
 import { Avatar } from "./fun";
@@ -18,7 +18,7 @@ const examples = ["alcaraz sinner", "wimbledon 2008 final", "sabalenka ao 2023"]
 /** A search for a season after the last one in the data */
 const notInYet = (query: string, last: number) => (query.match(/\b(19|20)\d{2}\b/g) ?? []).some((y) => Number(y) > last);
 
-export function MatchFinder({ seasons, explore = false }: { seasons: [number, number] | null; explore?: boolean }) {
+export function MatchFinder({ seasons, explore = false, aside }: { seasons: [number, number] | null; explore?: boolean; aside?: ReactNode }) {
   const { matches, entries, view } = useLog();
   const router = useRouter();
   const pages = diaryPages(entries, matches);
@@ -80,21 +80,24 @@ export function MatchFinder({ seasons, explore = false }: { seasons: [number, nu
         )}
       </label>
       {seasons && <p className="mt-0.5 text-sm text-muted">{seasons[1]} matches may not be fully up to date.</p>}
-      <div className="relative mt-3">
-        <svg viewBox="0 0 20 20" aria-hidden className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 fill-none stroke-current stroke-2 text-muted" strokeLinecap="round">
-          <circle cx="8.5" cy="8.5" r="5.5" />
-          <path d="m13 13 4 4" />
-        </svg>
-        <input
-          id="find-a-match"
-          type="search"
-          value={query}
-          onChange={(e) => search(e.target.value)}
-          placeholder={`Try "${examples[0]}" or "${examples[1]}"`}
-          autoComplete="off"
-          spellCheck={false}
-          className="w-full rounded-full border-2 border-line bg-background py-3 pl-12 pr-4 text-lg font-medium placeholder:text-muted/70 focus:border-court focus:outline-none focus:ring-4 focus:ring-court/15"
-        />
+      <div className="mt-3 flex flex-wrap items-center gap-3 sm:flex-nowrap">
+        <div className="relative min-w-0 flex-1">
+          <svg viewBox="0 0 20 20" aria-hidden className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 fill-none stroke-current stroke-2 text-muted" strokeLinecap="round">
+            <circle cx="8.5" cy="8.5" r="5.5" />
+            <path d="m13 13 4 4" />
+          </svg>
+          <input
+            id="find-a-match"
+            type="search"
+            value={query}
+            onChange={(e) => search(e.target.value)}
+            placeholder={`Try "${examples[0]}" or "${examples[1]}"`}
+            autoComplete="off"
+            spellCheck={false}
+            className="w-full rounded-full border-2 border-line bg-background py-3 pl-12 pr-4 text-lg font-medium placeholder:text-muted/70 focus:border-court focus:outline-none focus:ring-4 focus:ring-court/15"
+          />
+        </div>
+        {aside}
       </div>
 
       {!typed && (

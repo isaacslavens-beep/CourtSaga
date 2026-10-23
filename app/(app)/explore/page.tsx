@@ -7,7 +7,6 @@ import { matchStory, randomStoryId } from "@/lib/story";
 import { classics } from "../../diary/classics";
 import { diaryPages, slams, toFanEntry, toMatches } from "../../diary/library";
 import { ExploreSection } from "../../diary/explore";
-import { MatchFinder } from "../../diary/finder";
 import { LogProvider } from "../../diary/store";
 import { CourtBand } from "../../court-band";
 import { StepHeading } from "../../step-heading";
@@ -70,11 +69,11 @@ async function Exploring({ searchParams }: Pick<PageProps<"/explore">, "searchPa
   return (
     <LogProvider key={diary.version} mode="diary" rows={diary.rows} entries={diary.entries} order={diary.order} focusId={latestPage(diary)} saver={saver}>
       <div className="space-y-8">
-        <MatchFinder seasons={seasons} explore />
         <ExploreSection
           story={story}
           missing={!!wanted && !story}
           slam={atSlam ?? null}
+          seasons={seasons}
           start={{ finals, classics: classicRows.map((row) => ({ row, why: classics.find((c) => c.id === row.id)!.why })), diary: recentRows }}
         />
       </div>
