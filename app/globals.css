@@ -866,3 +866,36 @@ html {
     animation: none;
   }
 }
+
+/* A band of light sweeping across a button every few seconds, to invite a click (Surprise me) */
+@keyframes shine {
+  0%,
+  70% {
+    transform: translateX(-120%) skewX(-20deg);
+  }
+  100% {
+    transform: translateX(260%) skewX(-20deg);
+  }
+}
+
+.shine {
+  position: relative;
+  overflow: hidden;
+}
+
+.shine::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  width: 40%;
+  background: linear-gradient(to right, transparent, rgb(255 255 255 / 0.65), transparent);
+  animation: shine 3.6s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shine::after {
+    animation: none;
+    display: none;
+  }
+}

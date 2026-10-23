@@ -94,7 +94,7 @@ export function MatchFinder({ seasons, explore = false, inside }: { seasons: [nu
             placeholder={`Try "${examples[0]}" or "${examples[1]}"`}
             autoComplete="off"
             spellCheck={false}
-            className={`w-full rounded-full border-2 border-line bg-background py-3 pl-12 text-lg font-medium placeholder:text-muted/70 focus:border-court focus:outline-none focus:ring-4 focus:ring-court/15 ${inside ? "pr-36 sm:pr-40" : "pr-4"}`}
+            className={`w-full rounded-full border-2 border-line bg-background py-3 pl-12 text-lg font-medium placeholder:text-muted/70 focus:border-court focus:outline-none focus:ring-4 focus:ring-court/15 ${inside ? "pr-40 sm:pr-48" : "pr-4"}`}
           />
           {/* Something to press inside the bar's right end, e.g. Surprise me */}
           {inside && <span className="absolute right-1.5 top-1/2 -translate-y-1/2">{inside}</span>}

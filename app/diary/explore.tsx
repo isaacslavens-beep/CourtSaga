@@ -713,7 +713,7 @@ function SurpriseInside({ slam }: { slam: string | null }) {
       scroll={false}
       title={surpriseWhat(slam)}
       aria-label={`Surprise me: ${surpriseWhat(slam)}`}
-      className="rounded-full bg-ball px-4 py-2 font-display font-bold text-[#0b0d12] shadow-sm transition hover:scale-105 hover:shadow-md sm:px-5"
+      className="nudge shine inline-block rounded-full bg-ball px-5 py-2 font-display text-lg font-bold text-[#0b0d12] shadow-md shadow-black/15 ring-1 ring-black/10 transition hover:scale-105 hover:shadow-lg sm:px-6"
     >
       Surprise me
     </Link>
