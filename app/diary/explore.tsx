@@ -323,6 +323,9 @@ function Picture({ thread, story, colors, follow, page }: { thread: Thread; stor
 
 /* ---------- The story ---------- */
 
+// The threads the landing's demo keeps on a phone, so it can be scrolled past quickly
+const quick = new Set(["h2h", "after"]);
+
 // Threads whose pictures need the page's whole width
 const wide = new Set(["draw", "season", "h2h", "event"]);
 
@@ -365,12 +368,14 @@ export function StoryView({
   pending,
   page,
   logHref,
+  lite = false,
 }: {
   story: Story;
   follow: Follow;
   pending: boolean;
   page: (id: string) => number | null;
   logHref?: (id: string) => string; // signed in: where to log a match
+  lite?: boolean; // the landing's demo: on a phone, only the threads that read quickest
 }) {
   const match = asMatch(story);
   const [nameA, nameB] = [story.names[story.a.key], story.names[story.b.key]];
@@ -382,7 +387,11 @@ export function StoryView({
   const h2h = story.threads.find((t) => t.id === "h2h");
   const rest = story.threads.filter((t) => t.id !== "h2h");
   const thread = (t: Thread) => (
-    <section key={t.id} aria-label={t.title} className={`min-w-0 rounded-3xl border border-line bg-surface p-5 shadow-sm sm:p-6 ${wide.has(t.id) ? "lg:col-span-2" : ""}`}>
+    <section
+      key={t.id}
+      aria-label={t.title}
+      className={`min-w-0 rounded-3xl border border-line bg-surface p-5 shadow-sm sm:p-6 ${wide.has(t.id) ? "lg:col-span-2" : ""} ${lite && !quick.has(t.id) ? "max-sm:hidden" : ""}`}
+    >
       <header className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
         <h3 className="font-display text-xl font-bold tracking-tight">{t.title}</h3>
         {t.kicker && <span className="text-sm text-muted">{t.kicker}</span>}
@@ -490,7 +499,7 @@ export function StoryView({
       {/* The rivalry first, then where to go next, then everything else */}
       <div className="mt-10 grid items-start gap-5 lg:grid-flow-dense lg:grid-cols-2">
         {h2h && thread(h2h)}
-        {story.trail.length > 0 && <Trail story={story} follow={follow} page={page} />}
+        {story.trail.length > 0 && <Trail story={story} follow={follow} page={page} lite={lite} />}
         {rest.map(thread)}
       </div>
     </div>
@@ -498,7 +507,7 @@ export function StoryView({
 }
 
 /** Where to go next: the matches the story points to, each a page to turn to with the reason on it */
-function Trail({ story, follow, page }: { story: Story; follow: Follow; page: (id: string) => number | null }) {
+function Trail({ story, follow, page, lite = false }: { story: Story; follow: Follow; page: (id: string) => number | null; lite?: boolean }) {
   const teasers = useTeasers();
   return (
     <section aria-label="Follow the thread" className="min-w-0 rounded-3xl bg-court p-5 text-court-ink shadow-lg sm:p-6 lg:col-span-2">
@@ -510,7 +519,7 @@ function Trail({ story, follow, page }: { story: Story; follow: Follow; page: (i
         {story.trail.map((t, i) => {
           const r = story.refs[t.ref];
           return (
-            <li key={t.ref}>
+            <li key={t.ref} className={lite && i >= 3 ? "max-sm:hidden" : ""}>
               <StoryCard
                 n={i + 1}
                 label={r.label}
@@ -1001,7 +1010,7 @@ export function ExploreDemo({ initial, choices, toData, toSample }: { initial: S
         ))}
       </div>
       {failed && <p className="mb-4 rounded-2xl bg-fault/10 px-4 py-3 font-medium text-fault">That story didn&apos;t load. Check your connection and try again.</p>}
-      {story ? <StoryView story={story} follow={(id) => void follow(id)} pending={pending} page={page} /> : <p className="text-muted">The match data isn&apos;t available right now.</p>}
+      {story ? <StoryView story={story} follow={(id) => void follow(id)} pending={pending} page={page} lite /> : <p className="text-muted">The match data isn&apos;t available right now.</p>}
     </div>
   );
 }

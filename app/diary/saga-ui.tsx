@@ -267,14 +267,15 @@ function RowsChart({ book, players, spotId, hover }: { book: Glance; players: To
               {slamNames.includes(g) && <SlamLogo event={g} size="h-8 w-8" />}
               <span className="truncate">{g}</span>
             </dt>
-            <dd className="flex min-w-0 items-center gap-2.5">
-              <span className="flex h-5 min-w-0 gap-[2px]" style={{ width: `${(items.length / most) * 88}%` }}>
+            <dd className="flex min-w-0 items-center gap-2.5 overflow-hidden">
+              {/* On a phone a long row's blocks thin out rather than run off the screen */}
+              <span className="flex h-5 min-w-0 gap-px sm:gap-[2px]" style={{ width: `${(items.length / most) * 88}%` }}>
                 {items.map((x) => (
                   <button
                     key={x.key}
                     type="button"
                     {...markProps(x, hover)}
-                    className={`grow-x h-full min-w-[3px] flex-1 cursor-pointer transition-[filter] last:rounded-r-[4px] hover:brightness-125 focus-visible:outline-2 focus-visible:outline-court ${spotId && spotId === x.logId ? "spot-tile rounded-[4px]" : ""}`}
+                    className={`grow-x h-full min-w-px flex-1 sm:min-w-[3px] cursor-pointer transition-[filter] last:rounded-r-[4px] hover:brightness-125 focus-visible:outline-2 focus-visible:outline-court ${spotId && spotId === x.logId ? "spot-tile rounded-[4px]" : ""}`}
                     style={{ "--i": n++, background: markColor(x.color, players) } as CSSProperties}
                   />
                 ))}
