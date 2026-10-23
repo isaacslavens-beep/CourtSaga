@@ -720,7 +720,7 @@ const starModes: { mode: WatchMode; label: string }[] = [
 ];
 
 /** Star this match in one click; once starred, say if you watched it, or go and add more */
-function StarPanel({ story }: { story: Story }) {
+function StarPanel({ story, ask = false }: { story: Story; ask?: boolean }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const state = useStarState()(story.id);
@@ -730,8 +730,8 @@ function StarPanel({ story }: { story: Story }) {
       await action();
       router.refresh();
     });
-  if (!state)
-    return (
+  if (!state) {
+    const button = (
       <button
         type="button"
         disabled={pending}
@@ -741,6 +741,16 @@ function StarPanel({ story }: { story: Story }) {
         <span aria-hidden className="text-xl">☆</span> {pending ? "Starring…" : "Star this match"}
       </button>
     );
+    // At the foot of a story, the button comes with a question
+    return ask ? (
+      <div className="flex flex-col items-center gap-3 text-center">
+        <p className="font-display text-2xl font-bold tracking-tight">Want to remember this one?</p>
+        {button}
+      </div>
+    ) : (
+      button
+    );
+  }
   const entry = entries[story.id];
   return (
     <div className={`rise-in rounded-2xl bg-ball px-5 py-4 text-left text-[#0b0d12] shadow-lg shadow-black/15 ring-1 ring-black/10 transition ${pending ? "opacity-60" : ""}`}>
@@ -770,9 +780,17 @@ function StarPanel({ story }: { story: Story }) {
           ))}
         </p>
       )}
-      <Link href={`/star?m=${encodeURIComponent(story.id)}`} className="mt-2 inline-block text-sm font-bold underline decoration-2 underline-offset-4">
-        {entry?.rating || entry?.note ? "Edit your rating, pick or note →" : "Add a rating, your pick or a note →"}
-      </Link>
+      <p className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm font-bold">
+        <Link
+          href={`/saga?m=${encodeURIComponent(story.id)}`}
+          className="inline-flex items-center gap-1.5 rounded-full bg-[#0b0d12] px-3.5 py-1.5 text-ball transition hover:-translate-y-0.5"
+        >
+          See it in your saga <span aria-hidden>→</span>
+        </Link>
+        <Link href={`/star?m=${encodeURIComponent(story.id)}`} className="underline decoration-2 underline-offset-4">
+          {entry?.rating || entry?.note ? "Edit your rating, pick or note" : "Add a rating, your pick or a note"}
+        </Link>
+      </p>
     </div>
   );
 }
@@ -858,15 +876,15 @@ const surpriseWhat = (slam: string | null) => (slam ? `Random ${slam} match` : "
 /** A random Slam semifinal or final, from one Slam once one is picked: at the foot of every story */
 function SurpriseMe({ className = "", again = false, slam = null }: { className?: string; again?: boolean; slam?: string | null }) {
   return (
-    <div className={`flex flex-wrap items-center gap-x-5 gap-y-2 ${className}`}>
+    <div className={`flex justify-center ${className}`}>
       <Link
         href={surpriseHref(slam)}
         scroll={false}
+        title={surpriseWhat(slam)}
         className="rounded-full bg-ball px-9 py-4 font-display text-2xl font-bold text-[#0b0d12] shadow-lg shadow-black/15 transition hover:-translate-y-0.5 hover:shadow-xl sm:text-3xl"
       >
         {again ? "Surprise me again" : "Surprise me"}
       </Link>
-      <span className="text-muted">{surpriseWhat(slam)}</span>
     </div>
   );
 }
@@ -1100,11 +1118,8 @@ export function ExploreSection({
             <StoryView story={story} follow={follow} pending={pending} page={page} logHref={(id) => `/star?m=${encodeURIComponent(id)}`} star={<StarPanel story={story} />} starOf={starOf} />
             {/* At the foot of the story: keep this match, or try another */}
             <div className="mt-12 flex flex-col items-center gap-8">
-              <div className="flex flex-col items-center gap-3 text-center">
-                <p className="font-display text-2xl font-bold tracking-tight">Want to remember this one?</p>
-                <StarPanel story={story} />
-              </div>
-              <SurpriseMe className="justify-center" again slam={slam} />
+              <StarPanel story={story} ask />
+              <SurpriseMe again slam={slam} />
             </div>
           </>
         ) : (
