@@ -597,6 +597,25 @@ function FinalRow({ row, page, onOpen, names }: { row: MatchRow; page: number | 
   );
 }
 
+/** A random Slam semifinal or final: on the start page, and above and below every story */
+function SurpriseMe({ className = "", again = false }: { className?: string; again?: boolean }) {
+  return (
+    <div className={`flex flex-wrap items-center gap-x-5 gap-y-2 ${className}`}>
+      <Link
+        href="/explore?m=random"
+        scroll={false}
+        className="group inline-flex items-center gap-4 rounded-full bg-ball py-3 pl-3 pr-9 font-display text-2xl font-bold text-[#0b0d12] shadow-lg shadow-black/15 transition hover:-translate-y-0.5 hover:shadow-xl sm:text-3xl"
+      >
+        <span className="flex h-12 w-12 items-center justify-center rounded-full bg-[#0b0d12] transition-transform group-hover:rotate-180 sm:h-14 sm:w-14">
+          <TennisBall filled className="h-8 w-8 sm:h-9 sm:w-9" />
+        </span>
+        {again ? "Surprise me again" : "Surprise me"}
+      </Link>
+      <span className="text-muted">A random Slam semifinal or final.</span>
+    </div>
+  );
+}
+
 /** With no match open: pick a Slam and a final, a match everyone talks about, or let chance pick */
 function Start({ start, follow }: { start: StartData; follow: Follow }) {
   const page = usePages();
@@ -648,19 +667,7 @@ function Start({ start, follow }: { start: StartData; follow: Follow }) {
             ))}
           </div>
         )}
-        <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-2">
-          <Link
-            href="/explore?m=random"
-            scroll={false}
-            className="group inline-flex items-center gap-4 rounded-full bg-ball py-3 pl-3 pr-9 font-display text-2xl font-bold text-[#0b0d12] shadow-lg shadow-black/15 transition hover:-translate-y-0.5 hover:shadow-xl sm:text-3xl"
-          >
-            <span className="flex h-12 w-12 items-center justify-center rounded-full bg-[#0b0d12] transition-transform group-hover:rotate-180 sm:h-14 sm:w-14">
-              <TennisBall filled className="h-8 w-8 sm:h-9 sm:w-9" />
-            </span>
-            Surprise me
-          </Link>
-          <span className="text-muted">A random Slam semifinal or final.</span>
-        </div>
+        <SurpriseMe className="mt-6" />
       </section>
 
       {start.classics.length > 0 && (
@@ -715,7 +722,15 @@ export function ExploreSection({ story, missing, start: startData }: { story: St
   return (
     <div ref={top} className="scroll-mt-6">
       {missing && <p className="mb-6 rounded-2xl bg-fault/10 px-4 py-3 font-medium text-fault">That match isn&apos;t in the record. Try finding it above.</p>}
-      {story ? <StoryView story={story} follow={follow} pending={pending} page={page} logHref={(id) => `/log?m=${encodeURIComponent(id)}`} /> : <Start start={startData} follow={follow} />}
+      {story ? (
+        <>
+          <SurpriseMe className="mb-10" />
+          <StoryView story={story} follow={follow} pending={pending} page={page} logHref={(id) => `/log?m=${encodeURIComponent(id)}`} />
+          <SurpriseMe className="mt-12 justify-center" again />
+        </>
+      ) : (
+        <Start start={startData} follow={follow} />
+      )}
     </div>
   );
 }
