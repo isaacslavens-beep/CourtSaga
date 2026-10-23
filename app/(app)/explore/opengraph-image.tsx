@@ -62,7 +62,7 @@ export default async function Image() {
           </div>
 
           <div style={{ marginTop: 52, fontFamily: "Bricolage", fontSize: 60, letterSpacing: -2 }}>The story of any match</div>
-          <div style={{ marginTop: 10, fontSize: 28, color: "rgba(255,255,255,0.88)" }}>Explore it on CourtSaga. Free.</div>
+          <div style={{ marginTop: 10, fontSize: 28, color: "rgba(255,255,255,0.88)" }}>Explore tennis on CourtSaga</div>
         </div>
       </div>
     ),
