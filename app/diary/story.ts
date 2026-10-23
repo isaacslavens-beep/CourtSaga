@@ -87,6 +87,10 @@ export type DrawVisual = {
   paths: { side: "a" | "b"; steps: { id: string; round: Round; opp: string; oppSeed: number | null; won: boolean; score: string; focus: boolean }[] }[];
   champion: string | null;
 };
+/** The last four of a draw: both semifinals and the final, for a semifinal's or a final's story */
+export type BracketSlot = { id: string; w: string; l: string; ws: number | null; ls: number | null; score: string; played: boolean; focus: boolean };
+export type Bracket = { semis: [BracketSlot, BracketSlot]; final: BracketSlot | null };
+
 export type StatsVisual = { kind: "stats"; rows: { label: string; a: string; b: string; lead: "a" | "b" | null }[] };
 export type Visual = H2HVisual | EventVisual | SeasonVisual | DrawVisual | StatsVisual;
 
@@ -124,6 +128,7 @@ export type Story = {
   threads: Thread[];
   refs: Record<string, Ref>;
   trail: { ref: string; why: string }[]; // where to go next
+  bracket: Bracket | null; // for a semifinal or a final
 };
 
 /* ---------- Small helpers ---------- */
@@ -894,6 +899,18 @@ export function tellStory(input: StoryInput): Story {
     for (const m of input.draw) if (m.w === A || m.l === A || m.w === B || m.l === B) link(m);
   }
 
+  /* ---------- The last four, for a semifinal or a final ---------- */
+
+  let bracket: Bracket | null = null;
+  if ((F.round === "SF" || F.round === "F") && F.tier !== "team") {
+    const final = input.draw.find((m) => m.round === "F") ?? null;
+    const semis = input.draw.filter((m) => m.round === "SF").sort(chron);
+    // The finalist who won goes on top, so the final reads across from their semifinal
+    if (final) semis.sort((x, y) => Number(y.w === final.w) - Number(x.w === final.w));
+    const slot = (m: Played): BracketSlot => ({ id: m.id, w: m.w, l: m.l, ws: m.ws, ls: m.ls, score: played(m) ? m.score : "W/O", played: played(m), focus: m.id === F.id });
+    if (semis.length === 2) bracket = { semis: [slot(semis[0]), slot(semis[1])], final: final ? slot(final) : null };
+  }
+
   /* ---------- Careers: firsts, lasts and onlys ---------- */
 
   for (const p of [A, B]) {
@@ -1178,6 +1195,7 @@ export function tellStory(input: StoryInput): Story {
   for (const r of Object.values(refs)) [r.w, r.l].forEach((x) => mentioned.add(x));
   if (drawVisual) for (const path of drawVisual.paths) for (const st of path.steps) mentioned.add(st.opp);
   for (const row of seasonVisual.rows) for (const e of row.events) for (const m of e.matches) mentioned.add(m.opp);
+  if (bracket) for (const sl of [...bracket.semis, ...(bracket.final ? [bracket.final] : [])]) mentioned.add(sl.w).add(sl.l);
   const known = [...mentioned].map((key) => players[key] ?? { key, name: key, short: key, ioc: null });
   const names = Object.fromEntries(displayNames(known));
   const fill = (t: string) => t.replace(token, (_, key: string) => names[key] ?? key);
@@ -1215,6 +1233,7 @@ export function tellStory(input: StoryInput): Story {
     threads: threads.map((t) => ({ ...t, title: fill(t.title), kicker: fill(t.kicker), facts: t.facts.map(fillFact) })),
     refs,
     trail: trailOut.map((t) => ({ ...t, why: fill(t.why) })),
+    bracket,
   };
 }
 

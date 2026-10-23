@@ -11,7 +11,7 @@ import { highlightVideos } from "./media";
 import { MatchFinder } from "./finder";
 import { Scoreboard } from "./log";
 import { useLog } from "./store";
-import type { DrawVisual, EventVisual, Fact, H2HVisual, Part, SeasonVisual, StatsVisual, Story, Thread } from "./story";
+import type { Bracket, BracketSlot, DrawVisual, EventVisual, Fact, H2HVisual, Part, SeasonVisual, StatsVisual, Story, Thread } from "./story";
 import type { Surface } from "./library";
 import { ShapeChart, type Glance } from "./saga-ui";
 
@@ -321,6 +321,69 @@ function Picture({ thread, story, colors, follow, page }: { thread: Thread; stor
   return <StatsTable v={v} story={story} colors={colors} />;
 }
 
+/* ---------- The last four ---------- */
+
+/** One match in the bracket: both players, winner first and bold, the score beneath */
+function BracketMatch({ slot, story, follow }: { slot: BracketSlot; story: Story; follow: Follow }) {
+  const row = (key: string, seed: number | null, won: boolean) => (
+    <span className={`flex min-w-0 items-center gap-2 ${won ? "font-semibold" : "text-muted"}`}>
+      <Avatar name={story.names[key]} size="h-6 w-6 text-[10px]" />
+      <span className="min-w-0 truncate">{story.names[key]}</span>
+      {seed ? <span className="shrink-0 text-xs font-normal text-muted">({seed})</span> : null}
+      {won && <span aria-hidden className="ml-auto h-2 w-2 shrink-0 rounded-full bg-ball ring-1 ring-black/15" />}
+    </span>
+  );
+  const open = slot.played && !slot.focus;
+  return (
+    <button
+      type="button"
+      onClick={() => open && follow(slot.id)}
+      disabled={!slot.played}
+      title={slot.focus ? "This match" : slot.played ? "Explore it" : "A walkover: never played"}
+      className={`flex w-full min-w-0 flex-col gap-1 rounded-xl border px-3 py-2 text-left text-sm shadow-sm transition ${
+        slot.focus ? "cursor-default border-ball bg-ball/20 ring-2 ring-ball" : open ? "cursor-pointer border-line bg-surface hover:-translate-y-0.5 hover:border-court hover:shadow-md" : "border-dashed border-line bg-surface/60"
+      }`}
+    >
+      {row(slot.w, slot.ws, true)}
+      {row(slot.l, slot.ls, false)}
+      <span className="font-mono text-[11px] text-muted">{scoreText(slot.score)}</span>
+    </button>
+  );
+}
+
+/** The semifinals feeding the final, with lines joining them, for a semifinal's or final's story */
+function MiniBracket({ b, story, follow }: { b: Bracket; story: Story; follow: Follow }) {
+  return (
+    <div className="mt-8">
+      <p className="text-sm font-semibold uppercase tracking-[0.16em] text-muted">The last four</p>
+      <div className="mt-3 grid grid-cols-[minmax(0,1fr)_1.5rem_minmax(0,1fr)] items-center">
+        <div className="space-y-3">
+          {b.semis.map((s) => (
+            <BracketMatch key={s.id} slot={s} story={story} follow={follow} />
+          ))}
+        </div>
+        {/* The lines: each semifinal's winner on to the final */}
+        <div aria-hidden className="relative h-full">
+          <span className="absolute inset-y-1/4 left-0 right-1/2 rounded-r-lg border-y-2 border-r-2 border-line" />
+          <span className="absolute left-1/2 right-0 top-1/2 border-t-2 border-line" />
+        </div>
+        <div>
+          {b.final ? (
+            <BracketMatch slot={b.final} story={story} follow={follow} />
+          ) : (
+            <span className="block rounded-xl border border-dashed border-line px-3 py-4 text-center text-sm text-muted">Final not in the record yet</span>
+          )}
+          {b.final && (
+            <p className="mt-2 flex items-center justify-center gap-1.5 text-sm font-semibold">
+              <span aria-hidden>🏆</span> {story.names[b.final.w]}
+            </p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ---------- The story ---------- */
 
 // The threads the landing's demo keeps on a phone, so it can be scrolled past quickly
@@ -493,6 +556,7 @@ export function StoryView({
           ) : (
             <p className="mt-3 text-lg text-muted">A quiet one: nothing in the record stands out about it. The threads below still lead somewhere.</p>
           )}
+          {story.bracket && <MiniBracket b={story.bracket} story={story} follow={follow} />}
         </div>
       </div>
 
