@@ -4,9 +4,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore, useTransition, type ReactNode } from "react";
 import { glideTo } from "../glide";
-import { HighlightsLink, SlamLogo, TournamentLabel } from "../match-ui";
+import { HighlightsLink, SlamLogo, TournamentLabel, mastersFlag } from "../match-ui";
 import { Avatar, BallScore, CourtArt, chartStyles } from "./fun";
-import { diaryPages, roundName, scoreText, toMatches, watched, watchedHow, type Match, type MatchRow, type Round, type WatchMode } from "./library";
+import { diaryPages, masters, roundName, scoreText, toMatches, watched, watchedHow, type Match, type MatchRow, type Round, type WatchMode } from "./library";
 import { starMatch, updateEntry } from "../(app)/actions";
 import { highlightVideos } from "./media";
 import { Scoreboard } from "./log";
@@ -915,6 +915,27 @@ function Start({ start, follow, slam, setSlam }: { start: StartData; follow: Fol
     setSlam(t === slam ? null : t);
     requestAnimationFrame(() => panel.current && panel.current.getBoundingClientRect().top > innerHeight * 0.6 && glideTo(panel.current, "center"));
   };
+  const isSlamTile = (slamTiles as readonly string[]).includes(slam ?? "");
+  // Each tour that plays the picked event gets a column of its finals
+  const tours = (["atp", "wta"] as const).filter((tour) => finals.some((r) => r.tour === tour));
+  const finalsPanel = (
+    <div ref={panel} className={`fade-in mt-4 grid gap-6 rounded-3xl border border-line bg-surface p-4 shadow-sm sm:p-6 ${tours.length > 1 ? "lg:grid-cols-2" : ""}`}>
+      {tours.map((tour) => (
+        <div key={tour} className="min-w-0">
+          <h3 className="px-2 font-display text-lg font-bold">{tour === "atp" ? "Men's finals" : "Women's finals"}</h3>
+          <ul className="mt-1 divide-y divide-line">
+            {finals
+              .filter((r) => r.tour === tour)
+              .map((row) => (
+                <li key={row.id}>
+                  <FinalRow row={row} page={page(row.id)} onOpen={() => follow(row.id)} names={finalNames(row)} teaser={teasers.get(row.id)} onPeek={() => teasers.want(row.id)} />
+                </li>
+              ))}
+          </ul>
+        </div>
+      ))}
+    </div>
+  );
   return (
     <div className="space-y-12">
       <section>
@@ -940,24 +961,31 @@ function Start({ start, follow, slam, setSlam }: { start: StartData; follow: Fol
             </button>
           ))}
         </div>
-        {slam && (
-          <div ref={panel} className="fade-in mt-4 grid gap-6 rounded-3xl border border-line bg-surface p-4 shadow-sm sm:p-6 lg:grid-cols-2">
-            {(["atp", "wta"] as const).map((tour) => (
-              <div key={tour} className="min-w-0">
-                <h3 className="px-2 font-display text-lg font-bold">{tour === "atp" ? "Men's finals" : "Women's finals"}</h3>
-                <ul className="mt-1 divide-y divide-line">
-                  {finals
-                    .filter((r) => r.tour === tour)
-                    .map((row) => (
-                      <li key={row.id}>
-                        <FinalRow row={row} page={page(row.id)} onOpen={() => follow(row.id)} names={finalNames(row)} teaser={teasers.get(row.id)} onPeek={() => teasers.want(row.id)} />
-                      </li>
-                    ))}
-                </ul>
-              </div>
-            ))}
-          </div>
-        )}
+        {slam && isSlamTile && finalsPanel}
+
+        {/* The Masters 1000s, smaller: a flag and the city */}
+        <h3 className="mt-8 font-display text-lg font-bold tracking-tight">Or a Masters 1000</h3>
+        <div className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-5 lg:grid-cols-9">
+          {masters.map(({ event, city }, i) => (
+            <button
+              key={event}
+              type="button"
+              aria-pressed={slam === event}
+              onClick={() => pick(event)}
+              style={{ animationDelay: `${300 + i * 40}ms` }}
+              className={`rise-in group flex cursor-pointer flex-col items-center gap-1 rounded-2xl border bg-surface px-2 py-3 text-center shadow-sm transition duration-200 hover:-translate-y-1 hover:shadow-md ${
+                slam === event ? "-translate-y-1 border-transparent shadow-md ring-4 ring-ball" : slam ? "border-line opacity-70 hover:opacity-100" : "border-line"
+              }`}
+            >
+              <span aria-hidden className="text-3xl leading-none transition-transform duration-300 group-hover:scale-110">
+                {mastersFlag(event)}
+              </span>
+              <span className="text-sm font-semibold leading-tight">{city}</span>
+              <span className="text-[11px] text-muted">{start.finals.filter((r) => r.event === event).length} finals</span>
+            </button>
+          ))}
+        </div>
+        {slam && !isSlamTile && finalsPanel}
       </section>
 
       {start.classics.length > 0 && (

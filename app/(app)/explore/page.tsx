@@ -2,10 +2,10 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { requireUser } from "@/lib/auth";
-import { findMatches, latestPage, loadDiary, slamFinals } from "@/lib/diary";
+import { bigFinals, findMatches, latestPage, loadDiary } from "@/lib/diary";
 import { matchStory, randomStoryId } from "@/lib/story";
 import { classics } from "../../diary/classics";
-import { diaryPages, slams, toFanEntry, toMatches } from "../../diary/library";
+import { diaryPages, masters, slams, toFanEntry, toMatches } from "../../diary/library";
 import { ExploreSection } from "../../diary/explore";
 import { LogProvider } from "../../diary/store";
 import { CourtBand } from "../../court-band";
@@ -43,7 +43,9 @@ export default function ExplorePage({ searchParams }: PageProps<"/explore">) {
 async function Exploring({ searchParams }: Pick<PageProps<"/explore">, "searchParams">) {
   const user = await requireUser();
   const { m, slam } = await searchParams;
-  const atSlam = typeof slam === "string" && slams.includes(slam as (typeof slams)[number]) ? slam : undefined;
+  // A Slam or a Masters 1000 picked on the start page, which Surprise me keeps to
+  const known: string[] = [...slams, ...masters.map((m) => m.event)];
+  const atSlam = typeof slam === "string" && known.includes(slam) ? slam : undefined;
   if (m === "random") {
     const id = await randomStoryId(atSlam);
     // A surprise from one Slam keeps to it: the next "Surprise me" picks there too
@@ -53,7 +55,7 @@ async function Exploring({ searchParams }: Pick<PageProps<"/explore">, "searchPa
   const [diary, story, finals, classicRows] = await Promise.all([
     loadDiary(user.id),
     wanted ? matchStory(wanted) : null,
-    wanted ? [] : slamFinals(),
+    wanted ? [] : bigFinals(),
     wanted ? [] : findMatches(classics.map((c) => c.id)),
   ]);
 

@@ -138,18 +138,27 @@ export async function matchStory(id: string): Promise<Story | null> {
 const ATP_SHARE = 0.7;
 
 /**
- * A match worth exploring, picked at random: a Slam semifinal or final, at one Slam if asked. The tour is
- * picked first (ATP_SHARE of the time the men's), so the mix doesn't just follow how many matches each has.
+ * A match worth exploring, picked at random: a semifinal or final at a Slam, or at one event if asked (a
+ * Slam or a Masters 1000). The tour is picked first (ATP_SHARE of the time the men's), so the mix doesn't
+ * just follow how many matches each has; an event one tour doesn't play falls back to the other.
  */
-export async function randomStoryId(slam?: string) {
-  const tour = Math.random() < ATP_SHARE ? "atp" : "wta";
-  const [row] = await getDb()
-    .select({ id: matches.id })
-    .from(matches)
-    .where(
-      and(eq(matches.searchable, true), eq(matches.tour, tour), eq(matches.tier, "slam"), inArray(matches.round, ["SF", "F"]), slam ? eq(matches.event, slam) : undefined),
-    )
-    .orderBy(sql`random()`)
-    .limit(1);
-  return row?.id ?? null;
+export async function randomStoryId(event?: string) {
+  const first = Math.random() < ATP_SHARE ? "atp" : "wta";
+  for (const tour of [first, first === "atp" ? "wta" : "atp"]) {
+    const [row] = await getDb()
+      .select({ id: matches.id })
+      .from(matches)
+      .where(
+        and(
+          eq(matches.searchable, true),
+          eq(matches.tour, tour),
+          inArray(matches.round, ["SF", "F"]),
+          event ? eq(matches.event, event) : eq(matches.tier, "slam"),
+        ),
+      )
+      .orderBy(sql`random()`)
+      .limit(1);
+    if (row) return row.id;
+  }
+  return null;
 }

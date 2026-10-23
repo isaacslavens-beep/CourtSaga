@@ -11,6 +11,7 @@ import { vocabulary } from "./search-words";
 import {
   diaryPages,
   findRivalries,
+  masters,
   toFanEntry,
   toMatches,
   type MatchRow,
@@ -347,12 +348,18 @@ export async function findMatches(ids: string[]) {
   return ids.flatMap((id) => byId.get(id) ?? []);
 }
 
-/** Every Slam final in the data, both tours, newest first: where Explore starts */
-export async function slamFinals() {
+/** Every final at the Slams and the Masters 1000s in the data, both tours, newest first: where Explore starts */
+export async function bigFinals() {
   "use cache";
   cacheLife("days");
   const rows = await selectMatches()
-    .where(and(eq(matches.tier, "slam"), eq(matches.round, "F"), eq(matches.searchable, true)))
+    .where(
+      and(
+        or(eq(matches.tier, "slam"), inArray(matches.event, masters.map((m) => m.event))),
+        eq(matches.round, "F"),
+        eq(matches.searchable, true),
+      ),
+    )
     .orderBy(desc(matches.playedOn), asc(matches.tour));
   return rows.map(toRow);
 }

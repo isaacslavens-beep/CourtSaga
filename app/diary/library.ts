@@ -180,6 +180,19 @@ export function eventLabel(m: Match) {
 export const slams = ["Australian Open", "Roland Garros", "Wimbledon", "US Open"] as const;
 export type Tournament = (typeof slams)[number] | "Other events";
 export const tournaments: Tournament[] = [...slams, "Other events"];
+/** The nine Masters 1000s, in calendar order: the data's event name and the city to show */
+export const masters = [
+  { event: "Indian Wells", city: "Indian Wells" },
+  { event: "Miami", city: "Miami" },
+  { event: "Monte Carlo", city: "Monte Carlo" },
+  { event: "Madrid", city: "Madrid" },
+  { event: "Rome", city: "Rome" },
+  { event: "Canada", city: "Toronto / Montreal" },
+  { event: "Cincinnati", city: "Cincinnati" },
+  { event: "Shanghai", city: "Shanghai" },
+  { event: "Paris Masters", city: "Paris" },
+] as const;
+
 export const tournamentOf = (m: Match): Tournament => slams.find((t) => m.event.startsWith(t)) ?? "Other events";
 
 export function involves(m: Match, a: string, b?: string) {
