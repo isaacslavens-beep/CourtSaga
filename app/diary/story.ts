@@ -215,6 +215,48 @@ function pointsOf(m: Played) {
 
 const gamesOf = (m: Played) => parseScore(m.score).sets.filter((x) => !x.super).reduce((a, x) => ({ w: a.w + x.w, l: a.l + x.l }), { w: 0, l: 0 });
 
+/**
+ * What players already active when the data begins had done at the Slams before it: [titles, finals].
+ * With these, a Slam count for them is whole (Federer's first Slam was Wimbledon 2003, Agassi's 2003
+ * Australian Open his 8th). Anyone active then who isn't listed gets no Slam firsts and counts say "since".
+ */
+const slamsBefore: Record<string, [titles: number, finals: number]> = {
+  "atp:F324": [0, 0], // Federer
+  "atp:R485": [0, 0], // Roddick
+  "atp:A092": [7, 13], // Agassi
+  "atp:H432": [2, 2], // Hewitt
+  "atp:S741": [1, 2], // Safin
+  "atp:K293": [3, 3], // Kuerten
+  "atp:M605": [1, 2], // Moya
+  "atp:F316": [0, 1], // Ferrero
+  "atp:C378": [1, 1], // Costa
+  "atp:J129": [1, 1], // Johansson
+  "atp:I034": [1, 4], // Ivanisevic
+  "atp:K267": [2, 3], // Kafelnikov
+  "atp:P338": [0, 1], // Philippoussis
+  "atp:N301": [0, 1], // Nalbandian
+  "atp:C487": [0, 1], // Clement
+  "atp:M442": [0, 2], // Martin
+  "atp:C344": [0, 2], // Corretja
+  "atp:N250": [0, 1], // Norman
+  "atp:R286": [0, 1], // Rios
+  "atp:C274": [1, 4], // Chang
+  "atp:R237": [0, 1], // Rusedski
+  "atp:K214": [1, 1], // Krajicek
+  "atp:E113": [0, 1], // Enqvist
+  "wta:200033": [4, 5], // Serena Williams
+  "wta:200748": [4, 8], // Venus Williams
+  "wta:200077": [3, 3], // Capriati
+  "wta:200128": [3, 5], // Davenport
+  "wta:200001": [5, 12], // Hingis
+  "wta:200652": [9, 13], // Seles
+  "wta:200003": [0, 1], // Henin
+  "wta:200079": [0, 1], // Clijsters
+  "wta:200065": [0, 1], // Mauresmo
+  "wta:200096": [2, 4], // Pierce
+  "wta:200049": [1, 3], // Martinez
+};
+
 /* ---------- Telling it ---------- */
 
 export function tellStory(input: StoryInput): Story {
@@ -247,14 +289,20 @@ export function tellStory(input: StoryInput): Story {
   const allOf = (p: string) => [...(careers[p] ?? [])].sort(chron);
   const career = { [A]: careerOf(A), [B]: careerOf(B) };
   const at = (p: string) => career[p].findIndex((m) => m.id === F.id);
-  // Whether the data holds a player's whole tour-level career: they first appear after its first
-  // season, or as a teenager in it. Otherwise "first" and "only" claims aren't safe.
+  // Whether the data holds a player's whole tour-level career: they first appear as a teenager, or
+  // young after its first season (a 25-year-old first seen in 2005 is coming back, not starting out).
+  // Otherwise "first" and "only" claims aren't safe.
   const whole = (p: string) => {
     const first = career[p][0];
     if (!first) return false;
     const age = first.w === p ? first.wa : first.la;
-    return first.season > from || (age !== null && age < 19);
+    if (age === null) return first.season > from + 1;
+    return age < 19 || (first.season > from && age < 23);
   };
+  // Slam titles and finals from before the data, when they're known: zero for a whole career
+  const slamHistory = (p: string): [number, number] | null => (whole(p) ? [0, 0] : (slamsBefore[p] ?? null));
+  // Whether a head-to-head is whole: it is if either player's career is
+  const h2hWhole = whole(A) || whole(B);
   const since = ` since ${from}`;
   // How much of the record comes after this match, in months
   const ahead = months(F.date, last);
@@ -507,23 +555,29 @@ export function tellStory(input: StoryInput): Story {
   const lead = (x: number, y: number) => (x === y ? null : x > y ? A : B);
   const standing = (x: number, y: number) => (x === y ? `level at ${record(x, y)}` : `${who(x > y ? A : B)} ${x > y ? "led" : "led"} ${record(Math.max(x, y), Math.min(x, y))}`);
 
-  if (total === 1) {
+  // Counts and firsts in a head-to-head that began before the data say so, or aren't claimed
+  const hs = h2hWhole ? "" : since;
+  if (total === 1 && !h2hWhole) {
+    add("h2h", "only", 3, [`Their only meeting${since}`]);
+  } else if (total === 1) {
     add("h2h", "only", ahead > 12 ? 10 : 4, [ahead > 12 ? say("only", "Their only meeting", "The only time they met") : "Their first meeting"]);
   } else {
-    if (k === 0)
+    if (k === 0 && !h2hWhole) {
+      // Their first meeting in the data, not necessarily their first
+    } else if (k === 0)
       add("h2h", "first", 14 + Math.min(36, total * 1.5), [
         say("first", "Their first meeting", "Where it began"),
         `. ${cap(word(total - 1))} more would follow`,
         ...(after.length ? [": the next, ", link(after[0])] : []),
       ]);
     else if (k === total - 1 && ahead >= 12)
-      add("h2h", "last", 10 + Math.min(30, total * 1.2), [`Their last meeting, the ${ordinal(total)}. They haven't met since`]);
-    else add("h2h", "nth", 4 + Math.min(10, total / 3), [`Before it, ${standing(ab, bb)}`]);
+      add("h2h", "last", 10 + Math.min(30, total * 1.2), [h2hWhole ? `Their last meeting, the ${ordinal(total)}. They haven't met since` : "Their last meeting. They never met again"]);
+    else add("h2h", "nth", 4 + Math.min(10, total / 3), [`Before it, ${standing(ab, bb)}${hs && ` in meetings${since}`}`]);
 
     // Leads changing hands
     const was = lead(ab, bb);
     const now = lead(aa, ba);
-    if (k > 0 && was !== now) {
+    if (k > 0 && was !== now && h2hWhole) {
       const everLed = before.some((_, i) => {
         const x = winsOf(before.slice(0, i + 1), A);
         return x > i + 1 - x;
@@ -537,12 +591,14 @@ export function tellStory(input: StoryInput): Story {
     for (let i = before.length - 1; i >= 0 && before[i].w === B; i--) bRun++;
     let aRun = 1;
     for (let i = before.length - 1; i >= 0 && before[i].w === A; i--) aRun++;
-    if (bRun >= 3) add("h2h", "run-ended", 16 + bRun * 4, [`Ended ${who(B)}'s run of ${bRun} straight wins over ${who(A)}`], A);
-    if (aRun >= 4) add("h2h", "run", 6 + aRun * 2.5, [`${who(A)}'s ${ordinal(aRun)} straight win over ${who(B)}`], A);
-    if (ab === 0 && k >= 3) add("h2h", "first-win", 26 + k * 3, [`${who(A)}'s first win over ${who(B)}, at the ${ordinal(k + 1)} attempt`], A);
+    // A run that goes back to the first meeting in the data may go back further
+    const fromStart = (n: number) => !h2hWhole && n >= before.length;
+    if (bRun >= 3 && !fromStart(bRun)) add("h2h", "run-ended", 16 + bRun * 4, [`Ended ${who(B)}'s run of ${bRun} straight wins over ${who(A)}`], A);
+    if (aRun >= 4 && !fromStart(aRun - 1)) add("h2h", "run", 6 + aRun * 2.5, [`${who(A)}'s ${ordinal(aRun)} straight win over ${who(B)}`], A);
+    if (ab === 0 && k >= 3 && h2hWhole) add("h2h", "first-win", 26 + k * 3, [`${who(A)}'s first win over ${who(B)}, at the ${ordinal(k + 1)} attempt`], A);
 
     // Surfaces
-    if (F.surface !== "unknown") {
+    if (F.surface !== "unknown" && h2hWhole) {
       const onIt = before.filter((m) => m.surface === F.surface);
       const [ao, bo] = [winsOf(onIt, A), winsOf(onIt, B)];
       if (k > 0 && !onIt.length) add("h2h", "surface-first", 12 + Math.min(10, k), [`Their first meeting on ${surfaceWords[F.surface]}, at the ${ordinal(k + 1)} time of asking`]);
@@ -557,13 +613,13 @@ export function tellStory(input: StoryInput): Story {
     {
       const [ha, hb] = [winsOf(here, A), winsOf(here, B)];
       add("h2h", "here", 6 + here.length * 2.5 + 8 * stakes[F.tier], [
-        `Their ${ordinal(hk + 1)} of ${here.length} meetings ${atEvent(F.event)}, where ${ha === hb ? `they split ${record(ha, hb)}` : `${who(ha > hb ? A : B)} won ${record(Math.max(ha, hb), Math.min(ha, hb))}`}`,
+        `Their ${ordinal(hk + 1)} of ${here.length} meetings ${atEvent(F.event)}${hs}, where ${ha === hb ? `they split ${record(ha, hb)}` : `${who(ha > hb ? A : B)} won ${record(Math.max(ha, hb), Math.min(ha, hb))}`}`,
       ]);
     }
     const finals = meetings.filter((m) => m.round === "F");
     if (F.round === "F" && finals.length >= 3) {
       const fk = finals.findIndex((m) => m.id === F.id);
-      add("h2h", "finals", 8 + finals.length * 1.5, [fk === finals.length - 1 && ahead >= 12 ? `Their ${ordinal(fk + 1)} final, and their last` : `Their ${ordinal(fk + 1)} final of ${finals.length}`]);
+      add("h2h", "finals", 8 + finals.length * 1.5, [fk === finals.length - 1 && ahead >= 12 ? `Their ${ordinal(fk + 1)} final${hs}, and their last` : `Their ${ordinal(fk + 1)} final of ${finals.length}${hs}`]);
     }
 
     // A rematch of an earlier final, or of last year's
@@ -601,7 +657,7 @@ export function tellStory(input: StoryInput): Story {
       else if (run >= 3) add("after", "next-run", 14 + run * 2.5, [`${who(next.w)} won the next ${word(run)} meetings, starting at `, link(next)]);
       else add("after", "next", 10, [`They met next at `, link(next), `: ${who(next.w)} won`]);
       const [fa, fb] = [winsOf(meetings, A), winsOf(meetings, B)];
-      add("h2h", "overall", 3, [fa === fb ? `All square at ${record(fa, fb)} over ${total} meetings` : `${who(fa > fb ? A : B)} leads ${record(Math.max(fa, fb), Math.min(fa, fb))} overall`]);
+      add("h2h", "overall", 3, [fa === fb ? `All square at ${record(fa, fb)} over ${total} meetings` : `${who(fa > fb ? A : B)} leads ${record(Math.max(fa, fb), Math.min(fa, fb))} ${hs ? `in meetings${since}` : "overall"}`]);
     }
   }
 
@@ -633,7 +689,10 @@ export function tellStory(input: StoryInput): Story {
       const reached = reachedRound === "W" ? 8 : level[reachedRound];
       const stage = reachedRound === "W" ? "title" : roundNoun({ round: reachedRound, tier: F.tier });
       const bestBefore = Math.max(0, ...prior.map((e) => e.level));
-      const isWhole = whole(p) || prior.length === 0 || prior[0].season > from;
+      // Every appearance here is in the data only for a whole career; for a Slam, the titles are known
+      // whenever the player's Slam titles are (none before the data means none here either)
+      const isWhole = whole(p);
+      const titlesKnown = isWhole || (isSlam(F) && slamHistory(p)?.[0] === 0);
 
       // Titles
       if (p === A && F.round === "F") {
@@ -644,13 +703,14 @@ export function tellStory(input: StoryInput): Story {
           return c;
         })();
         if (streakTitles >= 3) add("event", "title-row", 30 + streakTitles * 6, [`${who(A)}'s ${ordinal(streakTitles)} ${F.event} title in a row`], A);
-        else if (n > 1) add("event", "title-n", 14 + n * 4 + 10 * stakes[F.tier], [`${who(A)}'s ${ordinal(n)} ${F.event} title${isWhole ? "" : since}`], A);
+        else if (n > 1) add("event", "title-n", 14 + n * 4 + 10 * stakes[F.tier], [`${who(A)}'s ${ordinal(n)} ${F.event} title${titlesKnown ? "" : since}`], A);
         else if (prior.length >= 3 && isWhole)
           add("event", "title-first", 22 + prior.length * 2.5, [`${who(A)}'s first ${F.event} title, at the ${ordinal(prior.length + 1)} attempt`], A);
+        else if (titlesKnown && !isWhole) add("event", "title-first", 18 + 10 * stakes[F.tier], [`${who(A)}'s first ${F.event} title`], A);
       }
 
       // Further than ever before
-      if (prior.length >= 3 && reached > bestBefore && !(p === A && F.round === "F") && reached >= 5) {
+      if (isWhole && prior.length >= 3 && reached > bestBefore && !(p === A && F.round === "F") && reached >= 5) {
         add("event", `best-${p}`, 14 + prior.length * 2 + 15 * stakes[F.tier], [`${who(p)}'s first ${stage} ${atEvent(F.event)}, at the ${ordinal(prior.length + 1)} attempt`], p);
       }
 
@@ -673,8 +733,10 @@ export function tellStory(input: StoryInput): Story {
       const idx = rowsHere.findIndex((m) => m.id === F.id);
       let run = 0;
       for (let i = idx - 1; i >= 0 && rowsHere[i].w === p; i--) run++;
-      if (p === B && run >= 8) add("event", "run-ended", 22 + run * 1.2 + 10 * stakes[F.tier], [`Ended ${who(B)}'s ${run}-match winning streak ${atEvent(F.event)}`], A);
-      if (p === A && run + 1 >= 12) add("event", "run", 8 + run * 0.6, [`${who(A)}'s ${ordinal(run + 1)} straight win ${atEvent(F.event)}`], A);
+      // A run that goes back to the first match in the data may have started earlier
+      const edge = !isWhole && run === idx;
+      if (p === B && run >= 8 && !edge) add("event", "run-ended", 22 + run * 1.2 + 10 * stakes[F.tier], [`Ended ${who(B)}'s ${run}-match winning streak ${atEvent(F.event)}`], A);
+      if (p === A && run + 1 >= 12 && !edge) add("event", "run", 8 + run * 0.6, [`${who(A)}'s ${ordinal(run + 1)} straight win ${atEvent(F.event)}`], A);
 
       // What came of it here
       const futureEditions = editions.filter((e) => e > F.season).length;
@@ -717,11 +779,11 @@ export function tellStory(input: StoryInput): Story {
     if (l === 0 && w >= 10) {
       if (won) add("season", `unbeaten-${p}`, 16 + w * 0.8, [`${who(p)} came in unbeaten in ${F.season}: ${record(w, 0)}`], p);
       else add("season", `first-loss-${p}`, 26 + w * 1.2, [`${who(p)}'s first loss of ${F.season}, after ${w} wins`], A);
-    } else if (!won && streak >= 10) {
+    } else if (!won && streak >= 10 && (whole(p) || streak < ci)) {
       const started = c[ci - streak];
       add("season", `streak-ended-${p}`, 22 + streak * 1.1, [`Ended ${who(p)}'s ${streak}-match winning streak, which began at `, link(started)], A);
       follow(started, `Where ${who(p)}'s streak began`, 12);
-    } else if (won && streak + 1 >= 12) {
+    } else if (won && streak + 1 >= 12 && (whole(p) || streak < ci)) {
       add("season", `streak-${p}`, 8 + streak * 0.7, [`${who(p)}'s ${ordinal(streak + 1)} win in a row`], p);
     }
 
@@ -847,17 +909,24 @@ export function tellStory(input: StoryInput): Story {
     // Slam finals: a first, a count, a last
     if (F.round === "F" && isSlam(F)) {
       const slamFinals = c.filter((m) => isSlam(m) && m.round === "F");
-      const j = slamFinals.findIndex((m) => m.id === F.id);
       const slamWins = slamFinals.filter((m) => m.w === p);
+      // Counted from the player's real first Slam when what came before the data is known
+      const history = slamHistory(p);
+      const known = history !== null;
+      const [titlesBefore, finalsBefore] = history ?? [0, 0];
+      const j = slamFinals.findIndex((m) => m.id === F.id) + finalsBefore;
+      const allFinals = slamFinals.length + finalsBefore;
+      const allTitles = slamWins.length + titlesBefore;
+      const tail = known ? "" : since;
       if (won) {
-        const n = slamWins.findIndex((m) => m.id === F.id) + 1;
-        if (n === 1 && isWhole) add("match", "first-slam", 34, [`${who(p)}'s first Slam title`], p);
-        else if (n > 1) add("match", "slam-n", 12 + n * 1.6, [`${who(p)}'s ${ordinal(n)} Slam title${isWhole ? "" : since}`], p);
-        if (slamWins.length === 1 && isWhole && ahead >= 24) add("after", "only-slam", 30, [`${who(p)}'s only Slam title`], p);
-      } else if (j === 0 && isWhole) add("match", "first-slam-final-lost", 16, [`${who(p)}'s first Slam final`], p);
-      if (j === slamFinals.length - 1 && ahead >= 24 && (j > 0 || isWhole))
-        add("after", `last-slam-final-${p}`, 22 + slamFinals.length, [
-          slamFinals.length === 1 ? `${who(p)}'s only Slam final` : `${who(p)}'s last Slam final, the ${ordinal(slamFinals.length)}${isWhole ? "" : since}`,
+        const n = slamWins.findIndex((m) => m.id === F.id) + 1 + titlesBefore;
+        if (n === 1 && known) add("match", "first-slam", 34, [`${who(p)}'s first Slam title`], p);
+        else if (n > 1) add("match", "slam-n", 12 + n * 1.6, [`${who(p)}'s ${ordinal(n)} Slam title${tail}`], p);
+        if (allTitles === 1 && known && ahead >= 24) add("after", "only-slam", 30, [`${who(p)}'s only Slam title`], p);
+      } else if (j === 0 && known) add("match", "first-slam-final-lost", 16, [`${who(p)}'s first Slam final`], p);
+      if (j === allFinals - 1 && ahead >= 24 && (j > 0 || known))
+        add("after", `last-slam-final-${p}`, 22 + allFinals, [
+          allFinals === 1 && known ? `${who(p)}'s only Slam final` : `${who(p)}'s last Slam final, the ${ordinal(allFinals)}${tail}`,
         ], p);
     } else if (F.round === "F" && won && isWhole) {
       const titles = c.filter((m) => m.round === "F" && m.w === p);
@@ -883,7 +952,7 @@ export function tellStory(input: StoryInput): Story {
       for (const [mark, noun] of [[6, "semifinal"], [5, "quarterfinal"]] as const) {
         let run = 0;
         for (let j = here - 1; j >= 0 && slamEds[j].level >= mark; j--) run++;
-        if (run < 6) continue;
+        if (run < 6 || (run === here && !whole(p))) continue;
         if (!won && level[F.round] < mark) {
           add("event", `slam-run-ended-${p}`, 26 + run * 1.2, [`Ended ${who(p)}'s run of ${run} straight Slam ${noun}s`], A);
           break;
@@ -1047,7 +1116,7 @@ export function tellStory(input: StoryInput): Story {
     match: { title: "The match", kicker: [F.minutes ? hm(F.minutes) : null, `${sets.length} sets`].filter(Boolean).join(" · "), visual: statsVisual },
     h2h: {
       title: "Head to head",
-      kicker: total > 1 ? `Meeting ${k + 1} of ${total} · ${record(aa, ba)} after it` : "Their only meeting",
+      kicker: total > 1 ? `Meeting ${k + 1} of ${total}${hs} · ${record(aa, ba)} after it` : `Their only meeting${hs}`,
       visual: h2hVisual,
     },
     event: { title: cap(atEvent(F.event)), kicker: `Every year, ${editions[0] ?? F.season} on`, visual: eventVisual },
