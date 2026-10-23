@@ -7,7 +7,7 @@ import { getDb, type Db } from "@/db";
 import { diaryEntries, sagaShares } from "@/db/schema";
 import { requireUser } from "@/lib/auth";
 import { findMatch } from "@/lib/diary";
-import { placeByRating, reorderSlots, type StoredEntry } from "../diary/library";
+import { placeByRating, type StoredEntry } from "../diary/library";
 
 // Keeping a diary. Every action checks the session itself and only ever touches that fan's own rows.
 
@@ -37,7 +37,7 @@ const columns = (e: Partial<StoredEntry>) => ({
   ...(e.classic !== undefined && { classic: e.classic }),
 });
 
-/** One fan's writes at a time, so two tabs can't scramble the ranking */
+/** One fan's writes at a time, so two tabs can't scramble the order */
 async function lockDiary(tx: Tx, userId: string) {
   await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${userId}))`);
 }
@@ -50,7 +50,7 @@ async function currentOrder(tx: Tx, userId: string) {
     .orderBy(asc(diaryEntries.position), asc(diaryEntries.createdAt));
 }
 
-/** Store a ranking: each match's position is its place in `order` */
+/** Store the order: each match's position is its place in `order` */
 async function saveOrder(tx: Tx, userId: string, order: string[]) {
   const places = JSON.stringify(order.map((id, position) => ({ id, position })));
   await tx.execute(sql`
@@ -59,7 +59,7 @@ async function saveOrder(tx: Tx, userId: string, order: string[]) {
     where d.user_id = ${userId} and d.match_id = v.id and d.position <> v.position`);
 }
 
-/** Log a match. It joins the ranking above every match rated lower. */
+/** Log a match. It goes in above every match rated lower, which is how the saga picks favourites. */
 export async function addEntry(id: string, page: StoredEntry) {
   const user = await requireUser();
   const valid = { id: matchId.parse(id), entry: entry.parse(page) };
@@ -105,20 +105,6 @@ export async function removeEntry(id: string) {
   await getDb()
     .delete(diaryEntries)
     .where(and(eq(diaryEntries.userId, user.id), eq(diaryEntries.matchId, matchId.parse(id))));
-}
-
-/** Put some matches (one tournament's) in a new order, in the ranking slots they already hold */
-export async function reorderEntries(ids: string[]) {
-  const user = await requireUser();
-  const moving = z.array(matchId).max(10_000).parse(ids);
-  if (new Set(moving).size !== moving.length) throw new Error("A match can only be in one place.");
-  await getDb().transaction(async (tx) => {
-    await lockDiary(tx, user.id);
-    const order = (await currentOrder(tx, user.id)).map((r) => r.id);
-    const known = new Set(order);
-    // Ignore anything no longer in the diary (torn out in another tab, say)
-    await saveOrder(tx, user.id, reorderSlots(order, moving.filter((m) => known.has(m))));
-  });
 }
 
 /* ---------- Sharing the saga ---------- */

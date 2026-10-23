@@ -2,7 +2,7 @@
 // each fan's diary. Migrations in drizzle/ are generated from this file with `npm run db:generate`.
 
 import { sql } from "drizzle-orm";
-import { bigint, boolean, check, customType, date, foreignKey, index, integer, pgTable, primaryKey, smallint, text, timestamp } from "drizzle-orm/pg-core";
+import { bigint, boolean, check, customType, date, foreignKey, index, integer, pgTable, primaryKey, real, smallint, text, timestamp } from "drizzle-orm/pg-core";
 
 const tsvector = customType<{ data: string }>({ dataType: () => "tsvector" });
 
@@ -97,6 +97,8 @@ export const players = pgTable(
     name: text("name").notNull(), // full name, the most recent spelling
     shortName: text("short_name").notNull(), // the surname, as the site shows players
     ioc: text("ioc"),
+    hand: text("hand"), // R | L | U (unknown), from their latest match
+    height: smallint("height"), // centimetres
     searchName: text("search_name").notNull(), // lower case without accents, for fuzzy search
     matchCount: integer("match_count").notNull(),
     lastSeen: date("last_seen").notNull(), // the latest match their name and country were taken from
@@ -130,6 +132,23 @@ export const matches = pgTable(
     bestOf: smallint("best_of").notNull(),
     outcome: text("outcome").notNull(), // completed | retired | defaulted | abandoned | walkover | unplayed
     minutes: integer("minutes"),
+    // Each player as they came into the match: seed, how they got in (Q qualifier, WC wildcard, LL lucky
+    // loser, PR protected ranking, ...), ranking, ranking points and age in years
+    winnerSeed: smallint("winner_seed"),
+    winnerEntry: text("winner_entry"),
+    winnerRank: integer("winner_rank"),
+    winnerPoints: integer("winner_points"),
+    winnerAge: real("winner_age"),
+    loserSeed: smallint("loser_seed"),
+    loserEntry: text("loser_entry"),
+    loserRank: integer("loser_rank"),
+    loserPoints: integer("loser_points"),
+    loserAge: real("loser_age"),
+    // Serve stats, winner then loser, as the data has them: aces, double faults, points served, first serves
+    // in, first-serve points won, second-serve points won, service games, break points saved and faced.
+    // Null where the data has none.
+    winnerStats: smallint("winner_stats").array(),
+    loserStats: smallint("loser_stats").array(),
     // Walkovers and empty scores never happened as matches: kept, but never found by search
     searchable: boolean("searchable").notNull(),
     search: tsvector("search").notNull(),
@@ -142,6 +161,9 @@ export const matches = pgTable(
     index("matches_winner_idx").on(t.tour, t.winnerId, t.loserId),
     index("matches_loser_idx").on(t.tour, t.loserId, t.winnerId),
     index("matches_played_idx").on(t.playedOn),
+    index("matches_event_idx").on(t.tour, t.event),
+    index("matches_tourney_idx").on(t.tour, t.tourneyId),
+    index("matches_peer_idx").on(t.tour, t.tier, t.round),
   ],
 );
 

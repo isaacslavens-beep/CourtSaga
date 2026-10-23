@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 
 /* The diary's three parts, each with its number, its verb and a plain line about it: write it (the log),
-   sort it (the ranking), read it back (the saga). Used on the landing page and on the diary's pages. */
+   explore around it, read it back (the saga). Used on the landing page and on the diary's pages. */
 
 const DownArrow = ({ className }: { className: string }) => (
   <svg viewBox="0 0 16 16" aria-hidden className={`fill-none stroke-current ${className}`} strokeLinecap="round" strokeLinejoin="round">

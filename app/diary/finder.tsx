@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { glideTo } from "../glide";
 import { TournamentLabel } from "../match-ui";
@@ -7,8 +9,8 @@ import { Avatar } from "./fun";
 import { diaryPages, eventLabel, scoreText, toMatches, type MatchRow } from "./library";
 import { useLog } from "./store";
 
-/* Finding a match to log: players, tournament, year and round, in any order. Picking one opens its page
-   in the log below, logged or not. */
+/* Finding a match: players, tournament, year and round, in any order. In the log, picking one opens its
+   page below, logged or not; when exploring, it opens the story around it. */
 
 type Results = { results: MatchRow[]; total: number; page: number; pages: number; size: number; query: string; corrected: string | null };
 
@@ -17,8 +19,9 @@ const examples = ["alcaraz sinner", "wimbledon 2008 final", "sabalenka ao 2023"]
 /** A search for a season after the last one in the data */
 const notInYet = (query: string, last: number) => (query.match(/\b(19|20)\d{2}\b/g) ?? []).some((y) => Number(y) > last);
 
-export function MatchFinder({ seasons }: { seasons: [number, number] | null }) {
+export function MatchFinder({ seasons, explore = false }: { seasons: [number, number] | null; explore?: boolean }) {
   const { matches, entries, view } = useLog();
+  const router = useRouter();
   const pages = diaryPages(entries, matches);
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
@@ -57,6 +60,10 @@ export function MatchFinder({ seasons }: { seasons: [number, number] | null }) {
     setPage(1);
   };
   const open = (row: MatchRow) => {
+    if (explore) {
+      setQuery("");
+      return router.push(`/explore?m=${encodeURIComponent(row.id)}`, { scroll: false });
+    }
     view(row);
     glideTo(document.getElementById("your-log"), "start", 0);
   };
@@ -104,6 +111,11 @@ export function MatchFinder({ seasons }: { seasons: [number, number] | null }) {
               {q}
             </button>
           ))}
+          {explore && (
+            <Link href="/explore?m=random" scroll={false} className="rounded-full bg-court px-2.5 py-0.5 font-semibold text-court-ink transition hover:brightness-110">
+              Surprise me
+            </Link>
+          )}
         </p>
       )}
 
@@ -152,11 +164,11 @@ export function MatchFinder({ seasons }: { seasons: [number, number] | null }) {
                             <span className="whitespace-nowrap font-mono text-muted">{scoreText(row.score)}</span>
                           </span>
                         </span>
-                        {page ? (
+                        {page && !explore ? (
                           <span className="shrink-0 rounded-full bg-ball/40 px-2.5 py-1 text-sm font-semibold">Page {page}</span>
                         ) : (
                           <span className="shrink-0 rounded-full border-2 border-line px-2.5 py-0.5 text-sm font-semibold text-court transition group-hover:border-court">
-                            Open
+                            {explore ? "Explore" : "Open"}
                           </span>
                         )}
                       </button>

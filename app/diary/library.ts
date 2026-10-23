@@ -1,4 +1,4 @@
-// The diary's vocabulary: matches, a fan's entries, and the small rules the log, the ranking and the saga
+// The diary's vocabulary: matches, a fan's entries, and the small rules the log, exploring and the saga
 // share. The landing page's demos run these over a sample log (app/demos/sample.ts); signed-in fans run
 // them over their own diary, with matches from the database.
 
@@ -285,14 +285,7 @@ export function findRivalries(log: Record<string, FanEntry>, matches: Record<str
 
 export const rivalryOf = (m: Match, rivalries: Rivalry[]) => rivalries.find((r) => involves(m, ...r.players));
 
-/** Put some matches (one tournament's, say) in a new order, in the ranking slots they already hold. */
-export function reorderSlots(order: string[], ids: string[]) {
-  const moving = new Set(ids);
-  const queue = [...ids];
-  return order.map((id) => (moving.has(id) ? queue.shift()! : id));
-}
-
-/** Where a newly logged match first goes in the ranking: above every match you rated lower. */
+/** Where a newly logged match goes in the order: above every match you rated lower. */
 export function placeByRating(order: string[], ratingOf: (id: string) => number, id: string, rating: number) {
   const at = order.findIndex((other) => ratingOf(other) < rating);
   return at < 0 ? [...order, id] : [...order.slice(0, at), id, ...order.slice(at)];

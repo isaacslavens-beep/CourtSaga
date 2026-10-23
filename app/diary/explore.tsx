@@ -1,0 +1,618 @@
+"use client";
+
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { glideTo } from "../glide";
+import { HighlightsLink, TournamentLabel } from "../match-ui";
+import { Avatar, CourtArt, chartStyles } from "./fun";
+import { diaryPages, roundName, scoreText, type Match, type MatchRow, type Round } from "./library";
+import { highlightVideos } from "./media";
+import { Scoreboard } from "./log";
+import { useLog } from "./store";
+import type { DrawVisual, EventVisual, Fact, H2HVisual, Part, SeasonVisual, StatsVisual, Story, Thread } from "./story";
+
+/* Exploring one match at a time: the story around it from the whole record (see story.ts), with every
+   match it mentions one click away. Signed in, each match is its own address (/explore?m=…), so the
+   back button walks back along the trail; on the landing page the demo fetches stories as you go. */
+
+type Follow = (id: string) => void;
+
+/** Story pages are about the match data; a demo diary keys its pages by the sample's own ids */
+function usePages(toLocal: (id: string) => string | undefined = (id) => id) {
+  const { matches, entries } = useLog();
+  const pages = useMemo(() => diaryPages(entries, matches), [entries, matches]);
+  return (id: string) => {
+    const local = toLocal(id);
+    return local ? (pages.get(local) ?? null) : null;
+  };
+}
+
+/* ---------- Pieces ---------- */
+
+const linkClass = "cursor-pointer font-semibold text-court underline decoration-court/30 decoration-2 underline-offset-4 transition hover:decoration-court";
+
+function Parts({ parts, follow }: { parts: Part[]; follow: Follow }) {
+  return (
+    <>
+      {parts.map((p, i) =>
+        typeof p === "string" ? (
+          <span key={i}>{p}</span>
+        ) : (
+          <button key={i} type="button" onClick={() => follow(p.ref)} className={linkClass}>
+            {p.text}
+          </button>
+        ),
+      )}
+    </>
+  );
+}
+
+/** A line of the story, with a dot in the colour of the player it's about */
+function FactLine({ fact, follow, colors }: { fact: Fact; follow: Follow; colors: Record<"a" | "b", string> }) {
+  return (
+    <li className="flex gap-3">
+      <span aria-hidden className="mt-2 h-2 w-2 shrink-0 rounded-full" style={{ background: fact.side ? colors[fact.side] : "var(--line)" }} />
+      <span className="min-w-0 leading-relaxed">
+        <Parts parts={fact.parts} follow={follow} />
+      </span>
+    </li>
+  );
+}
+
+const resultTitle: Record<string, string> = { W: "Won the title", F: "Final", SF: "Semifinal", QF: "Quarterfinal", RR: "Round robin" };
+const resultLevel: Record<string, number> = { W: 8, F: 7, SF: 6, QF: 5, RR: 4.5, R16: 4, "4R": 4, R32: 3, "3R": 3, R64: 2, "2R": 2, R128: 1, "1R": 1 };
+const shortSeason = (y: number) => `’${String(y).slice(2)}`;
+
+/* ---------- The pictures ---------- */
+
+/** Every meeting, in order: wins for the first player above the line, for the second below it */
+function H2HStrip({ v, story, colors, follow }: { v: H2HVisual; story: Story; colors: Record<"a" | "b", string>; follow: Follow }) {
+  const n = v.meetings.length;
+  const labels = new Set<number>();
+  let lastAt = -99;
+  v.meetings.forEach((m, i) => {
+    if ((i === 0 || m.year !== v.meetings[i - 1].year) && i - lastAt >= Math.max(3, Math.ceil(n / 8))) {
+      labels.add(i);
+      lastAt = i;
+    }
+  });
+  const dot = (m: H2HVisual["meetings"][number], on: "a" | "b") =>
+    m.winner === on ? (
+      <span
+        className={`block aspect-square w-full max-w-3 rounded-full ${m.focus ? "ring-2 ring-ball ring-offset-2 ring-offset-surface" : ""}`}
+        style={{ background: colors[on], opacity: m.big || m.focus ? 1 : 0.45 }}
+      />
+    ) : (
+      <span className="block aspect-square w-full max-w-3" />
+    );
+  return (
+    <div>
+      <div className="grid items-center gap-x-0.5" style={{ gridTemplateColumns: `repeat(${n}, minmax(0, 1fr))` }}>
+        {v.meetings.map((m) => (
+          <button
+            key={m.id}
+            type="button"
+            title={`${m.label}: ${story.names[m.winner === "a" ? story.a.key : story.b.key]} won`}
+            onClick={() => !m.focus && follow(m.id)}
+            className={`group flex flex-col items-center gap-1.5 rounded-sm py-1 ${m.focus ? "cursor-default" : "cursor-pointer hover:bg-court/10"}`}
+          >
+            {dot(m, "a")}
+            <span className="block h-px w-full bg-line" />
+            {dot(m, "b")}
+          </button>
+        ))}
+      </div>
+      <div className="relative mt-1 h-4 text-[11px] text-muted">
+        {[...labels].map((i) => (
+          <span key={i} className="absolute -translate-x-1/2 tabular-nums" style={{ left: `${((i + 0.5) / n) * 100}%` }}>
+            {v.meetings[i].year}
+          </span>
+        ))}
+      </div>
+      <p className="mt-1 text-xs text-muted">Solid dots are finals and the last eight of Slams. Ringed: this match.</p>
+    </div>
+  );
+}
+
+/** Each player's result at the event, year by year, as a bar: the taller, the further they went */
+function EventBars({ v, story, colors, follow }: { v: EventVisual; story: Story; colors: Record<"a" | "b", string>; follow: Follow }) {
+  const n = v.seasons.length;
+  const focusAt = v.seasons.indexOf(story.season);
+  const tickEvery = n > 16 ? 4 : n > 8 ? 2 : 1;
+  return (
+    <div className="space-y-3">
+      {v.rows.map((row) => {
+        const key = row.side === "a" ? story.a.key : story.b.key;
+        return (
+          <div key={row.side}>
+            <p className="flex items-center gap-2 text-sm">
+              <Avatar name={story.names[key]} size="h-6 w-6 text-[10px]" />
+              <span className="font-semibold">{story.names[key]}</span>
+              <span className="text-muted">
+                {row.record[0]}–{row.record[1]}
+                {row.titles ? ` · ${row.titles} ${row.titles === 1 ? "title" : "titles"}` : ""}
+              </span>
+            </p>
+            <div className="relative mt-1.5 grid h-12 items-end gap-x-0.5" style={{ gridTemplateColumns: `repeat(${n}, minmax(0, 1fr))` }}>
+              {focusAt >= 0 && <span aria-hidden className="absolute inset-y-0 rounded bg-ball/30" style={{ left: `${(focusAt / n) * 100}%`, width: `${100 / n}%` }} />}
+              {row.cells.map((cell, i) =>
+                cell ? (
+                  <button
+                    key={i}
+                    type="button"
+                    title={`${v.seasons[i]}: ${resultTitle[cell.result] ?? cell.result}`}
+                    onClick={() => follow(cell.id)}
+                    className="relative cursor-pointer rounded-t-[3px] transition hover:brightness-110"
+                    style={{
+                      height: `${(resultLevel[cell.result] / 8) * 100}%`,
+                      background: cell.won ? "var(--ball)" : colors[row.side],
+                      boxShadow: cell.won ? "inset 0 0 0 1.5px rgb(0 0 0 / 0.25)" : undefined,
+                    }}
+                  />
+                ) : (
+                  <span key={i} aria-hidden className="relative mx-auto mb-0.5 h-1 w-1 rounded-full bg-line" />
+                ),
+              )}
+            </div>
+          </div>
+        );
+      })}
+      <div className="relative h-4 text-[11px] tabular-nums text-muted">
+        {v.seasons.map((y, i) =>
+          i % tickEvery === 0 || i === focusAt ? (
+            <span key={y} className={`absolute -translate-x-1/2 ${i === focusAt ? "font-bold text-foreground" : ""} ${i !== focusAt && Math.abs(i - focusAt) < tickEvery ? "hidden" : ""}`} style={{ left: `${((i + 0.5) / n) * 100}%` }}>
+              {shortSeason(y)}
+            </span>
+          ) : null,
+        )}
+      </div>
+      <p className="text-xs text-muted">The taller the bar, the further they went. Yellow: won the title.</p>
+    </div>
+  );
+}
+
+/** Each player's season, event by event: a tick for every match, tall for a win */
+function SeasonTicks({ v, story, colors, follow }: { v: SeasonVisual; story: Story; colors: Record<"a" | "b", string>; follow: Follow }) {
+  return (
+    <div className="space-y-4">
+      {v.rows.map((row) => {
+        const key = row.side === "a" ? story.a.key : story.b.key;
+        return (
+          <div key={row.side}>
+            <p className="flex items-center gap-2 text-sm">
+              <Avatar name={story.names[key]} size="h-6 w-6 text-[10px]" />
+              <span className="font-semibold">{story.names[key]}</span>
+              <span className="text-muted">
+                {row.record[0]}–{row.record[1]} in {story.season}
+              </span>
+            </p>
+            <div className="mt-2 flex flex-wrap items-end gap-x-2 gap-y-2">
+              {row.events.map((e, ei) => (
+                <span key={ei} className={`flex items-end gap-[2px] border-b-2 pb-0.5 ${e.result === "W" ? "border-ball" : "border-transparent"}`} title={`${e.event}: ${resultTitle[e.result] ?? e.result}`}>
+                  {e.matches.map((m) => (
+                    <button
+                      key={m.id}
+                      type="button"
+                      title={`${e.event}: ${m.won ? "beat" : "lost to"} ${story.names[m.opp] ?? ""}`}
+                      onClick={() => !m.focus && follow(m.id)}
+                      className={`w-1.5 rounded-[2px] ${m.won ? "h-4" : "h-2"} ${m.focus ? "outline-2 outline-offset-2 outline-[var(--ball)] [outline-style:solid]" : "cursor-pointer hover:brightness-110"}`}
+                      style={{ background: m.won ? colors[row.side] : "var(--line)" }}
+                    />
+                  ))}
+                </span>
+              ))}
+            </div>
+          </div>
+        );
+      })}
+      <p className="text-xs text-muted">A tall tick is a win, a short one a loss; a yellow line under an event, a title.</p>
+    </div>
+  );
+}
+
+const roundCodes: Record<Round, string> = { R128: "R128", R64: "R64", R32: "R32", R16: "R16", QF: "QF", SF: "SF", F: "F", RR: "RR", BR: "BR", "3P": "3P" };
+
+/** Each player's way through the draw */
+function DrawPaths({ v, story, follow }: { v: DrawVisual; story: Story; follow: Follow }) {
+  return (
+    <div className="grid gap-4 sm:grid-cols-2">
+      {v.paths.map((path) => {
+        const key = path.side === "a" ? story.a.key : story.b.key;
+        return (
+          <div key={path.side} className="min-w-0">
+            <p className="flex items-center gap-2 text-sm font-semibold">
+              <Avatar name={story.names[key]} size="h-6 w-6 text-[10px]" />
+              {story.names[key]}
+            </p>
+            <ol className="mt-2 space-y-0.5 text-sm">
+              {path.steps.map((st) => (
+                <li key={st.id}>
+                  <button
+                    type="button"
+                    onClick={() => !st.focus && follow(st.id)}
+                    className={`flex w-full items-baseline gap-2 rounded-lg px-2 py-1 text-left ${st.focus ? "bg-ball/35" : "cursor-pointer hover:bg-court/10"}`}
+                  >
+                    <span className="w-9 shrink-0 font-mono text-xs text-muted">{roundCodes[st.round]}</span>
+                    <span className={`min-w-0 flex-1 truncate ${st.won ? "" : "text-muted line-through decoration-fault/50"}`}>
+                      {st.won ? "beat" : "lost to"} {story.names[st.opp]}
+                      {st.oppSeed ? <span className="text-muted"> ({st.oppSeed})</span> : null}
+                    </span>
+                    <span className="shrink-0 font-mono text-xs text-muted">{scoreText(st.score)}</span>
+                  </button>
+                </li>
+              ))}
+            </ol>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function StatsTable({ v, story, colors }: { v: StatsVisual; story: Story; colors: Record<"a" | "b", string> }) {
+  return (
+    <div className="text-sm">
+      <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-x-3 border-b border-line pb-2 font-semibold">
+        <span className="flex items-center gap-2 truncate">
+          <Avatar name={story.names[story.a.key]} size="h-6 w-6 text-[10px]" />
+          <span className="truncate">{story.names[story.a.key]}</span>
+        </span>
+        <span />
+        <span className="flex items-center justify-end gap-2 truncate">
+          <span className="truncate">{story.names[story.b.key]}</span>
+          <Avatar name={story.names[story.b.key]} size="h-6 w-6 text-[10px]" />
+        </span>
+      </div>
+      {v.rows.map((r) => (
+        <div key={r.label} className="grid grid-cols-[1fr_auto_1fr] items-center gap-x-3 border-b border-line/60 py-1.5 last:border-0">
+          <span className={`flex items-center gap-1.5 font-mono tabular-nums ${r.lead === "a" ? "font-bold" : "text-muted"}`}>
+            {r.lead === "a" && <span className="h-1.5 w-1.5 rounded-full" style={{ background: colors.a }} />}
+            {r.a}
+          </span>
+          <span className="text-center text-xs text-muted">{r.label}</span>
+          <span className={`flex items-center justify-end gap-1.5 font-mono tabular-nums ${r.lead === "b" ? "font-bold" : "text-muted"}`}>
+            {r.b}
+            {r.lead === "b" && <span className="h-1.5 w-1.5 rounded-full" style={{ background: colors.b }} />}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function Picture({ thread, story, colors, follow }: { thread: Thread; story: Story; colors: Record<"a" | "b", string>; follow: Follow }) {
+  const v = thread.visual;
+  if (!v) return null;
+  if (v.kind === "h2h") return <H2HStrip v={v} story={story} colors={colors} follow={follow} />;
+  if (v.kind === "event") return <EventBars v={v} story={story} colors={colors} follow={follow} />;
+  if (v.kind === "season") return <SeasonTicks v={v} story={story} colors={colors} follow={follow} />;
+  if (v.kind === "draw") return <DrawPaths v={v} story={story} follow={follow} />;
+  return <StatsTable v={v} story={story} colors={colors} />;
+}
+
+/* ---------- The story ---------- */
+
+// Threads whose pictures need the page's whole width
+const wide = new Set(["draw", "season"]);
+
+/** What the site calls a match from a story: enough for the scoreboard and labels */
+const asMatch = (story: Story): Match => ({
+  id: story.id,
+  event: `${story.event} ${story.season}`,
+  date: story.date,
+  round: story.round,
+  stage: story.stage,
+  tour: story.tour,
+  surface: story.surface,
+  winner: story.names[story.a.key],
+  loser: story.names[story.b.key],
+  score: story.score,
+  bestOf: story.bestOf,
+});
+
+const entryNames: Record<string, string> = { Q: "Qualifier", WC: "Wildcard", LL: "Lucky loser", PR: "Protected ranking", ALT: "Alternate", SE: "Special exempt" };
+
+function SideLine({ side, name }: { side: Story["a"]; name: string }) {
+  const bits = [
+    side.seed ? `Seeded ${side.seed}` : null,
+    side.entry && entryNames[side.entry] ? entryNames[side.entry] : null,
+    side.rank ? `No. ${side.rank}` : null,
+    side.age ? `age ${Math.floor(side.age)}` : null,
+  ].filter(Boolean);
+  return (
+    <p className="truncate text-sm">
+      <span className="font-semibold">{name}</span>
+      {side.ioc && <span className="text-muted"> · {side.ioc}</span>}
+      {bits.length > 0 && <span className="text-muted"> · {bits.join(", ")}</span>}
+    </p>
+  );
+}
+
+export function StoryView({
+  story,
+  follow,
+  pending,
+  page,
+  logHref,
+}: {
+  story: Story;
+  follow: Follow;
+  pending: boolean;
+  page: (id: string) => number | null;
+  logHref?: (id: string) => string; // signed in: where to log a match
+}) {
+  const match = asMatch(story);
+  const [nameA, nameB] = [story.names[story.a.key], story.names[story.b.key]];
+  const styles = chartStyles([nameA, nameB]);
+  const colors = { a: styles.get(nameA)!.color, b: styles.get(nameB)!.color };
+  const here = page(story.id);
+  const label = `${story.event} ${story.season} · ${roundName(match)}`;
+
+  return (
+    <div className={`transition-opacity duration-300 ${pending ? "opacity-50" : ""}`} aria-busy={pending}>
+      <div className="grid gap-8 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1fr)] lg:gap-10">
+        {/* The match, as a page of the record */}
+        <div className="min-w-0">
+          <div key={story.id} className="page-turn page-stack overflow-hidden rounded-3xl border border-line bg-surface">
+            <p className="flex items-baseline justify-between gap-3 border-b border-line px-4 py-2.5 text-sm">
+              <span className="font-semibold">
+                {here ? (
+                  <>
+                    Page {here} <span className="font-normal text-muted">of your diary</span>
+                  </>
+                ) : (
+                  <span className="font-normal text-muted">Not in your diary</span>
+                )}
+              </span>
+              <span className="text-muted">
+                {new Date(`${story.date.slice(0, 7)}-15`).toLocaleDateString("en-GB", { month: "short", year: "numeric" })}
+                {story.minutes ? ` · ${Math.floor(story.minutes / 60)} h ${String(story.minutes % 60).padStart(2, "0")}` : ""}
+              </span>
+            </p>
+            <div className="relative">
+              <CourtArt surface={story.surface} className="aspect-[16/9] w-full" />
+              <div className="absolute inset-x-0 top-0 flex flex-col items-start gap-2 bg-gradient-to-b from-[#0a1220]/75 to-transparent px-4 pb-10 pt-3 text-white">
+                <TournamentLabel event={label} surface={story.surface} onPhoto />
+                <HighlightsLink videoId={highlightVideos[story.id]} players={[nameA, nameB]} event={label} onPhoto />
+              </div>
+            </div>
+            <div className="relative -mt-12 space-y-3 px-4 pb-4">
+              <Scoreboard match={match} />
+              <div className="space-y-0.5">
+                <SideLine side={story.a} name={story.a.name} />
+                <SideLine side={story.b} name={story.b.name} />
+              </div>
+              {logHref && (
+                <Link
+                  href={logHref(story.id)}
+                  className={`flex items-center justify-center gap-2 rounded-full px-4 py-2.5 font-semibold transition ${
+                    here ? "border-2 border-line text-court hover:border-court" : "bg-ball text-[#0b0d12] shadow-md shadow-black/10 hover:brightness-105"
+                  }`}
+                >
+                  {here ? `Open page ${here} in your diary` : "Watched it? Log this match"}
+                </Link>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* The story in three lines, then where to go next */}
+        <div className="min-w-0">
+          <p className="text-sm font-semibold uppercase tracking-[0.16em] text-muted">The story</p>
+          {story.lede.length ? (
+            <ol className="mt-3 space-y-4">
+              {story.lede.map((f, i) => (
+                <li key={f.key} className={i === 0 ? "font-display text-2xl font-bold leading-snug tracking-tight sm:text-3xl" : "text-lg font-medium leading-relaxed"}>
+                  <Parts parts={f.parts} follow={follow} />.
+                </li>
+              ))}
+            </ol>
+          ) : (
+            <p className="mt-3 text-lg text-muted">A quiet one: nothing in the record stands out about it. The threads below still lead somewhere.</p>
+          )}
+
+          {story.trail.length > 0 && (
+            <div className="mt-8">
+              <p className="text-sm font-semibold uppercase tracking-[0.16em] text-muted">Follow the thread</p>
+              <ul className="mt-3 grid gap-2 sm:grid-cols-2">
+                {story.trail.map((t) => {
+                  const r = story.refs[t.ref];
+                  const p = page(t.ref);
+                  return (
+                    <li key={t.ref}>
+                      <button
+                        type="button"
+                        onClick={() => follow(t.ref)}
+                        className="group flex h-full w-full cursor-pointer flex-col gap-1 rounded-2xl border border-line bg-surface px-3.5 py-3 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-court hover:shadow-md"
+                      >
+                        <span className="flex items-center justify-between gap-2 text-xs font-semibold uppercase tracking-wide text-muted">
+                          <span className="truncate">{t.why}</span>
+                          {p ? <span className="shrink-0 rounded-full bg-ball/50 px-1.5 py-px normal-case tracking-normal text-foreground">p. {p}</span> : null}
+                        </span>
+                        <span className="truncate text-sm font-semibold">{r.label}</span>
+                        <span className="truncate text-sm text-muted">
+                          {story.names[r.w]} beat {story.names[r.l]} <span className="font-mono">{scoreText(r.score)}</span>
+                        </span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* The threads, most telling first */}
+      <div className="mt-10 grid items-start gap-5 lg:grid-flow-dense lg:grid-cols-2">
+        {story.threads.map((t) => (
+          <section key={t.id} aria-label={t.title} className={`min-w-0 rounded-3xl border border-line bg-surface p-5 shadow-sm sm:p-6 ${wide.has(t.id) ? "lg:col-span-2" : ""}`}>
+            <header className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+              <h3 className="font-display text-xl font-bold tracking-tight">{t.title}</h3>
+              {t.kicker && <span className="text-sm text-muted">{t.kicker}</span>}
+            </header>
+            {t.facts.length > 0 && (
+              <ul className="mt-3 space-y-2">
+                {t.facts.map((f) => (
+                  <FactLine key={f.key} fact={f} follow={follow} colors={colors} />
+                ))}
+              </ul>
+            )}
+            {t.visual && (
+              <div className={t.facts.length ? "mt-5 border-t border-line pt-4" : "mt-4"}>
+                <Picture thread={t} story={story} colors={colors} follow={follow} />
+              </div>
+            )}
+          </section>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ---------- Ways in, for a signed-in fan with no match open ---------- */
+
+function MatchCard({ row, why, page, onOpen }: { row: MatchRow; why?: string; page: number | null; onOpen: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      className="group flex h-full w-full cursor-pointer items-center gap-3 rounded-2xl border border-line bg-surface px-3.5 py-3 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-court hover:shadow-md"
+    >
+      <span className="flex shrink-0 -space-x-2">
+        <Avatar name={row.winner.short} size="h-9 w-9 text-sm ring-2 ring-surface" />
+        <Avatar name={row.loser.short} size="h-9 w-9 text-sm ring-2 ring-surface" />
+      </span>
+      <span className="min-w-0 flex-1">
+        {why && <span className="block truncate text-xs font-semibold uppercase tracking-wide text-muted">{why}</span>}
+        <span className="block truncate text-sm font-semibold">
+          {row.event} {row.season} · {roundName({ ...row, event: row.event })}
+        </span>
+        <span className="block truncate text-sm text-muted">
+          {row.winner.short} beat {row.loser.short} <span className="font-mono">{scoreText(row.score)}</span>
+        </span>
+      </span>
+      {page ? <span className="shrink-0 rounded-full bg-ball/50 px-2 py-0.5 text-xs font-semibold">p. {page}</span> : null}
+    </button>
+  );
+}
+
+function WaysIn({ diary, week, follow }: { diary: MatchRow[]; week: MatchRow[]; follow: Follow }) {
+  const page = usePages();
+  const groups: { title: string; body: string; rows: MatchRow[] }[] = [
+    { title: "From your diary", body: "The story around matches you've logged.", rows: diary },
+    { title: "This week, other years", body: "Big finals played around this time of year.", rows: week },
+  ];
+  return (
+    <div className="space-y-8">
+      {groups
+        .filter((g) => g.rows.length)
+        .map((g) => (
+          <section key={g.title}>
+            <h2 className="font-display text-xl font-bold tracking-tight">{g.title}</h2>
+            <p className="text-muted">{g.body}</p>
+            <ul className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+              {g.rows.map((row) => (
+                <li key={row.id}>
+                  <MatchCard row={row} page={page(row.id)} onOpen={() => follow(row.id)} />
+                </li>
+              ))}
+            </ul>
+          </section>
+        ))}
+    </div>
+  );
+}
+
+/* ---------- Signed in ---------- */
+
+export function ExploreSection({ story, missing, diary, week }: { story: Story | null; missing: boolean; diary: MatchRow[]; week: MatchRow[] }) {
+  const router = useRouter();
+  const [pending, start] = useTransition();
+  const page = usePages();
+  const top = useRef<HTMLDivElement>(null);
+  const follow = (id: string) => start(() => router.push(`/explore?m=${encodeURIComponent(id)}`, { scroll: false }));
+  const first = useRef(true);
+
+  // A new story: bring its top into view
+  useEffect(() => {
+    if (first.current) {
+      first.current = false;
+      return;
+    }
+    if (story && top.current && top.current.getBoundingClientRect().top < 0) glideTo(top.current, "start");
+  }, [story?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  return (
+    <div ref={top} className="scroll-mt-6">
+      {missing && <p className="mb-6 rounded-2xl bg-fault/10 px-4 py-3 font-medium text-fault">That match isn&apos;t in the record. Try finding it above.</p>}
+      {story ? <StoryView story={story} follow={follow} pending={pending} page={page} logHref={(id) => `/log?m=${encodeURIComponent(id)}`} /> : <WaysIn diary={diary} week={week} follow={follow} />}
+    </div>
+  );
+}
+
+/* ---------- The landing page's demo ---------- */
+
+/**
+ * The demo follows the sample log: picking a match there opens its story here when the record has it.
+ * Stories come from /api/story as you click through.
+ */
+export function ExploreDemo({ initial, choices, toData, toSample }: { initial: Story | null; choices: { id: string; label: string }[]; toData: Record<string, string>; toSample: Record<string, string> }) {
+  const { spotlight } = useLog();
+  const [story, setStory] = useState(initial);
+  const [pending, setPending] = useState(false);
+  const [failed, setFailed] = useState(false);
+  const root = useRef<HTMLDivElement>(null);
+  const page = usePages((id) => toSample[id]);
+  const asked = useRef(0);
+
+  const follow = async (id: string, scroll = true) => {
+    const n = ++asked.current;
+    setPending(true);
+    try {
+      const res = await fetch(`/api/story?id=${encodeURIComponent(id)}`);
+      if (!res.ok) throw new Error(String(res.status));
+      const next: Story = await res.json();
+      if (n !== asked.current) return;
+      setStory(next);
+      setFailed(false);
+      if (scroll && root.current && root.current.getBoundingClientRect().top < 0) glideTo(root.current, "start");
+    } catch {
+      if (n === asked.current) setFailed(true);
+    } finally {
+      if (n === asked.current) setPending(false);
+    }
+  };
+
+  // Arriving from the log above: open that match's story
+  useEffect(() => {
+    if (spotlight?.target !== "explore") return;
+    glideTo(root.current, "start");
+    const id = toData[spotlight.id];
+    if (!id) return;
+    const t = setTimeout(() => void follow(id, false), 0);
+    return () => clearTimeout(t);
+  }, [spotlight]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  return (
+    <div ref={root} className="scroll-mt-6">
+      <div className="mb-6 flex flex-wrap items-center gap-2">
+        <span className="mr-1 text-sm font-semibold text-muted">Try:</span>
+        {choices.map((c) => (
+          <button
+            key={c.id}
+            type="button"
+            aria-pressed={story?.id === c.id}
+            onClick={() => follow(c.id, false)}
+            className={`cursor-pointer rounded-full border-2 px-3 py-1 text-sm font-semibold transition ${story?.id === c.id ? "border-court bg-court text-court-ink" : "border-line bg-surface text-court hover:border-court"}`}
+          >
+            {c.label}
+          </button>
+        ))}
+      </div>
+      {failed && <p className="mb-4 rounded-2xl bg-fault/10 px-4 py-3 font-medium text-fault">That story didn&apos;t load. Check your connection and try again.</p>}
+      {story ? <StoryView story={story} follow={(id) => void follow(id)} pending={pending} page={page} /> : <p className="text-muted">The match data isn&apos;t available right now.</p>}
+    </div>
+  );
+}

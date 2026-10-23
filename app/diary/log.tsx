@@ -7,7 +7,7 @@ import rybakinaUso2026Trophy from "@/public/photos/rybakina-uso-2026-trophy.jpg"
 import sinnerWimbledon2025Trophy from "@/public/photos/sinner-wimbledon-2025-trophy.jpg";
 import { HighlightsLink, SlamLogo, TournamentLabel } from "../match-ui";
 import { Avatar, BallRating, BallScore, Burst, CourtArt, IconHeart, NextStep, PageArrow, playerStyle, watchIcons } from "./fun";
-import { diaryPages, endingOf, eventLabel, finished, monthLabel, parseScore, roundName, setWinner, tournamentOf, watchedHow, type FanEntry, type Match, type WatchMode } from "./library";
+import { diaryPages, endingOf, eventLabel, finished, monthLabel, parseScore, roundName, setWinner, watchedHow, type FanEntry, type Match, type WatchMode } from "./library";
 import { highlightVideos, sameMatch } from "./media";
 import { useLog } from "./store";
 
@@ -57,7 +57,7 @@ function Question({ step, title, children }: { step: number; title: string; chil
 }
 
 /** A TV-style scorebug: both players, games per set, tiebreak points on the set's loser. */
-function Scoreboard({ match }: { match: Match }) {
+export function Scoreboard({ match }: { match: Match }) {
   const { sets: parsed } = parseScore(match.score);
   const done = finished(match.score);
   const sets = parsed.map((set, i) => ({ ...set, took: setWinner(parsed, i, done) }));
@@ -612,11 +612,11 @@ export function LogSection() {
           active={diary ? nextId !== null || isDraft : editedId !== null}
           onClick={() => {
             if (diary && isDraft) return addDraft();
-            goTo("rank", nextId ?? editedId ?? match.id);
+            goTo("explore", nextId ?? editedId ?? match.id);
           }}
           idle={
             <>
-              Next: <span className="font-bold">2 · Rank your favourites</span>
+              Next: <span className="font-bold">2 · Explore the story around it</span>
             </>
           }
           done={
@@ -625,9 +625,7 @@ export function LogSection() {
             ) : (
               <>
                 ✓ Saved to page {pages.get(nextId ?? editedId ?? match.id)} of your diary.{" "}
-                <span className="font-bold underline decoration-2 underline-offset-4">
-                  See where it ranks among your {tournamentOf(matches[nextId ?? editedId ?? match.id]).replace("Other events", "other")} favourites
-                </span>
+                <span className="font-bold underline decoration-2 underline-offset-4">Explore the story around it</span>
               </>
             )
           }

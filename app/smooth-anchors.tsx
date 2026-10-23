@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { glideTo } from "./glide";
 
-/** Sends in-page links (#log, #rank, #story) through the shared eased scroll. */
+/** Sends in-page links (#log, #explore, #story) through the shared eased scroll. */
 export function SmoothAnchors() {
   useEffect(() => {
     const onClick = (e: MouseEvent) => {

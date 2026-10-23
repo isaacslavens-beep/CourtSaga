@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-/* The top of a saga's page. The log and the ranking are played on courts; the saga is what they add up to,
+/* The top of a saga's page. The log and exploring are played on courts; the saga is what they add up to,
    so it opens in a quiet reading room instead (.saga-room), where the books do the talking. */
 export function SagaHeader({ step, kicker, title, body, lines }: { step?: number; kicker: string; title: string; body: ReactNode; lines?: string[] | null }) {
   return (

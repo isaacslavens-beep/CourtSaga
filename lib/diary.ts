@@ -1,6 +1,6 @@
 import "server-only";
 import { createHash } from "node:crypto";
-import { and, asc, desc, eq, or, sql, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, or, sql, type SQL } from "drizzle-orm";
 import { cacheLife } from "next/cache";
 import { cache } from "react";
 import { alias } from "drizzle-orm/pg-core";
@@ -341,6 +341,14 @@ export async function seasonRange(): Promise<[number, number] | null> {
 export async function findMatch(id: string) {
   const [row] = await selectMatches().where(and(eq(matches.id, id), eq(matches.searchable, true))).limit(1);
   return row ? toRow(row) : null;
+}
+
+/** Several matches from the data, in the order asked for */
+export async function findMatches(ids: string[]) {
+  if (!ids.length) return [];
+  const rows = await selectMatches().where(and(inArray(matches.id, ids), eq(matches.searchable, true)));
+  const byId = new Map(rows.map((r) => [r.id, toRow(r)]));
+  return ids.flatMap((id) => byId.get(id) ?? []);
 }
 
 /** How many pages a diary has */

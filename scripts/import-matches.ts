@@ -39,7 +39,9 @@ const columns = [
   "round",
   "minutes",
 ] as const;
-type Row = Record<(typeof columns)[number], string>;
+// Read when the files have them: seeds, entries, rankings, ages, hands, heights and serve stats
+const statColumns = ["ace", "df", "svpt", "1stIn", "1stWon", "2ndWon", "SvGms", "bpSaved", "bpFaced"] as const;
+type Row = Record<(typeof columns)[number], string> & Partial<Record<string, string>>;
 
 /* ---------- Fixes to the data ---------- */
 
@@ -271,13 +273,32 @@ type MatchRecord = {
   bestOf: number;
   outcome: string;
   minutes: number | null;
+  winnerSeed: number | null;
+  winnerEntry: string | null;
+  winnerRank: number | null;
+  winnerPoints: number | null;
+  winnerAge: number | null;
+  loserSeed: number | null;
+  loserEntry: string | null;
+  loserRank: number | null;
+  loserPoints: number | null;
+  loserAge: number | null;
+  winnerStats: number[] | null;
+  loserStats: number[] | null;
   searchable: boolean;
   doc: string;
 };
 
-type Seen = { name: string; ioc: string | null; date: string; order: number; fixed: boolean };
+type Seen = { name: string; ioc: string | null; hand: string | null; height: number | null; date: string; order: number; fixed: boolean };
 
-const int = (s: string) => (/^\d+$/.test(s.trim()) ? Number(s.trim()) : null);
+const int = (s: string | undefined) => (s && /^\d+$/.test(s.trim()) ? Number(s.trim()) : null);
+const decimal = (s: string | undefined) => (s && /^\d+(\.\d+)?$/.test(s.trim()) ? Number(s.trim()) : null);
+const text = (s: string | undefined) => s?.trim().toUpperCase() || null;
+/** One side's serve stats in statColumns order, or null when the row has none */
+function statsOf(row: Row, prefix: "w" | "l") {
+  const values = statColumns.map((c) => int(row[`${prefix}_${c}`]));
+  return values.every((v) => v !== null) && values[2]! > 0 ? (values as number[]) : null;
+}
 const isoDate = (d: Date) => d.toISOString().slice(0, 10);
 // Lower case, word characters only; accents are left for unaccent() in the database
 const searchDoc = (...parts: (string | null)[]) =>
@@ -314,7 +335,13 @@ function shape(sources: Source[]) {
     tier = tierFixes.find((f) => f.tour === tour && f.name === name && f.season === season)?.tier ?? tier;
 
     const players = (["winner", "loser"] as const).map((side) => {
-      const raw = { id: row[`${side}_id`].trim(), name: tidy(row[`${side}_name`]), ioc: row[`${side}_ioc`].trim() || null };
+      const raw = {
+        id: row[`${side}_id`].trim(),
+        name: tidy(row[`${side}_name`]),
+        ioc: row[`${side}_ioc`].trim() || null,
+        hand: text(row[`${side}_hand`]),
+        height: int(row[`${side}_ht`]),
+      };
       const fix = idFixes.find((f) => f.tour === tour && f.id === raw.id && fold(f.name) === fold(raw.name));
       if (fix) fixedRows++;
       return { ...raw, id: fix?.to ?? raw.id, fixed: !!fix };
@@ -323,7 +350,7 @@ function shape(sources: Source[]) {
     const start = new Date(Date.UTC(Number(date[1]), Number(date[2]) - 1, Number(date[3])));
     for (const p of players) {
       const key = `${tour}:${p.id}`;
-      seen.set(key, [...(seen.get(key) ?? []), { name: p.name, ioc: p.ioc, date: isoDate(start), order, fixed: p.fixed }]);
+      seen.set(key, [...(seen.get(key) ?? []), { name: p.name, ioc: p.ioc, hand: p.hand, height: p.height, date: isoDate(start), order, fixed: p.fixed }]);
     }
 
     const [winner, loser] = players;
@@ -340,6 +367,8 @@ function shape(sources: Source[]) {
       duplicates++;
       existing.minutes ??= minutes;
       existing.matchNum ??= matchNum;
+      existing.winnerStats ??= statsOf(row, "w");
+      existing.loserStats ??= statsOf(row, "l");
       return;
     }
 
@@ -368,6 +397,18 @@ function shape(sources: Source[]) {
       bestOf: int(row.best_of) === 5 ? 5 : 3,
       outcome,
       minutes,
+      winnerSeed: int(row.winner_seed),
+      winnerEntry: text(row.winner_entry),
+      winnerRank: int(row.winner_rank),
+      winnerPoints: int(row.winner_rank_points),
+      winnerAge: decimal(row.winner_age),
+      loserSeed: int(row.loser_seed),
+      loserEntry: text(row.loser_entry),
+      loserRank: int(row.loser_rank),
+      loserPoints: int(row.loser_rank_points),
+      loserAge: decimal(row.loser_age),
+      winnerStats: statsOf(row, "w"),
+      loserStats: statsOf(row, "l"),
       searchable: outcome !== "walkover" && outcome !== "unplayed",
       doc: searchDoc(
         event,
@@ -395,7 +436,11 @@ function shape(sources: Source[]) {
       if (rest.some((words) => ![...words].some((w) => first.has(w)))) warnings.push(`${key} has rows under different names: ${[...spellings].join(" / ")}`);
     }
     const [tour, id] = key.split(":") as [Tour, string];
-    return { tour, id, name: latest.name, short: surnameOf(latest.name, latest.ioc), ioc: latest.ioc, lastSeen: latest.date, variants: spellings.size };
+    // Hand and height from the latest row that has them
+    const known = (pick: (r: Seen) => unknown) => rows.filter((r) => pick(r) !== null).reduce<Seen | null>((a, b) => (!a || b.date > a.date || (b.date === a.date && b.order > a.order) ? b : a), null);
+    const hand = known((r) => (r.hand === "U" ? null : r.hand))?.hand ?? null;
+    const height = known((r) => r.height)?.height ?? null;
+    return { tour, id, name: latest.name, short: surnameOf(latest.name, latest.ioc), ioc: latest.ioc, hand, height, lastSeen: latest.date, variants: spellings.size };
   });
 
   return { matches: [...matches.values()], players, duplicates, fixedRows, warnings, skipped };
@@ -408,11 +453,13 @@ async function upsertPlayers(db: PoolClient, players: ReturnType<typeof shape>["
   for (let i = 0; i < players.length; i += 2000) {
     const batch = players.slice(i, i + 2000);
     const { rows } = await db.query<{ inserted: boolean }>(
-      `INSERT INTO players (tour, id, name, short_name, ioc, search_name, match_count, last_seen)
-       SELECT tour, id, name, short_name, ioc, lower(unaccent(name)), 0, last_seen
-       FROM unnest($1::text[], $2::text[], $3::text[], $4::text[], $5::text[], $6::date[]) AS t(tour, id, name, short_name, ioc, last_seen)
+      `INSERT INTO players (tour, id, name, short_name, ioc, hand, height, search_name, match_count, last_seen)
+       SELECT tour, id, name, short_name, ioc, hand, height, lower(unaccent(name)), 0, last_seen
+       FROM unnest($1::text[], $2::text[], $3::text[], $4::text[], $5::text[], $6::date[], $7::text[], $8::smallint[])
+         AS t(tour, id, name, short_name, ioc, last_seen, hand, height)
        ON CONFLICT (tour, id) DO UPDATE SET
          name = excluded.name, short_name = excluded.short_name, ioc = excluded.ioc,
+         hand = coalesce(excluded.hand, players.hand), height = coalesce(excluded.height, players.height),
          search_name = excluded.search_name, last_seen = excluded.last_seen
        WHERE excluded.last_seen >= players.last_seen
        RETURNING (xmax = 0) AS inserted`,
@@ -423,6 +470,8 @@ async function upsertPlayers(db: PoolClient, players: ReturnType<typeof shape>["
         batch.map((p) => p.short),
         batch.map((p) => p.ioc),
         batch.map((p) => p.lastSeen),
+        batch.map((p) => p.hand),
+        batch.map((p) => p.height),
       ],
     );
     inserted += rows.filter((r) => r.inserted).length;
@@ -437,21 +486,33 @@ async function upsertMatches(db: PoolClient, matches: MatchRecord[]) {
     const batch = matches.slice(i, i + 5000);
     const { rows } = await db.query<{ inserted: boolean }>(
       `INSERT INTO matches (id, tour, season, tourney_id, tourney_name, event, stage, level, tier, surface, indoor, draw_size,
-         start_date, played_on, round, match_num, winner_id, loser_id, score, best_of, outcome, minutes, searchable, search)
+         start_date, played_on, round, match_num, winner_id, loser_id, score, best_of, outcome, minutes, searchable, search,
+         winner_seed, winner_entry, winner_rank, winner_points, winner_age, loser_seed, loser_entry, loser_rank, loser_points, loser_age,
+         winner_stats, loser_stats)
        SELECT id, tour, season, tourney_id, tourney_name, event, stage, level, tier, surface, indoor, draw_size,
          start_date, played_on, round, match_num, winner_id, loser_id, score, best_of, outcome, minutes, searchable,
-         to_tsvector('simple', unaccent(doc))
+         to_tsvector('simple', unaccent(doc)),
+         winner_seed, winner_entry, winner_rank, winner_points, winner_age, loser_seed, loser_entry, loser_rank, loser_points, loser_age,
+         nullif(string_to_array(winner_stats, ',')::smallint[], '{}'), nullif(string_to_array(loser_stats, ',')::smallint[], '{}')
        FROM unnest($1::text[], $2::text[], $3::smallint[], $4::text[], $5::text[], $6::text[], $7::text[], $8::text[], $9::text[],
          $10::text[], $11::boolean[], $12::smallint[], $13::date[], $14::date[], $15::text[], $16::int[], $17::text[], $18::text[],
-         $19::text[], $20::smallint[], $21::text[], $22::int[], $23::boolean[], $24::text[])
+         $19::text[], $20::smallint[], $21::text[], $22::int[], $23::boolean[], $24::text[],
+         $25::smallint[], $26::text[], $27::int[], $28::int[], $29::real[], $30::smallint[], $31::text[], $32::int[], $33::int[], $34::real[],
+         $35::text[], $36::text[])
          AS t(id, tour, season, tourney_id, tourney_name, event, stage, level, tier, surface, indoor, draw_size,
-           start_date, played_on, round, match_num, winner_id, loser_id, score, best_of, outcome, minutes, searchable, doc)
+           start_date, played_on, round, match_num, winner_id, loser_id, score, best_of, outcome, minutes, searchable, doc,
+           winner_seed, winner_entry, winner_rank, winner_points, winner_age, loser_seed, loser_entry, loser_rank, loser_points, loser_age,
+           winner_stats, loser_stats)
        ON CONFLICT (id) DO UPDATE SET
          season = excluded.season, tourney_name = excluded.tourney_name, event = excluded.event, stage = excluded.stage,
          level = excluded.level, tier = excluded.tier, surface = excluded.surface, indoor = excluded.indoor,
          draw_size = excluded.draw_size, start_date = excluded.start_date, played_on = excluded.played_on,
          match_num = excluded.match_num, score = excluded.score, best_of = excluded.best_of, outcome = excluded.outcome,
-         minutes = excluded.minutes, searchable = excluded.searchable, search = excluded.search, imported_at = now()
+         minutes = excluded.minutes, searchable = excluded.searchable, search = excluded.search,
+         winner_seed = excluded.winner_seed, winner_entry = excluded.winner_entry, winner_rank = excluded.winner_rank,
+         winner_points = excluded.winner_points, winner_age = excluded.winner_age, loser_seed = excluded.loser_seed,
+         loser_entry = excluded.loser_entry, loser_rank = excluded.loser_rank, loser_points = excluded.loser_points,
+         loser_age = excluded.loser_age, winner_stats = excluded.winner_stats, loser_stats = excluded.loser_stats, imported_at = now()
        RETURNING (xmax = 0) AS inserted`,
       [
         col(batch, "id"),
@@ -478,6 +539,19 @@ async function upsertMatches(db: PoolClient, matches: MatchRecord[]) {
         col(batch, "minutes"),
         col(batch, "searchable"),
         col(batch, "doc"),
+        col(batch, "winnerSeed"),
+        col(batch, "winnerEntry"),
+        col(batch, "winnerRank"),
+        col(batch, "winnerPoints"),
+        col(batch, "winnerAge"),
+        col(batch, "loserSeed"),
+        col(batch, "loserEntry"),
+        col(batch, "loserRank"),
+        col(batch, "loserPoints"),
+        col(batch, "loserAge"),
+        // Arrays of arrays can't be ragged in Postgres, so each side's stats travel as one string
+        batch.map((m) => m.winnerStats?.join(",") ?? ""),
+        batch.map((m) => m.loserStats?.join(",") ?? ""),
       ],
     );
     inserted += rows.filter((r) => r.inserted).length;

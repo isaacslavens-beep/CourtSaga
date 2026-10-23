@@ -5,7 +5,6 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import {
   findRivalries,
   placeByRating,
-  reorderSlots,
   toFanEntry,
   toMatches,
   toStoredEntry,
@@ -18,7 +17,7 @@ import {
 } from "./library";
 
 /** Asks a section to show where a match landed. `n` changes on every request. */
-export type Spotlight = { target: "rank" | "story"; id: string; n: number };
+export type Spotlight = { target: "explore" | "story"; id: string; n: number };
 
 // "demo": the landing page's sample log, where nothing is saved. "diary": a fan's own diary, saved as
 // they go. "shared": someone's saga, opened from a share link, read-only.
@@ -29,7 +28,6 @@ export type Saver = {
   add: (id: string, entry: StoredEntry) => Promise<void>;
   update: (id: string, patch: Partial<StoredEntry>) => Promise<void>;
   remove: (id: string) => Promise<void>;
-  reorder: (ids: string[]) => Promise<void>;
 };
 
 export type SaveState = "idle" | "saving" | "saved" | "error";
@@ -39,14 +37,12 @@ type LogStore = {
   /** Every match the log knows: the logged ones, and any being looked at before it's logged */
   matches: Record<string, Match>;
   entries: Record<string, FanEntry>;
-  /** Match ids in the fan's own ranking, best first */
+  /** Match ids, best first: a new page goes above every match rated lower */
   order: string[];
   /** Each rivalry's full record of meetings, by rivalry id */
   records: Record<string, RecordMeeting[]>;
   rivalries: Rivalry[];
   update: (id: string, patch: Partial<FanEntry>) => void;
-  /** Put some matches (one tournament's) in a new order, in the ranking slots they already hold */
-  reorder: (ids: string[]) => void;
   /** Log a match: it becomes a page in the diary */
   add: (id: string, entry: FanEntry) => void;
   /** Tear a page out */
@@ -160,15 +156,6 @@ export function LogProvider({ mode, rows: initialRows, matches: fixed, entries: 
     [matches, mode, saver, stored, flush],
   );
 
-  const reorder = useCallback(
-    (ids: string[]) => {
-      if (mode === "shared") return;
-      setOrder((o) => reorderSlots(o, ids));
-      if (saver) track(saver.reorder(ids));
-    },
-    [mode, saver, track],
-  );
-
   const add = useCallback(
     (id: string, fan: FanEntry) => {
       const m = matches[id];
@@ -205,7 +192,7 @@ export function LogProvider({ mode, rows: initialRows, matches: fixed, entries: 
   const goTo = useCallback(
     (target: Spotlight["target"], id: string) => {
       if (mode !== "diary") return setSpotlight((s) => ({ target, id, n: (s?.n ?? 0) + 1 }));
-      void flush().then(() => router.push(`/${target === "rank" ? "rank" : "saga"}?m=${encodeURIComponent(id)}`));
+      void flush().then(() => router.push(`/${target === "explore" ? "explore" : "saga"}?m=${encodeURIComponent(id)}`));
     },
     [mode, flush, router],
   );
@@ -219,8 +206,8 @@ export function LogProvider({ mode, rows: initialRows, matches: fixed, entries: 
   );
 
   const value = useMemo(
-    () => ({ mode, matches, entries, order, records, rivalries, update, reorder, add, remove, view, focusId, setFocusId, spotlight, goTo, openInLog, saving }),
-    [mode, matches, entries, order, records, rivalries, update, reorder, add, remove, view, focusId, spotlight, goTo, openInLog, saving],
+    () => ({ mode, matches, entries, order, records, rivalries, update, add, remove, view, focusId, setFocusId, spotlight, goTo, openInLog, saving }),
+    [mode, matches, entries, order, records, rivalries, update, add, remove, view, focusId, spotlight, goTo, openInLog, saving],
   );
   return <LogContext.Provider value={value}>{children}</LogContext.Provider>;
 }

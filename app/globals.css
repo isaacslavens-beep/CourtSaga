@@ -310,7 +310,7 @@ html {
   }
 }
 
-/* ---------- The signed-in pages: the log and the ranking on Slams' courts, the saga as a book ----------
+/* ---------- The signed-in pages: the log and exploring on Slams' courts, the saga as a book ----------
    A page sets one of these on itself, and the header follows it: the header's colour, the court's surround,
    the court and its surface, the light tint the page's content sits on, and two colours for the strip
    along the top (the Slams' own, as in the ranking). */
@@ -355,7 +355,7 @@ html {
   --slam-b: #ffd200;
 }
 
-/* The saga isn't played on a court: it's what the log and the ranking add up to, read as books. Its header
+/* The saga isn't played on a court: it's what the log adds up to, read as books. Its header
    is ink, under a strip of ball yellow. */
 .court-saga {
   --header: #1d2433;
@@ -846,16 +846,5 @@ html {
   .fade-in {
     animation: none;
   }
-}
-
-/* Tournament themes in the ranking: --t-accent is set per tournament */
-.t-theme {
-  --court: var(--t-accent);
-  --court-ink: #ffffff;
-}
-
-.t-panel {
-  --background: color-mix(in srgb, var(--t-accent) 11%, #ffffff);
-  background-color: color-mix(in srgb, var(--t-accent) 5%, #ffffff);
 }
 

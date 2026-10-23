@@ -26,17 +26,20 @@ const videos: [sample: string, data: string | null, video: string][] = [
   ["wim25", "atp_2025-540_F_S0AG_A0E2", "eRbTHj2KLro"], // Wimbledon: Highlights
   ["uso25sf", "atp_2025-560_SF_A0E2_D643", "91QiqjXzBdc"], // US Open: Extended Highlights
   ["uso25", "atp_2025-560_F_A0E2_S0AG", "DHo1mw7lj3s"], // US Open: Extended Highlights
-  // The sample's 2026 matches, not in the match data yet
-  ["ao26", null, "Z99RntcbEtY"], // Australian Open: Extended Highlights
-  ["wim26sf", null, "pgFm3YBU9_E"], // Wimbledon: Extended Highlights
-  ["wim26f", null, "t88oAZbdtX8"], // Wimbledon: Extended Highlights
-  ["uso26qf", null, "rzQK-peqhJw"], // US Open: Extended Highlights
-  ["uso26w", null, "47hMZmSQO2I"], // US Open: Extended Highlights
+  ["ao26", "atp_2026-580_F_A0E2_D643", "Z99RntcbEtY"], // Australian Open: Extended Highlights
+  ["wim26sf", "atp_2026-540_SF_S0AG_D643", "pgFm3YBU9_E"], // Wimbledon: Extended Highlights
+  ["wim26f", "atp_2026-540_F_S0AG_Z355", "t88oAZbdtX8"], // Wimbledon: Extended Highlights
+  ["uso26qf", "atp_2026-560_QF_S0S1_A0E2", "rzQK-peqhJw"], // US Open: Extended Highlights
+  ["uso26w", "wta_2026-905_F_214981_214544", "47hMZmSQO2I"], // US Open: Extended Highlights
 ];
 
 export const highlightVideos: Record<string, string> = Object.fromEntries(
   videos.flatMap(([sample, data, video]) => [[sample, video], ...(data ? [[data, video]] : [])]),
 );
+
+/** Each sample match's id in the match data, and back: the landing's demo opens the real match's story */
+export const sampleToData: Record<string, string> = Object.fromEntries(videos.flatMap(([sample, data]) => (data ? [[sample, data]] : [])));
+export const dataToSample: Record<string, string> = Object.fromEntries(Object.entries(sampleToData).map(([a, b]) => [b, a]));
 
 /** The same match in the sample log and in the match data, for the few with photos */
 export const sameMatch: Record<string, string> = { "atp_2025-540_F_S0AG_A0E2": "wim25" };

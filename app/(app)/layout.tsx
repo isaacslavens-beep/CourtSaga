@@ -2,7 +2,7 @@ import Link from "next/link";
 import { DataCredit } from "../credits";
 import { AccountLink, AppNav, CourtHeader } from "./nav";
 
-/* A signed-in fan's pages: the log, the ranking and the saga, the landing page's three steps, and the
+/* A signed-in fan's pages: the log, exploring and the saga, the landing page's three steps, and the
    account. Each is drawn on a Slam's court, and the header sits on its surround. Each page checks the
    session itself. */
 export default function DiaryLayout({ children }: { children: React.ReactNode }) {

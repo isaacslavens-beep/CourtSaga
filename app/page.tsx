@@ -1,11 +1,14 @@
 import Image from "next/image";
+import { Suspense } from "react";
+import { matchStory } from "@/lib/story";
 import { DataCredit } from "./credits";
 import { Hero } from "./hero";
 import { SmoothAnchors } from "./smooth-anchors";
 import { rivalryRecords } from "./demos/rivalry-records";
 import { sampleEntries, sampleMatches, sampleOrder } from "./demos/sample";
+import { ExploreDemo } from "./diary/explore";
 import { LogSection } from "./diary/log";
-import { RankSection } from "./diary/rank";
+import { dataToSample, sampleToData } from "./diary/media";
 import { SagaSection } from "./diary/saga";
 import { LogProvider } from "./diary/store";
 import { StepHeading } from "./step-heading";
@@ -21,18 +24,22 @@ const steps = [
     hint: "Pick any match below and change the answers.",
   },
   {
-    id: "rank",
-    demo: <RankSection />,
-    verb: "Sort",
-    title: "Rank your favourites",
-    body: "Your best matches at each tournament, in your own order.",
-    hint: "Pick a tournament, then drag the matches around.",
+    id: "explore",
+    demo: (
+      <Suspense>
+        <ExploreStep />
+      </Suspense>
+    ),
+    verb: "Explore",
+    title: "Explore any match",
+    body: "Pick a match and follow the story around it: the head-to-head, each player's season and history at the tournament, the draw, and what came next.",
+    hint: "Pick a match, then follow any underlined one.",
   },
   {
     id: "story",
     demo: <SagaSection />,
     verb: "Read back",
-    title: "Explore your saga",
+    title: "Read your saga",
     body: "Your diary, read back to you. It builds itself from the matches you log: your rivalries, your five-setters, the calls you got right, and the meetings you missed.",
     hint: "Pick a rivalry or a collection, then turn the pages.",
     room: true, // the saga's own reading room, not a court
@@ -54,6 +61,22 @@ const photoCredits = [
   ["Djokovic on Centre Court", "Reuters"],
 ];
 
+// The demo's stories: real matches from the sample log
+const exploreChoices = [
+  { id: "wim08", label: "Wimbledon 2008 final" },
+  { id: "ao12", label: "Australian Open 2012 final" },
+  { id: "wim19", label: "Wimbledon 2019 final" },
+  { id: "uso22", label: "Alcaraz v Sinner, US Open 2022" },
+  { id: "uso26w", label: "US Open 2026 women's final" },
+];
+
+async function ExploreStep() {
+  const choices = exploreChoices.map((c) => ({ ...c, id: sampleToData[c.id] }));
+  // A build without the database still builds: the demo says the data isn't available
+  const story = await matchStory(choices[0].id).catch(() => null);
+  return <ExploreDemo initial={story} choices={choices} toData={sampleToData} toSample={dataToSample} />;
+}
+
 export default function Home() {
   return (
     <div className="flex flex-1 flex-col">
@@ -72,7 +95,7 @@ export default function Home() {
               className={"room" in s ? "saga-room border-t border-line py-24" : `border-t border-line py-20 ${i % 2 ? "bg-surface/60" : ""}`}
             >
               <div className="mx-auto w-full max-w-6xl px-4 sm:px-8">
-                {/* The diary's three parts: write it, sort it, read it back */}
+                {/* The diary's three parts: write it, explore around it, read it back */}
                 <StepHeading n={i + 1} verb={s.verb} title={s.title} body={s.body} hint={s.hint} id={`${s.id}-title`} />
                 <div className="mt-10">{s.demo}</div>
               </div>
