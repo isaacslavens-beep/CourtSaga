@@ -38,9 +38,7 @@ function blankEntry(m: Match): FanEntry {
     rating: null,
     cheering: null,
     pick: null,
-    tags: [],
     note: "",
-    classic: false,
   };
 }
 
@@ -175,44 +173,6 @@ function WatchQuestion({ step, match, log, set }: { step: number; match: Match; 
       </span>
       )}
     </Question>
-  );
-}
-
-// A few to tap; anything else can be typed
-const suggestedTags = ["Marathon", "Comeback", "Tiebreak drama", "Upset", "Late night", "Rain delay", "With friends", "First time"];
-
-function TagPicker({ tags, onChange }: { tags: string[]; onChange: (tags: string[]) => void }) {
-  const [draft, setDraft] = useState("");
-  const toggle = (tag: string) => onChange(tags.includes(tag) ? tags.filter((t) => t !== tag) : [...tags, tag].slice(0, 8));
-  const addDraft = () => {
-    const tag = draft.replace(/\s+/g, " ").trim().slice(0, 24);
-    if (tag && !tags.some((t) => t.toLowerCase() === tag.toLowerCase())) toggle(tag);
-    setDraft("");
-  };
-  return (
-    <div className="mt-3 flex flex-wrap items-center gap-2">
-      {[...new Set([...suggestedTags, ...tags])].map((tag) => (
-        <button key={tag} type="button" aria-pressed={tags.includes(tag)} onClick={() => toggle(tag)} className={`${chip(tags.includes(tag))} px-2.5 py-1 text-sm`}>
-          {tags.includes(tag) ? "✓ " : "+ "}
-          {tag}
-        </button>
-      ))}
-      <input
-        value={draft}
-        onChange={(e) => setDraft(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") {
-            e.preventDefault();
-            addDraft();
-          }
-        }}
-        onBlur={addDraft}
-        maxLength={24}
-        placeholder="Your own tag"
-        aria-label="Add your own tag"
-        className="w-36 rounded-full border-2 border-dashed border-line bg-surface px-3 py-1 text-sm placeholder:text-muted/70 focus:border-court focus:outline-none"
-      />
-    </div>
   );
 }
 
@@ -439,11 +399,6 @@ export function LogSection() {
                 />
                 <Burst trigger={burst.rating} />
               </span>
-              {diary && (
-                <button type="button" aria-pressed={log.classic} onClick={() => set({ classic: !log.classic })} className={chip(log.classic)}>
-                  {log.classic ? "★ A classic" : "☆ Mark as a classic"}
-                </button>
-              )}
             </Question>
 
             <Question step={3} title="Who were you backing?">
@@ -501,7 +456,6 @@ export function LogSection() {
                   className="paper mt-2.5 w-full resize-none rounded-xl border border-line bg-surface pb-1 pr-3 pt-0 leading-[var(--rule)] shadow-sm [--rule:1.75rem] placeholder:text-muted/70 focus:border-court focus:outline-none focus:ring-2 focus:ring-court/20"
                 />
               </label>
-              {diary && <TagPicker tags={log.tags} onChange={(tags) => set({ tags })} />}
             </div>
 
             {diary &&
@@ -593,18 +547,6 @@ export function LogSection() {
                       Not backing anyone
                     </span>
                   )}
-                  {/* A real diary's own marks: a classic, and the fan's tags */}
-                  {mode !== "demo" && log.classic && (
-                    <span key="classic" className="sticker-in rounded-full bg-ball px-3 py-1 font-semibold text-[#0b0d12]">
-                      ★ Classic
-                    </span>
-                  )}
-                  {mode !== "demo" &&
-                    log.tags.map((tag) => (
-                      <span key={`tag-${tag}`} className="sticker-in rounded-full bg-surface px-3 py-1 text-sm font-semibold text-muted ring-1 ring-line">
-                        {tag}
-                      </span>
-                    ))}
                 </div>
               </div>
 

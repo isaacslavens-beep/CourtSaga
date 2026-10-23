@@ -186,6 +186,7 @@ export const diaryEntries = pgTable(
     // Sides rather than names, so they hold whatever a player is called
     cheering: text("cheering"), // "winner" | "loser" | null
     pickWinner: text("pick_winner"), // "winner" | "loser" | null: your call on who wins
+    // Tags and the classic mark are no longer shown or saved (23 Oct 2026); kept so no one's old data is lost
     tags: text("tags").array().notNull().default(sql`'{}'::text[]`),
     note: text("note").notNull().default(""),
     classic: boolean("classic").notNull().default(false),

@@ -5,8 +5,8 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore, useTransition, type ReactNode } from "react";
 import { glideTo } from "../glide";
 import { HighlightsLink, SlamLogo, TournamentLabel } from "../match-ui";
-import { Avatar, CourtArt, chartStyles } from "./fun";
-import { diaryPages, roundName, scoreText, toMatches, watched, type Match, type MatchRow, type Round, type WatchMode } from "./library";
+import { Avatar, BallScore, CourtArt, chartStyles } from "./fun";
+import { diaryPages, roundName, scoreText, toMatches, watched, watchedHow, type Match, type MatchRow, type Round, type WatchMode } from "./library";
 import { starMatch, updateEntry } from "../(app)/actions";
 import { highlightVideos } from "./media";
 import { MatchFinder } from "./finder";
@@ -89,7 +89,7 @@ function H2HChart({ v, story, follow, page, starOf }: { v: H2HVisual; story: Sto
         value: 3,
         side: m.winner === "a" ? 1 : -1,
         watched: st !== null,
-        title: `${m.label}: ${winner} won${p ? ` · page ${p} of your diary${st === "starred" ? ", not watched" : ""}` : ""}`,
+        title: `${m.label}: ${winner} won${p ? ` · starred, page ${p} of your saga` : ""}`,
         logId: m.id,
       };
     }),
@@ -504,17 +504,16 @@ export function StoryView({
       <div className="grid gap-8 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1fr)] lg:gap-10">
         {/* The match, as a page of the record */}
         <div className="min-w-0">
-          <div key={story.id} className="page-turn page-stack overflow-hidden rounded-3xl border border-line bg-surface">
+          <div key={story.id} className={`page-turn page-stack overflow-hidden rounded-3xl border bg-surface ${here ? "border-ball ring-4 ring-ball/60" : "border-line"}`}>
+            {/* Starred: say so loudly, across the top of the card */}
+            {here && (
+              <p className="flex items-center gap-2 bg-ball px-4 py-2.5 font-display text-lg font-bold text-[#0b0d12]">
+                <span aria-hidden className="text-xl">★</span> In your saga
+                <span className="ml-auto font-sans text-sm font-semibold opacity-75">page {here}</span>
+              </p>
+            )}
             <p className="flex items-baseline justify-between gap-3 border-b border-line px-4 py-2.5 text-sm">
-              <span className="font-semibold">
-                {here ? (
-                  <>
-                    Page {here} <span className="font-normal text-muted">of your diary</span>
-                  </>
-                ) : (
-                  <span className="font-normal text-muted">Not in your diary</span>
-                )}
-              </span>
+              <span className="font-semibold">{here ? <span className="text-muted">Starred</span> : <span className="font-normal text-muted">Not in your saga</span>}</span>
               <span className="text-muted">
                 {new Date(`${story.date.slice(0, 7)}-15`).toLocaleDateString("en-GB", { month: "short", year: "numeric" })}
                 {story.minutes ? ` · ${Math.floor(story.minutes / 60)} h ${String(story.minutes % 60).padStart(2, "0")}` : ""}
@@ -538,7 +537,7 @@ export function StoryView({
                   href={logHref(story.id)}
                   className="flex items-center justify-center gap-2 rounded-full border-2 border-line px-4 py-2.5 font-semibold text-court transition hover:border-court"
                 >
-                  Open page {here} in your diary
+                  Open it in your stars
                 </Link>
               )}
             </div>
@@ -696,7 +695,7 @@ function StoryCard({
           <span className="flex items-center gap-1.5">
             Turn to it <span aria-hidden className="transition-transform group-hover:translate-x-1">→</span>
           </span>
-          {page ? <span className="rounded-full bg-ball/50 px-2 py-0.5 text-xs text-foreground">p. {page} of your diary</span> : null}
+          {page ? <span className="rounded-full bg-ball px-2 py-0.5 text-xs font-bold text-foreground">★ In your saga</span> : null}
         </span>
       </span>
     </button>
@@ -725,6 +724,7 @@ function StarPanel({ story }: { story: Story }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const state = useStarState()(story.id);
+  const { entries } = useLog();
   const run = (action: () => Promise<void>) =>
     start(async () => {
       await action();
@@ -741,30 +741,37 @@ function StarPanel({ story }: { story: Story }) {
         <span aria-hidden className="text-xl">☆</span> {pending ? "Starring…" : "Star this match"}
       </button>
     );
+  const entry = entries[story.id];
   return (
-    <div className={`rise-in rounded-2xl bg-surface px-4 py-3 shadow-md ring-1 ring-line transition ${pending ? "opacity-60" : ""}`}>
-      <p className="flex items-center gap-2 font-display text-lg font-bold">
-        <span aria-hidden className="text-xl text-[#b08d00]">★</span> Starred
-        <span className="font-sans text-sm font-normal text-muted">{state === "watched" ? "· watched" : "· not watched"}</span>
+    <div className={`rise-in rounded-2xl bg-ball px-5 py-4 text-left text-[#0b0d12] shadow-lg shadow-black/15 ring-1 ring-black/10 transition ${pending ? "opacity-60" : ""}`}>
+      <p className="flex flex-wrap items-center gap-x-2 font-display text-xl font-bold">
+        <span aria-hidden className="text-2xl">★</span> In your saga
+        <span className="font-sans text-sm font-semibold opacity-75">{state === "watched" ? `· watched ${watchedHow(entry?.watchedOn ?? null)}` : "· starred, not watched"}</span>
       </p>
+      {entry?.rating ? (
+        <span className="mt-1.5 inline-flex rounded-full bg-[#0b0d12] px-2 py-1">
+          <BallScore value={entry.rating} size="sm" />
+        </span>
+      ) : null}
+      {entry?.note && <p className="mt-2 max-w-sm border-l-2 border-[#0b0d12]/40 pl-3 text-sm font-medium italic">&ldquo;{entry.note}&rdquo;</p>}
       {state === "starred" && (
         <p className="mt-2 flex flex-wrap items-center gap-1.5 text-sm">
-          <span className="font-semibold text-muted">Watched it?</span>
+          <span className="font-semibold opacity-75">Watched it?</span>
           {starModes.map(({ mode, label }) => (
             <button
               key={mode}
               type="button"
               disabled={pending}
               onClick={() => run(() => updateEntry(story.id, { watchedOn: mode, watchedDate: story.date.slice(0, 7) }))}
-              className="cursor-pointer rounded-full border border-line px-2.5 py-0.5 font-semibold text-court transition hover:border-court"
+              className="cursor-pointer rounded-full bg-white/80 px-2.5 py-0.5 font-semibold transition hover:bg-white"
             >
               {label}
             </button>
           ))}
         </p>
       )}
-      <Link href={`/star?m=${encodeURIComponent(story.id)}`} className="mt-2 inline-block text-sm font-semibold text-court underline-offset-4 hover:underline">
-        Add a rating, your pick or a note →
+      <Link href={`/star?m=${encodeURIComponent(story.id)}`} className="mt-2 inline-block text-sm font-bold underline decoration-2 underline-offset-4">
+        {entry?.rating || entry?.note ? "Edit your rating, pick or note →" : "Add a rating, your pick or a note →"}
       </Link>
     </div>
   );
@@ -962,7 +969,7 @@ function Start({ start, follow, slam, setSlam }: { start: StartData; follow: Fol
 
       {start.diary.length > 0 && (
         <section>
-          <h2 className="font-display text-xl font-bold tracking-tight">From your diary</h2>
+          <h2 className="font-display text-xl font-bold tracking-tight">From your saga</h2>
           <ul className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
             {start.diary.map((row) => (
               <li key={row.id}>

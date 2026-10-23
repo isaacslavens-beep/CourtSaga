@@ -107,9 +107,7 @@ export async function loadDiary(userId: string, { records = false } = {}): Promi
       rating: diaryEntries.rating,
       cheering: diaryEntries.cheering,
       pickWinner: diaryEntries.pickWinner,
-      tags: diaryEntries.tags,
       note: diaryEntries.note,
-      classic: diaryEntries.classic,
     })
     .from(diaryEntries)
     .innerJoin(matches, eq(matches.id, diaryEntries.matchId))
@@ -127,9 +125,7 @@ export async function loadDiary(userId: string, { records = false } = {}): Promi
         rating: r.rating,
         cheering: r.cheering as StoredEntry["cheering"],
         pick: r.pickWinner ? { side: r.pickWinner as "winner" | "loser" } : null,
-        tags: r.tags,
         note: r.note,
-        classic: r.classic,
       },
     ]),
   );

@@ -34,9 +34,7 @@ export type FanEntry = {
   rating: number | null; // 1 to 5, or none
   cheering: string | null;
   pick: { winner: string } | null; // your call on who wins: whoever you backed
-  tags: string[];
   note: string; // the fan's own words, anything they like
-  classic: boolean;
 };
 
 /**

@@ -18,9 +18,7 @@ const entry = z.strictObject({
   rating: z.number().int().min(1).max(5).nullable(),
   cheering: side.nullable(),
   pick: z.strictObject({ side }).nullable(),
-  tags: z.array(z.string().trim().min(1).max(24)).max(8),
   note: z.string().max(2000),
-  classic: z.boolean(),
 });
 const matchId = z.string().min(1).max(120);
 
@@ -32,9 +30,7 @@ const columns = (e: Partial<StoredEntry>) => ({
   ...(e.rating !== undefined && { rating: e.rating }),
   ...(e.cheering !== undefined && { cheering: e.cheering }),
   ...(e.pick !== undefined && { pickWinner: e.pick?.side ?? null }),
-  ...(e.tags !== undefined && { tags: [...new Set(e.tags)] }),
   ...(e.note !== undefined && { note: e.note }),
-  ...(e.classic !== undefined && { classic: e.classic }),
 });
 
 /** One fan's writes at a time, so two tabs can't scramble the order */
@@ -101,9 +97,7 @@ export async function starMatch(id: string) {
     rating: null,
     cheering: null,
     pick: null,
-    tags: [],
     note: "",
-    classic: false,
   });
 }
 
