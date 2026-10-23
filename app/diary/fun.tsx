@@ -83,7 +83,7 @@ export function Avatar({
       title={name}
       className={`inline-flex shrink-0 select-none items-center justify-center rounded-full font-display font-bold ${s.bg} ${s.ink} ${size} ${className}`}
     >
-      {name[0]}
+      {name[0].toUpperCase()}
     </span>
   );
 }
