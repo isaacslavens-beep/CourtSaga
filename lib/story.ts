@@ -134,12 +134,21 @@ export async function matchStory(id: string): Promise<Story | null> {
   return tellStory({ focus, players: known, careers: { [focus.w]: careerA, [focus.l]: careerB }, draw, event, peers, ...range });
 }
 
-/** A match worth exploring, picked at random: a Slam semifinal or final, either tour, at one Slam if asked */
+// How often Surprise me picks the men's tour: most of the site's fans follow it more
+const ATP_SHARE = 0.7;
+
+/**
+ * A match worth exploring, picked at random: a Slam semifinal or final, at one Slam if asked. The tour is
+ * picked first (ATP_SHARE of the time the men's), so the mix doesn't just follow how many matches each has.
+ */
 export async function randomStoryId(slam?: string) {
+  const tour = Math.random() < ATP_SHARE ? "atp" : "wta";
   const [row] = await getDb()
     .select({ id: matches.id })
     .from(matches)
-    .where(and(eq(matches.searchable, true), eq(matches.tier, "slam"), inArray(matches.round, ["SF", "F"]), slam ? eq(matches.event, slam) : undefined))
+    .where(
+      and(eq(matches.searchable, true), eq(matches.tour, tour), eq(matches.tier, "slam"), inArray(matches.round, ["SF", "F"]), slam ? eq(matches.event, slam) : undefined),
+    )
     .orderBy(sql`random()`)
     .limit(1);
   return row?.id ?? null;
