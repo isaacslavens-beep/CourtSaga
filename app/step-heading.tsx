@@ -18,6 +18,7 @@ export function StepHeading({
   id,
   as: Heading = "h2",
   onCourt = false,
+  compact = false,
 }: {
   n: number;
   verb: string;
@@ -27,6 +28,7 @@ export function StepHeading({
   id?: string;
   as?: "h1" | "h2";
   onCourt?: boolean; // white words on a court (see CourtBand)
+  compact?: boolean; // a smaller heading, for a page that wants its content higher up
 }) {
   return (
     <div className="max-w-2xl">
@@ -34,10 +36,10 @@ export function StepHeading({
         <span className="flex h-10 w-10 items-center justify-center rounded-full bg-ball font-bold text-[#0b0d12] ring-1 ring-black/10">{n}</span>
         <span className={`text-sm font-semibold uppercase tracking-[0.16em] ${onCourt ? "text-white/80" : "text-muted"}`}>{verb}</span>
       </p>
-      <Heading id={id} className="mt-5 font-display text-4xl font-bold tracking-tight sm:text-5xl">
+      <Heading id={id} className={`font-display font-bold tracking-tight ${compact ? "mt-3 text-3xl sm:text-4xl" : "mt-5 text-4xl sm:text-5xl"}`}>
         {title}
       </Heading>
-      <p className={`mt-4 text-xl font-medium leading-relaxed ${onCourt ? "text-white/90" : "text-muted"}`}>{body}</p>
+      <p className={`font-medium leading-relaxed ${compact ? "mt-2 text-lg" : "mt-4 text-xl"} ${onCourt ? "text-white/90" : "text-muted"}`}>{body}</p>
       {hint && (
         <p className="mt-4 inline-flex items-center gap-2.5 text-lg font-semibold text-court">
           <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-ball text-[#0b0d12] ring-1 ring-black/10">

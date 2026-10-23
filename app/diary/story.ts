@@ -619,7 +619,7 @@ export function tellStory(input: StoryInput): Story {
     const finals = meetings.filter((m) => m.round === "F");
     if (F.round === "F" && finals.length >= 3) {
       const fk = finals.findIndex((m) => m.id === F.id);
-      add("h2h", "finals", 8 + finals.length * 1.5, [fk === finals.length - 1 && ahead >= 12 ? `Their ${ordinal(fk + 1)} final${hs}, and their last` : `Their ${ordinal(fk + 1)} final of ${finals.length}${hs}`]);
+      add("h2h", "finals", 8 + Math.min(22, finals.length), [fk === finals.length - 1 && ahead >= 12 ? `Their ${ordinal(fk + 1)} final${hs}, and their last` : `Their ${ordinal(fk + 1)} final of ${finals.length}${hs}`]);
     }
 
     // A rematch of an earlier final, or of last year's
@@ -734,9 +734,10 @@ export function tellStory(input: StoryInput): Story {
       let run = 0;
       for (let i = idx - 1; i >= 0 && rowsHere[i].w === p; i--) run++;
       // A run that goes back to the first match in the data may have started earlier
-      const edge = !isWhole && run === idx;
-      if (p === B && run >= 8 && !edge) add("event", "run-ended", 22 + run * 1.2 + 10 * stakes[F.tier], [`Ended ${who(B)}'s ${run}-match winning streak ${atEvent(F.event)}`], A);
-      if (p === A && run + 1 >= 12 && !edge) add("event", "run", 8 + run * 0.6, [`${who(A)}'s ${ordinal(run + 1)} straight win ${atEvent(F.event)}`], A);
+      // so it's counted from the data's start, and says so
+      const edge = !isWhole && run === idx ? since : "";
+      if (p === B && run >= 8) add("event", "run-ended", 22 + run * 1.2 + 10 * stakes[F.tier], [`Ended ${who(B)}'s ${run}-match winning streak ${atEvent(F.event)}${edge}`], A);
+      if (p === A && run + 1 >= 12) add("event", "run", 8 + run * 0.6, [`${who(A)}'s ${ordinal(run + 1)} straight win ${atEvent(F.event)}${edge}`], A);
 
       // What came of it here
       const futureEditions = editions.filter((e) => e > F.season).length;
@@ -779,12 +780,15 @@ export function tellStory(input: StoryInput): Story {
     if (l === 0 && w >= 10) {
       if (won) add("season", `unbeaten-${p}`, 16 + w * 0.8, [`${who(p)} came in unbeaten in ${F.season}: ${record(w, 0)}`], p);
       else add("season", `first-loss-${p}`, 26 + w * 1.2, [`${who(p)}'s first loss of ${F.season}, after ${w} wins`], A);
-    } else if (!won && streak >= 10 && (whole(p) || streak < ci)) {
+    } else if (!won && streak >= 10) {
+      // A streak that reaches back to the data's first match is counted from there
       const started = c[ci - streak];
-      add("season", `streak-ended-${p}`, 22 + streak * 1.1, [`Ended ${who(p)}'s ${streak}-match winning streak, which began at `, link(started)], A);
-      follow(started, `Where ${who(p)}'s streak began`, 12);
-    } else if (won && streak + 1 >= 12 && (whole(p) || streak < ci)) {
-      add("season", `streak-${p}`, 8 + streak * 0.7, [`${who(p)}'s ${ordinal(streak + 1)} win in a row`], p);
+      if (whole(p) || streak < ci) {
+        add("season", `streak-ended-${p}`, 22 + streak * 1.1, [`Ended ${who(p)}'s ${streak}-match winning streak, which began at `, link(started)], A);
+        follow(started, `Where ${who(p)}'s streak began`, 12);
+      } else add("season", `streak-ended-${p}`, 20 + streak, [`Ended ${who(p)}'s ${streak}-match winning streak${since}`], A);
+    } else if (won && streak + 1 >= 12) {
+      add("season", `streak-${p}`, 8 + streak * 0.7, [`${who(p)}'s ${ordinal(streak + 1)} win in a row${whole(p) || streak < ci ? "" : since}`], p);
     }
 
     // Titles
@@ -952,13 +956,14 @@ export function tellStory(input: StoryInput): Story {
       for (const [mark, noun] of [[6, "semifinal"], [5, "quarterfinal"]] as const) {
         let run = 0;
         for (let j = here - 1; j >= 0 && slamEds[j].level >= mark; j--) run++;
-        if (run < 6 || (run === here && !whole(p))) continue;
+        if (run < 6) continue;
+        const edge = run === here && !whole(p) ? since : "";
         if (!won && level[F.round] < mark) {
-          add("event", `slam-run-ended-${p}`, 26 + run * 1.2, [`Ended ${who(p)}'s run of ${run} straight Slam ${noun}s`], A);
+          add("event", `slam-run-ended-${p}`, 26 + run * 1.2, [`Ended ${who(p)}'s run of ${run} straight Slam ${noun}s${edge}`], A);
           break;
         }
         if (won && level[F.round] === mark - 1) {
-          add("event", `slam-run-${p}`, 12 + run * 0.8, [`${who(p)}'s ${ordinal(run + 1)} straight Slam ${noun}`], p);
+          add("event", `slam-run-${p}`, 12 + run * 0.8, [`${who(p)}'s ${ordinal(run + 1)} straight Slam ${noun}${edge}`], p);
           break;
         }
       }

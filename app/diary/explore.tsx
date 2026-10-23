@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore, useTransition } from "react";
 import { glideTo } from "../glide";
 import { HighlightsLink, SlamLogo, TournamentLabel } from "../match-ui";
 import { Avatar, CourtArt, chartStyles } from "./fun";
@@ -12,6 +12,7 @@ import { MatchFinder } from "./finder";
 import { Scoreboard } from "./log";
 import { useLog } from "./store";
 import type { DrawVisual, EventVisual, Fact, H2HVisual, Part, SeasonVisual, StatsVisual, Story, Thread } from "./story";
+import type { Surface } from "./library";
 import { ShapeChart, type Glance } from "./saga-ui";
 
 /* Exploring one match at a time: the story around it from the whole record (see story.ts), with every
@@ -405,7 +406,9 @@ export function StoryView({
     <div className={`transition-opacity duration-300 ${pending ? "opacity-50" : ""}`} aria-busy={pending}>
       {/* Which match this is, before anything else */}
       <header key={story.id} className="fade-in mb-8 flex items-center gap-4 sm:gap-5">
-        <SlamLogo event={story.event} size="h-14 w-14 sm:h-20 sm:w-20" />
+        <span className="text-5xl sm:text-7xl">
+          <SlamLogo event={story.event} size="h-14 w-14 sm:h-20 sm:w-20" />
+        </span>
         <div className="min-w-0">
           <h2 className="font-display text-3xl font-bold leading-tight tracking-tight sm:text-5xl">
             {story.event} {story.season} <span className="text-court">· {roundName(match)}</span>
@@ -469,7 +472,11 @@ export function StoryView({
           {story.lede.length ? (
             <ol className="mt-3 space-y-4">
               {story.lede.map((f, i) => (
-                <li key={f.key} className={i === 0 ? "font-display text-2xl font-bold leading-snug tracking-tight sm:text-3xl" : "text-lg font-medium leading-relaxed"}>
+                <li
+                  key={`${story.id}-${f.key}`}
+                  style={{ animationDelay: `${150 + i * 220}ms` }}
+                  className={`rise-in ${i === 0 ? "font-display text-2xl font-bold leading-snug tracking-tight sm:text-3xl" : "text-lg font-medium leading-relaxed"}`}
+                >
                   <Parts parts={f.parts} follow={follow} />.
                 </li>
               ))}
@@ -492,54 +499,127 @@ export function StoryView({
 
 /** Where to go next: the matches the story points to, each a page to turn to with the reason on it */
 function Trail({ story, follow, page }: { story: Story; follow: Follow; page: (id: string) => number | null }) {
+  const teasers = useTeasers();
   return (
     <section aria-label="Follow the thread" className="min-w-0 rounded-3xl bg-court p-5 text-court-ink shadow-lg sm:p-6 lg:col-span-2">
       <header className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
         <h3 className="font-display text-2xl font-bold tracking-tight">Follow the thread</h3>
-        <span className="text-sm text-white/75">Every match here has its own story. Turn to one.</span>
+        <span className="text-sm text-white/75">Every match here has its own story. Point at one for a taste.</span>
       </header>
       <ol className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {story.trail.map((t, i) => {
           const r = story.refs[t.ref];
-          const p = page(t.ref);
-          const [w, l] = [story.names[r.w], story.names[r.l]];
           return (
             <li key={t.ref}>
-              <button
-                type="button"
-                onClick={() => follow(t.ref)}
-                className="group relative flex h-full w-full cursor-pointer flex-col overflow-hidden rounded-2xl bg-surface text-left text-foreground shadow-md transition duration-200 hover:-translate-y-1 hover:shadow-xl"
-              >
-                <span className="relative block h-20 overflow-hidden">
-                  <CourtArt surface={r.surface} className="absolute inset-0 h-full w-full scale-150 transition-transform duration-500 group-hover:scale-[1.6]" />
-                  <span className="absolute inset-0 bg-gradient-to-r from-[#0a1220]/80 to-[#0a1220]/20" />
-                  <span className="absolute left-3 top-3 flex h-7 w-7 items-center justify-center rounded-full bg-ball font-display text-sm font-bold text-[#0b0d12]">{i + 1}</span>
-                  <span className="absolute bottom-2.5 left-3 right-3 flex min-w-0 items-center gap-2 text-white">
-                    <TournamentLabel event={r.label} surface={r.surface} onPhoto className="text-sm" />
-                  </span>
-                  <span className="absolute right-3 top-3 flex -space-x-2">
-                    <Avatar name={w} size="h-9 w-9 text-xs ring-2 ring-white/80" />
-                    <Avatar name={l} size="h-9 w-9 text-xs ring-2 ring-white/80" />
-                  </span>
-                </span>
-                <span className="flex flex-1 flex-col gap-1.5 px-4 pb-4 pt-3">
-                  <span className="font-display text-lg font-bold leading-snug">{t.why}</span>
-                  <span className="text-sm text-muted">
-                    <span className="font-semibold text-foreground">{w}</span> beat {l} <span className="whitespace-nowrap font-mono text-xs">{scoreText(r.score)}</span>
-                  </span>
-                  <span className="mt-auto flex items-center justify-between pt-2 text-sm font-semibold text-court">
-                    <span className="flex items-center gap-1.5">
-                      Turn to it <span aria-hidden className="transition-transform group-hover:translate-x-1">→</span>
-                    </span>
-                    {p ? <span className="rounded-full bg-ball/50 px-2 py-0.5 text-xs text-foreground">p. {p} of your diary</span> : null}
-                  </span>
-                </span>
-              </button>
+              <StoryCard
+                n={i + 1}
+                label={r.label}
+                surface={r.surface}
+                names={[story.names[r.w], story.names[r.l]]}
+                score={r.score}
+                headline={t.why}
+                page={page(t.ref)}
+                teaser={teasers.get(t.ref)}
+                onPeek={() => teasers.want(t.ref)}
+                onOpen={() => follow(t.ref)}
+              />
             </li>
           );
         })}
       </ol>
     </section>
+  );
+}
+
+/* ---------- Tasters: a story's first line, fetched when you point at a match ---------- */
+
+const teaserCache = new Map<string, string>();
+
+/** Point at a match and its story's headline arrives, so every card hints at what's behind it */
+function useTeasers() {
+  const [, bump] = useState(0);
+  const asked = useRef(new Set<string>());
+  return {
+    get: (id: string) => teaserCache.get(id),
+    want: (id: string) => {
+      if (teaserCache.has(id) || asked.current.has(id)) return;
+      asked.current.add(id);
+      fetch(`/api/story?id=${encodeURIComponent(id)}&teaser=1`)
+        .then((res) => (res.ok ? res.json() : null))
+        .then((t: { line: string } | null) => {
+          if (!t?.line) return;
+          teaserCache.set(id, t.line);
+          bump((n) => n + 1);
+        })
+        .catch(() => asked.current.delete(id));
+    },
+  };
+}
+
+/** A match as a card to turn to: its court and event on a banner, both faces, a headline, and a taste of its story */
+function StoryCard({
+  n,
+  label,
+  surface,
+  names,
+  score,
+  headline,
+  page,
+  teaser,
+  onPeek,
+  onOpen,
+}: {
+  n?: number;
+  label: string;
+  surface: Surface;
+  names: readonly [string, string];
+  score: string;
+  headline: string;
+  page: number | null;
+  teaser?: string;
+  onPeek: () => void;
+  onOpen: () => void;
+}) {
+  const [w, l] = names;
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      onPointerEnter={onPeek}
+      onFocus={onPeek}
+      className="group relative flex h-full w-full cursor-pointer flex-col overflow-hidden rounded-2xl bg-surface text-left text-foreground shadow-md ring-1 ring-line transition duration-200 hover:-translate-y-1 hover:shadow-xl hover:ring-court/40"
+    >
+      <span className="relative block h-20 overflow-hidden">
+        <CourtArt surface={surface} className="absolute inset-0 h-full w-full scale-150 transition-transform duration-500 group-hover:scale-[1.6]" />
+        <span className="absolute inset-0 bg-[#0a1220]/55" />
+        {n !== undefined && <span className="absolute left-3 top-3 flex h-7 w-7 items-center justify-center rounded-full bg-ball font-display text-sm font-bold text-[#0b0d12]">{n}</span>}
+        <span className="absolute bottom-2.5 left-3 right-3 flex min-w-0 items-center gap-2 text-white">
+          <TournamentLabel event={label} surface={surface} onPhoto className="text-sm" />
+        </span>
+        <span className="absolute right-3 top-3 flex -space-x-2 transition-transform duration-300 group-hover:-translate-y-0.5">
+          <Avatar name={w} size="h-9 w-9 text-xs ring-2 ring-white/80" />
+          <Avatar name={l} size="h-9 w-9 text-xs ring-2 ring-white/80" />
+        </span>
+      </span>
+      <span className="flex flex-1 flex-col gap-1.5 px-4 pb-4 pt-3">
+        <span className="font-display text-lg font-bold leading-snug">{headline}</span>
+        <span className="text-sm text-muted">
+          <span className="font-semibold text-foreground">{w}</span> beat {l} <span className="whitespace-nowrap font-mono text-xs">{scoreText(score)}</span>
+        </span>
+        {/* A taste of the story, once pointed at */}
+        <span className="grid grid-rows-[0fr] transition-[grid-template-rows] duration-300 group-hover:grid-rows-[1fr] group-focus-visible:grid-rows-[1fr]">
+          <span className="overflow-hidden">
+            <span className="mt-1 block border-l-2 border-ball pl-2.5 text-sm font-medium italic leading-snug text-court">{teaser ?? "Opening the record…"}</span>
+          </span>
+        </span>
+        <span className="mt-auto flex items-center justify-between pt-2 text-sm font-semibold text-court">
+          <span className="flex items-center gap-1.5">
+            Turn to it <span aria-hidden className="transition-transform group-hover:translate-x-1">→</span>
+          </span>
+          {page ? <span className="rounded-full bg-ball/50 px-2 py-0.5 text-xs text-foreground">p. {page} of your diary</span> : null}
+        </span>
+      </span>
+    </button>
   );
 }
 
@@ -579,11 +659,13 @@ function MatchCard({ row, why, page, onOpen, names }: { row: MatchRow; why?: str
 type StartData = { finals: MatchRow[]; classics: { row: MatchRow; why: string }[]; diary: MatchRow[] };
 
 const slamTiles = ["Australian Open", "Roland Garros", "Wimbledon", "US Open"] as const;
+// Each Slam's own colour for its tile, as on the Slams' courts elsewhere on the site
+const slamColours: Record<(typeof slamTiles)[number], string> = { "Australian Open": "#1b84c9", "Roland Garros": "#c8501c", Wimbledon: "#54237f", "US Open": "#002f87" };
 
 /** One final in a Slam's list: the year, then who beat whom */
-function FinalRow({ row, page, onOpen, names }: { row: MatchRow; page: number | null; onOpen: () => void; names: readonly [string, string] }) {
+function FinalRow({ row, page, onOpen, names, teaser, onPeek }: { row: MatchRow; page: number | null; onOpen: () => void; names: readonly [string, string]; teaser?: string; onPeek: () => void }) {
   return (
-    <button type="button" onClick={onOpen} className="group flex w-full cursor-pointer items-center gap-3 rounded-xl px-2 py-2 text-left transition hover:bg-court/10">
+    <button type="button" onClick={onOpen} onPointerEnter={onPeek} onFocus={onPeek} className="group flex w-full cursor-pointer flex-wrap items-center gap-x-3 rounded-xl px-2 py-2 text-left transition hover:bg-court/10">
       <span className="w-12 shrink-0 font-display text-lg font-bold tabular-nums">{row.season}</span>
       <span className="flex shrink-0 -space-x-2">
         <Avatar name={names[0]} size="h-8 w-8 text-xs ring-2 ring-surface" />
@@ -594,59 +676,46 @@ function FinalRow({ row, page, onOpen, names }: { row: MatchRow; page: number | 
         <span className="font-mono text-xs text-muted max-sm:hidden">{scoreText(row.score)}</span>
       </span>
       {page ? <span className="shrink-0 rounded-full bg-ball/50 px-2 py-0.5 text-xs font-semibold">p. {page}</span> : null}
+      {/* A taste of the story, once pointed at */}
+      <span className="grid w-full grid-rows-[0fr] pl-[3.75rem] transition-[grid-template-rows] duration-300 group-hover:grid-rows-[1fr] group-focus-visible:grid-rows-[1fr]">
+        <span className="overflow-hidden">
+          <span className="mt-1 block border-l-2 border-ball pl-2.5 text-sm font-medium italic text-court">{teaser ?? "Opening the record…"}</span>
+        </span>
+      </span>
     </button>
   );
 }
 
-/** A question mark with a tennis ball in its curl: Surprise me's symbol */
-function SurpriseIcon({ className }: { className: string }) {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden className={className}>
-      <path d="M6 8.6a6 6 0 1 1 9.6 4.8c-2 1.4-3.2 2.4-3.2 4.8" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" />
-      <circle cx="12.4" cy="22" r="1.35" fill="white" />
-      <circle cx="12" cy="8.6" r="4.2" className="fill-ball" />
-      <path d="M9 6.3c1.3 1.2 1.3 3.4 0 4.6M15 6.3c-1.3 1.2-1.3 3.4 0 4.6" fill="none" stroke="white" strokeWidth="0.9" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-const atSlamName = (slam: string) => (slam === "Roland Garros" || slam === "Wimbledon" ? slam : `the ${slam}`);
 const surpriseHref = (slam: string | null) => (slam ? `/explore?m=random&slam=${encodeURIComponent(slam)}` : "/explore?m=random");
+const surpriseWhat = (slam: string | null) => (slam ? `Random ${slam} match` : "Random Grand Slam match");
 
-/** A random Slam semifinal or final, from one Slam once one is picked: above and below every story */
+/** A random Slam semifinal or final, from one Slam once one is picked: at the foot of every story */
 function SurpriseMe({ className = "", again = false, slam = null }: { className?: string; again?: boolean; slam?: string | null }) {
   return (
     <div className={`flex flex-wrap items-center gap-x-5 gap-y-2 ${className}`}>
       <Link
         href={surpriseHref(slam)}
         scroll={false}
-        className="group inline-flex items-center gap-4 rounded-full bg-ball py-3 pl-3 pr-9 font-display text-2xl font-bold text-[#0b0d12] shadow-lg shadow-black/15 transition hover:-translate-y-0.5 hover:shadow-xl sm:text-3xl"
+        className="rounded-full bg-ball px-9 py-4 font-display text-2xl font-bold text-[#0b0d12] shadow-lg shadow-black/15 transition hover:-translate-y-0.5 hover:shadow-xl sm:text-3xl"
       >
-        <span className="flex h-12 w-12 items-center justify-center rounded-full bg-[#0b0d12] transition-transform group-hover:-rotate-12 sm:h-14 sm:w-14">
-          <SurpriseIcon className="h-9 w-9 sm:h-10 sm:w-10" />
-        </span>
         {again ? "Surprise me again" : "Surprise me"}
       </Link>
-      <span className="text-muted">{slam ? `A random semifinal or final at ${atSlamName(slam)}.` : "A random Slam semifinal or final."}</span>
+      <span className="text-muted">{surpriseWhat(slam)}</span>
     </div>
   );
 }
 
-/** Surprise me sized to sit beside the search bar, saying what it'll pick from */
-function SurpriseBeside({ slam }: { slam: string | null }) {
+/** Surprise me inside the search bar */
+function SurpriseInside({ slam }: { slam: string | null }) {
   return (
     <Link
       href={surpriseHref(slam)}
       scroll={false}
-      className="group inline-flex shrink-0 items-center gap-3 rounded-full bg-ball py-1.5 pl-1.5 pr-6 text-[#0b0d12] shadow-lg shadow-black/15 transition hover:-translate-y-0.5 hover:shadow-xl max-sm:w-full"
+      title={surpriseWhat(slam)}
+      aria-label={`Surprise me: ${surpriseWhat(slam)}`}
+      className="rounded-full bg-ball px-4 py-2 font-display font-bold text-[#0b0d12] shadow-sm transition hover:scale-105 hover:shadow-md sm:px-5"
     >
-      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#0b0d12] transition-transform group-hover:-rotate-12">
-        <SurpriseIcon className="h-8 w-8" />
-      </span>
-      <span className="flex flex-col leading-tight">
-        <span className="font-display text-xl font-bold">Surprise me</span>
-        <span className="text-xs font-semibold opacity-75">{slam ? `A ${slam} semifinal or final` : "A Slam semifinal or final"}</span>
-      </span>
+      Surprise me
     </Link>
   );
 }
@@ -656,6 +725,7 @@ function Start({ start, follow, slam, setSlam }: { start: StartData; follow: Fol
   const page = usePages();
   const finals = start.finals.filter((r) => r.event === slam);
   const finalNames = useMemo(() => namesOf(start.finals), [start.finals]);
+  const teasers = useTeasers();
   const cardNames = useMemo(() => namesOf([...start.classics.map((c) => c.row), ...start.diary]), [start.classics, start.diary]);
   const panel = useRef<HTMLDivElement>(null);
   const pick = (t: string) => {
@@ -668,18 +738,22 @@ function Start({ start, follow, slam, setSlam }: { start: StartData; follow: Fol
         <h2 className="font-display text-2xl font-bold tracking-tight">Start at a Slam</h2>
         <p className="text-muted">Pick one for every final played there since {Math.min(...start.finals.map((r) => r.season))}, then follow the story from any of them.</p>
         <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-          {slamTiles.map((t) => (
+          {slamTiles.map((t, i) => (
             <button
               key={t}
               type="button"
               aria-pressed={slam === t}
               onClick={() => pick(t)}
-              className={`flex cursor-pointer flex-col items-center gap-3 rounded-3xl border-2 px-3 py-5 font-semibold shadow-sm transition hover:-translate-y-1 hover:shadow-lg ${
-                slam === t ? "border-court bg-surface shadow-lg" : "border-line bg-surface/80"
+              style={{ background: slamColours[t], animationDelay: `${i * 70}ms` }}
+              className={`rise-in group flex cursor-pointer flex-col items-center gap-3 rounded-3xl px-3 py-5 font-semibold text-white shadow-md transition duration-200 hover:-translate-y-1.5 hover:shadow-xl ${
+                slam === t ? "-translate-y-1.5 shadow-xl ring-4 ring-ball ring-offset-2 ring-offset-[var(--page)]" : slam ? "opacity-70 hover:opacity-100" : ""
               }`}
             >
-              <SlamLogo event={t} size="h-16 w-16 sm:h-20 sm:w-20" />
-              <span className="text-center">{t}</span>
+              <span className="transition-transform duration-300 group-hover:-rotate-6 group-hover:scale-110">
+                <SlamLogo event={t} size="h-16 w-16 sm:h-20 sm:w-20" />
+              </span>
+              <span className="text-center font-display text-lg">{t}</span>
+              <span className="rounded-full bg-white/20 px-2.5 py-0.5 text-xs">{start.finals.filter((r) => r.event === t).length} finals</span>
             </button>
           ))}
         </div>
@@ -693,7 +767,7 @@ function Start({ start, follow, slam, setSlam }: { start: StartData; follow: Fol
                     .filter((r) => r.tour === tour)
                     .map((row) => (
                       <li key={row.id}>
-                        <FinalRow row={row} page={page(row.id)} onOpen={() => follow(row.id)} names={finalNames(row)} />
+                        <FinalRow row={row} page={page(row.id)} onOpen={() => follow(row.id)} names={finalNames(row)} teaser={teasers.get(row.id)} onPeek={() => teasers.want(row.id)} />
                       </li>
                     ))}
                 </ul>
@@ -706,11 +780,21 @@ function Start({ start, follow, slam, setSlam }: { start: StartData; follow: Fol
       {start.classics.length > 0 && (
         <section>
           <h2 className="font-display text-2xl font-bold tracking-tight">Matches everyone talks about</h2>
-          <p className="text-muted">Start with one you&apos;ve heard of.</p>
-          <ul className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-            {start.classics.map(({ row, why }) => (
-              <li key={row.id}>
-                <MatchCard row={row} why={why} page={page(row.id)} onOpen={() => follow(row.id)} names={cardNames(row)} />
+          <p className="text-muted">Start with one you&apos;ve heard of. Point at a card for a taste of its story.</p>
+          <ul className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {start.classics.map(({ row, why }, i) => (
+              <li key={row.id} className="rise-in" style={{ animationDelay: `${i * 50}ms` }}>
+                <StoryCard
+                  label={`${row.event} ${row.season} · ${roundName({ ...row, event: row.event })}`}
+                  surface={row.surface}
+                  names={cardNames(row)}
+                  score={row.score}
+                  headline={why}
+                  page={page(row.id)}
+                  teaser={teasers.get(row.id)}
+                  onPeek={() => teasers.want(row.id)}
+                  onOpen={() => follow(row.id)}
+                />
               </li>
             ))}
           </ul>
@@ -730,6 +814,78 @@ function Start({ start, follow, slam, setSlam }: { start: StartData; follow: Fol
         </section>
       )}
     </div>
+  );
+}
+
+/* ---------- Your trail: the matches explored this visit ---------- */
+
+type Crumb = { id: string; label: string };
+const CRUMBS = "courtsaga:explore-trail";
+const crumbEvent = "courtsaga-trail";
+const readCrumbs = () => {
+  try {
+    return sessionStorage.getItem(CRUMBS) ?? "[]";
+  } catch {
+    return "[]";
+  }
+};
+const subscribeCrumbs = (on: () => void) => {
+  window.addEventListener(crumbEvent, on);
+  return () => window.removeEventListener(crumbEvent, on);
+};
+
+/** Where you've been: every match opened this visit, in order, a click from going back */
+function Crumbs({ story, follow }: { story: Story; follow: Follow }) {
+  const raw = useSyncExternalStore(subscribeCrumbs, readCrumbs, () => "[]");
+  const crumbs = useMemo(() => {
+    try {
+      return JSON.parse(raw) as Crumb[];
+    } catch {
+      return [];
+    }
+  }, [raw]);
+  const list = useRef<HTMLOListElement>(null);
+
+  // Add this match to the end of the trail (once), and keep the newest in view
+  useEffect(() => {
+    try {
+      const now = JSON.parse(readCrumbs()) as Crumb[];
+      if (now[now.length - 1]?.id !== story.id) {
+        const label = `${story.event} ${story.season} · ${roundName(asMatch(story))}`;
+        sessionStorage.setItem(CRUMBS, JSON.stringify([...now.filter((c) => c.id !== story.id), { id: story.id, label }].slice(-30)));
+        window.dispatchEvent(new Event(crumbEvent));
+      }
+    } catch {
+      // No storage (a private window, say): no trail, nothing else lost
+    }
+  }, [story]);
+  useEffect(() => {
+    list.current?.scrollTo({ left: list.current.scrollWidth, behavior: "smooth" });
+  }, [crumbs.length]);
+
+  if (crumbs.length < 2) return null;
+  return (
+    <nav aria-label="Your trail" className="mb-6 flex items-center gap-3">
+      <span className="shrink-0 rounded-full bg-court px-3 py-1 text-sm font-bold text-court-ink">
+        {crumbs.length} explored
+      </span>
+      <ol ref={list} className="flex min-w-0 items-center gap-1.5 overflow-x-auto py-1 text-sm [scrollbar-width:none]">
+        {crumbs.map((c, i) => (
+          <li key={c.id} className="flex shrink-0 items-center gap-1.5">
+            {i > 0 && <span aria-hidden className="text-muted">→</span>}
+            {c.id === story.id ? (
+              <span aria-current="page" className="rounded-full bg-ball px-3 py-1 font-semibold text-[#0b0d12]">
+                {c.label}
+              </span>
+            ) : (
+              <button type="button" onClick={() => follow(c.id)} className="cursor-pointer rounded-full border border-line bg-surface px-3 py-1 font-medium text-court transition hover:border-court">
+                {c.label}
+              </button>
+            )}
+          </li>
+        ))}
+      </ol>
+    </nav>
   );
 }
 
@@ -768,12 +924,12 @@ export function ExploreSection({
 
   return (
     <div className="space-y-8">
-      <MatchFinder seasons={seasons} explore aside={story ? undefined : <SurpriseBeside slam={picked} />} />
+      <MatchFinder seasons={seasons} explore inside={<SurpriseInside slam={story ? slam : picked} />} />
       <div ref={top} className="scroll-mt-6">
         {missing && <p className="mb-6 rounded-2xl bg-fault/10 px-4 py-3 font-medium text-fault">That match isn&apos;t in the record. Try finding it above.</p>}
         {story ? (
           <>
-            <SurpriseMe className="mb-10" slam={slam} />
+            <Crumbs story={story} follow={follow} />
             <StoryView story={story} follow={follow} pending={pending} page={page} logHref={(id) => `/log?m=${encodeURIComponent(id)}`} />
             <SurpriseMe className="mt-12 justify-center" again slam={slam} />
           </>

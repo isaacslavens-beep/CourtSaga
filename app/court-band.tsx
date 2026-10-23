@@ -48,12 +48,17 @@ function Court() {
   );
 }
 
-export function CourtBand({ children }: { children: ReactNode }) {
+export function CourtBand({ children, compact = false }: { children: ReactNode; compact?: boolean }) {
   return (
     <div className="court-surround bg-[var(--hc-surround)] text-white">
-      <div className="mx-auto grid max-w-6xl items-center gap-x-14 gap-y-6 px-4 pb-10 pt-8 sm:px-8 sm:pb-12 sm:pt-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,28rem)]">
+      <div
+        className={`mx-auto grid max-w-6xl items-center gap-x-14 gap-y-6 px-4 sm:px-8 ${
+          compact ? "py-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,15rem)]" : "pb-10 pt-8 sm:pb-12 sm:pt-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,28rem)]"
+        }`}
+      >
         <div>{children}</div>
-        <div className="w-full max-w-sm max-lg:mx-auto lg:max-w-none">
+        {/* A compact band keeps its court small, and leaves it out on a phone */}
+        <div className={compact ? "w-full max-lg:hidden" : "w-full max-w-sm max-lg:mx-auto lg:max-w-none"}>
           <Court />
         </div>
       </div>

@@ -17,18 +17,19 @@ export const metadata: Metadata = { title: "Explore a match · CourtSaga" };
 
 export default function ExplorePage({ searchParams }: PageProps<"/explore">) {
   return (
-    <div className="court-rg flex flex-1 flex-col">
-      <CourtBand>
+    <div className="court-uso flex flex-1 flex-col">
+      <CourtBand compact>
         <StepHeading
           as="h1"
           onCourt
+          compact
           n={2}
           verb="Explore"
           title="Explore a match"
-          body="Pick any match and follow the story around it: the head-to-head, each player's season and history at the tournament, the draw, and what came next."
+          body="Pick any match and follow the story around it, one match to the next."
         />
       </CourtBand>
-      <section className="court-page flex-1 pb-16 pt-10 sm:pt-12">
+      <section className="court-page flex-1 pb-16 pt-6 sm:pt-8">
         <div className="mx-auto w-full max-w-6xl px-4 sm:px-8">
           <Suspense fallback={<OpeningDiary />}>
             <Exploring searchParams={searchParams} />
