@@ -598,11 +598,11 @@ function FinalRow({ row, page, onOpen, names }: { row: MatchRow; page: number | 
 }
 
 /** A random Slam semifinal or final: on the start page, and above and below every story */
-function SurpriseMe({ className = "", again = false }: { className?: string; again?: boolean }) {
+function SurpriseMe({ className = "", again = false, slam = null }: { className?: string; again?: boolean; slam?: string | null }) {
   return (
     <div className={`flex flex-wrap items-center gap-x-5 gap-y-2 ${className}`}>
       <Link
-        href="/explore?m=random"
+        href={slam ? `/explore?m=random&slam=${encodeURIComponent(slam)}` : "/explore?m=random"}
         scroll={false}
         className="group inline-flex items-center gap-4 rounded-full bg-ball py-3 pl-3 pr-9 font-display text-2xl font-bold text-[#0b0d12] shadow-lg shadow-black/15 transition hover:-translate-y-0.5 hover:shadow-xl sm:text-3xl"
       >
@@ -611,7 +611,7 @@ function SurpriseMe({ className = "", again = false }: { className?: string; aga
         </span>
         {again ? "Surprise me again" : "Surprise me"}
       </Link>
-      <span className="text-muted">A random Slam semifinal or final.</span>
+      <span className="text-muted">{slam ? `A random semifinal or final at ${slam === "Roland Garros" || slam === "Wimbledon" ? slam : `the ${slam}`}.` : "A random Slam semifinal or final."}</span>
     </div>
   );
 }
@@ -667,7 +667,7 @@ function Start({ start, follow }: { start: StartData; follow: Follow }) {
             ))}
           </div>
         )}
-        <SurpriseMe className="mt-6" />
+        <SurpriseMe className="mt-6" slam={slam} />
       </section>
 
       {start.classics.length > 0 && (
@@ -702,7 +702,7 @@ function Start({ start, follow }: { start: StartData; follow: Follow }) {
 
 /* ---------- Signed in ---------- */
 
-export function ExploreSection({ story, missing, start: startData }: { story: Story | null; missing: boolean; start: StartData }) {
+export function ExploreSection({ story, missing, slam, start: startData }: { story: Story | null; missing: boolean; slam: string | null; start: StartData }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const page = usePages();
@@ -724,9 +724,9 @@ export function ExploreSection({ story, missing, start: startData }: { story: St
       {missing && <p className="mb-6 rounded-2xl bg-fault/10 px-4 py-3 font-medium text-fault">That match isn&apos;t in the record. Try finding it above.</p>}
       {story ? (
         <>
-          <SurpriseMe className="mb-10" />
+          <SurpriseMe className="mb-10" slam={slam} />
           <StoryView story={story} follow={follow} pending={pending} page={page} logHref={(id) => `/log?m=${encodeURIComponent(id)}`} />
-          <SurpriseMe className="mt-12 justify-center" again />
+          <SurpriseMe className="mt-12 justify-center" again slam={slam} />
         </>
       ) : (
         <Start start={startData} follow={follow} />

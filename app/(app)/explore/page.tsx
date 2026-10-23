@@ -5,7 +5,7 @@ import { requireUser } from "@/lib/auth";
 import { findMatches, latestPage, loadDiary, seasonRange, slamFinals } from "@/lib/diary";
 import { matchStory, randomStoryId } from "@/lib/story";
 import { classics } from "../../diary/classics";
-import { diaryPages, toFanEntry, toMatches } from "../../diary/library";
+import { diaryPages, slams, toFanEntry, toMatches } from "../../diary/library";
 import { ExploreSection } from "../../diary/explore";
 import { MatchFinder } from "../../diary/finder";
 import { LogProvider } from "../../diary/store";
@@ -42,10 +42,12 @@ export default function ExplorePage({ searchParams }: PageProps<"/explore">) {
 
 async function Exploring({ searchParams }: Pick<PageProps<"/explore">, "searchParams">) {
   const user = await requireUser();
-  const { m } = await searchParams;
+  const { m, slam } = await searchParams;
+  const atSlam = typeof slam === "string" && slams.includes(slam as (typeof slams)[number]) ? slam : undefined;
   if (m === "random") {
-    const id = await randomStoryId();
-    redirect(id ? `/explore?m=${encodeURIComponent(id)}` : "/explore");
+    const id = await randomStoryId(atSlam);
+    // A surprise from one Slam keeps to it: the next "Surprise me" picks there too
+    redirect(id ? `/explore?m=${encodeURIComponent(id)}${atSlam ? `&slam=${encodeURIComponent(atSlam)}` : ""}` : "/explore");
   }
   const wanted = typeof m === "string" ? m.slice(0, 120) : null;
   const [diary, seasons, story, finals, classicRows] = await Promise.all([
@@ -72,6 +74,7 @@ async function Exploring({ searchParams }: Pick<PageProps<"/explore">, "searchPa
         <ExploreSection
           story={story}
           missing={!!wanted && !story}
+          slam={atSlam ?? null}
           start={{ finals, classics: classicRows.map((row) => ({ row, why: classics.find((c) => c.id === row.id)!.why })), diary: recentRows }}
         />
       </div>
