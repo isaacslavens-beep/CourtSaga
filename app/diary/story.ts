@@ -53,6 +53,9 @@ export type StoryInput = {
   last: string; // the latest date in the data
 };
 
+// The fewest meetings a pair needs before their head-to-head gets its own card
+const H2H_MIN = 5;
+
 // Where each serve stat sits in a side's array
 const STAT = { ace: 0, df: 1, svpt: 2, in1: 3, won1: 4, won2: 5, games: 6, bpSaved: 7, bpFaced: 8 } as const;
 
@@ -1157,7 +1160,9 @@ export function tellStory(input: StoryInput): Story {
     if (has(`slam-run-ended-${p}`) || has("earliest")) dropped.add(`year-${p}`);
   }
   if (has("first-win")) dropped.add("run-ended");
-  const sorted = [...facts].filter((f) => !dropped.has(f.key)).sort((x, y) => y.weight - x.weight || x.key.localeCompare(y.key));
+  // A head-to-head needs a few meetings to be worth a card: fewer, and it and its lines are left out
+  const h2hShown = total >= H2H_MIN;
+  const sorted = [...facts].filter((f) => !dropped.has(f.key) && (h2hShown || f.thread !== "h2h")).sort((x, y) => y.weight - x.weight || x.key.localeCompare(y.key));
   // The story in three lines: the heaviest, then the heaviest from two other threads
   const lede: Fact[] = [];
   for (const f of sorted) {
@@ -1171,7 +1176,7 @@ export function tellStory(input: StoryInput): Story {
       const weight = (chosen[0]?.weight ?? 0) + 0.3 * (chosen[1]?.weight ?? 0) + (threadInfo[id].visual ? 4 : 0);
       return { id, ...threadInfo[id], facts: chosen, weight };
     })
-    .filter((t) => t.facts.length || t.visual)
+    .filter((t) => (t.facts.length || t.visual) && (h2hShown || t.id !== "h2h"))
     .sort((x, y) => y.weight - x.weight);
 
   // The trail: the most telling matches the story points to
