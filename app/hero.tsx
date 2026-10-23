@@ -56,11 +56,11 @@ export function Hero() {
           <div className="relative flex flex-col justify-center px-11 pb-14 pt-20 sm:px-16 lg:py-20 lg:pl-16 lg:pr-12">
             <span aria-hidden className={`${line} max-lg:left-1/2 max-lg:top-0 max-lg:h-3 max-lg:w-[3px] lg:left-0 lg:top-1/2 lg:h-[3px] lg:w-3`} />
             <h1 className="hero-title font-display text-[2.6rem] font-bold leading-[1.02] tracking-tight sm:text-6xl lg:text-[3.25rem] xl:text-6xl">
-              Remember every match you watch.
+              Explore and remember the story of tennis.
             </h1>
             <p className="mt-6 max-w-lg text-lg font-medium leading-relaxed text-white/90 sm:text-xl">
-              CourtSaga is a free, simple diary for the tennis you watch. Log any match since 2003, explore the
-              story around it, and your saga builds itself from there.
+              CourtSaga lets you explore the most in-depth tennis data available, and track any match you&apos;ve seen
+              into your own personal, shareable story. See how it works below.
             </p>
             <div className="mt-8 flex flex-wrap items-center gap-x-5 gap-y-3">
               <a

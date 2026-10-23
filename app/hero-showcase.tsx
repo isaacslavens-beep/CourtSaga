@@ -23,7 +23,7 @@ type Example = {
   // The 4:5 frame crops each photo to the frame's height, so the photo is drawn wider than the frame (1.9×
   // for a 3:2 photo, 2.2× for 16:9). Ask for that, or the browser fetches a copy too small and stretches it.
   sizes: string;
-  opensIn: "log" | "story";
+  opensIn: "log" | "explore";
 };
 
 const examples: Example[] = [
@@ -41,7 +41,7 @@ const examples: Example[] = [
     alt: "Carlos Alcaraz lying on the court, laughing, after winning the 2026 Australian Open final",
     position: "object-[18%_50%]",
     sizes: "(min-width: 1280px) 34rem, (min-width: 1024px) 28rem, (min-width: 640px) 34rem, 90vw",
-    opensIn: "story",
+    opensIn: "explore",
   },
 ];
 
@@ -139,9 +139,9 @@ function ExampleCard({ ex, onOpen, className = "", children }: { ex: Example; on
           </span>
         )}
         <span className="mt-2.5 block text-sm font-semibold text-court transition group-hover:translate-y-0.5">
-          {ex.opensIn === "log" ? "Open in the log ↓" : "Open in the saga ↓"}
+          {ex.opensIn === "log" ? "Open in the log ↓" : "Explore this match ↓"}
         </span>
-        <span className="sr-only">{ex.opensIn === "log" ? "Open this match in the log below" : "Open this match in its rivalry's story below"}</span>
+        <span className="sr-only">{ex.opensIn === "log" ? "Open this match in the log below" : "Explore the story around this match below"}</span>
       </span>
     </button>
   );
@@ -150,9 +150,9 @@ function ExampleCard({ ex, onOpen, className = "", children }: { ex: Example; on
 export function HeroShowcase() {
   const { setFocusId, goTo } = useLog();
 
-  // The log opens on the match; the saga opens its rivalry at the match's chapter and glides there itself
+  // The log opens on the match; Explore opens the story around it and glides there itself
   const open = (ex: Example) => () => {
-    if (ex.opensIn === "story") return goTo("story", ex.id);
+    if (ex.opensIn === "explore") return goTo("explore", ex.id);
     setFocusId(ex.id);
     glideTo(document.getElementById("log"), "start", 0);
   };

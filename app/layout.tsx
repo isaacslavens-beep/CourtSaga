@@ -18,7 +18,7 @@ const bricolage = Bricolage_Grotesque({
 });
 
 const description =
-  "A free, simple diary for the tennis you watch. Log any match since 2003, explore the story around it, and your saga builds itself. Free, launching before the 2027 Australian Open.";
+  "Explore the story of any tennis match since 2003, and track the matches you've seen into your own shareable story. Free, launching before the 2027 Australian Open.";
 
 export const metadata: Metadata = {
   title: "CourtSaga",
