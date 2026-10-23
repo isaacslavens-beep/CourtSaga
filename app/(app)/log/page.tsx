@@ -15,10 +15,10 @@ export const metadata: Metadata = { title: "Log a match · CourtSaga" };
 export default function LogPage({ searchParams }: PageProps<"/log">) {
   return (
     <div className="court-wimbledon flex flex-1 flex-col">
-      <CourtBand>
-        <StepHeading as="h1" onCourt n={1} verb="Write" title="Log a match" body="Find a match, rate it, say who you were backing, and add a few words if you like." />
+      <CourtBand compact>
+        <StepHeading as="h1" onCourt compact n={1} verb="Write" title="Log a match" body="Find a match, rate it, and add a few words if you like." />
       </CourtBand>
-      <section className="court-page flex-1 pb-16 pt-10 sm:pt-12">
+      <section className="court-page flex-1 pb-16 pt-6 sm:pt-8">
         <div className="mx-auto w-full max-w-6xl px-4 sm:px-8">
           <Suspense fallback={<OpeningDiary />}>
             <Log searchParams={searchParams} />
