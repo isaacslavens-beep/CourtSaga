@@ -4,7 +4,7 @@ import { recordBooks } from "@/lib/records";
 import { matchStory } from "@/lib/story";
 import { rivalryRecords } from "./demos/rivalry-records";
 import { sampleEntries, sampleMatches, sampleOrder } from "./demos/sample";
-import type { Board, RecordBooks } from "./diary/records";
+import type { Board, ChapterId, RecordBooks } from "./diary/records";
 import { BoardCard } from "./diary/records-ui";
 import { SagaSection } from "./diary/saga";
 import { LogProvider } from "./diary/store";
@@ -39,10 +39,11 @@ export async function ExploreTaste() {
 
 /* ---------- Statistics: three lists ---------- */
 
-const lists: { tour: "atp" | "wta"; board: string }[] = [
-  { tour: "atp", board: "never-beaten" },
-  { tour: "atp", board: "win-streaks" },
-  { tour: "wta", board: "season-pct" },
+// Each with the Statistics page's photo that fits it: the Big Three's rivalries, Djokovic's streak, Serena's seasons
+const lists: { tour: "atp" | "wta"; board: string; cover: ChapterId }[] = [
+  { tour: "atp", board: "most-played", cover: "rivalries" },
+  { tour: "atp", board: "win-streaks", cover: "streaks" },
+  { tour: "wta", board: "season-pct", cover: "matches" },
 ];
 
 /** One board and only the names it needs */
@@ -54,16 +55,16 @@ function alone(books: RecordBooks, board: Board): RecordBooks {
 
 export async function StatisticsTaste() {
   const [men, women] = await Promise.all([recordBooks("atp").catch(() => null), recordBooks("wta").catch(() => null)]);
-  const shown = lists.flatMap(({ tour, board }) => {
+  const shown = lists.flatMap(({ tour, board, cover }) => {
     const books = tour === "atp" ? men : women;
     const b = books?.boards.find((x) => x.id === board);
-    return books && b ? [alone(books, b)] : [];
+    return books && b ? [{ books: alone(books, b), cover }] : [];
   });
   if (!shown.length) return <p className="text-muted">The statistics aren&apos;t available right now.</p>;
   return (
     <div className="grid items-start gap-5 lg:grid-cols-3">
-      {shown.map((books) => (
-        <BoardCard key={books.boards[0].id} board={books.boards[0]} books={books} top={3} still />
+      {shown.map(({ books, cover }) => (
+        <BoardCard key={books.boards[0].id} board={books.boards[0]} books={books} top={3} still cover={cover} />
       ))}
     </div>
   );

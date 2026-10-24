@@ -93,7 +93,21 @@ const chip = (on: boolean) =>
  * One board: its title and rule, a choice of views where it has several (clay, grass, hard), and its top
  * rows with the rest a click away. Given `only`, it shows just the rows about those players, from every view.
  */
-export function BoardCard({ board, books, only, top = TOP, still = false }: { board: Board; books: RecordBooks; only?: Set<string>; top?: number; still?: boolean }) {
+export function BoardCard({
+  board,
+  books,
+  only,
+  top = TOP,
+  still = false,
+  cover,
+}: {
+  board: Board;
+  books: RecordBooks;
+  only?: Set<string>;
+  top?: number;
+  still?: boolean;
+  cover?: ChapterId; // a chapter's photo across the top, with the title over it
+}) {
   const chapter = chapters.find((c) => c.id === board.chapter)!;
   const [viewId, setViewId] = useState(board.views[0].id);
   const [open, setOpen] = useState(false);
@@ -104,7 +118,16 @@ export function BoardCard({ board, books, only, top = TOP, still = false }: { bo
   const rows = found ?? (open ? view.rows : view.rows.slice(0, top)).map((r) => ({ r, tag: undefined }));
 
   return (
-    <section aria-labelledby={`board-${board.id}`} className="min-w-0 rounded-3xl border border-line bg-surface p-4 shadow-sm sm:p-6">
+    <section aria-labelledby={`board-${board.id}`} className="min-w-0 overflow-hidden rounded-3xl border border-line bg-surface p-4 shadow-sm sm:p-6">
+      {cover && (
+        <div className="relative -mx-4 -mt-4 mb-4 h-40 sm:-mx-6 sm:-mt-6 sm:h-44">
+          <Image src={chapterPhotos[cover].src} alt={chapterPhotos[cover].alt} fill placeholder="blur" sizes="(min-width: 1024px) 24rem, 100vw" className={`object-cover ${chapterPhotos[cover].position}`} />
+          <span aria-hidden className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/10 to-transparent" />
+          <h3 id={`board-${board.id}`} className="absolute inset-x-4 bottom-3 font-display text-2xl font-bold tracking-tight text-white sm:inset-x-6">
+            {board.title}
+          </h3>
+        </div>
+      )}
       <header className="flex items-start justify-between gap-3 px-1">
         <div className="min-w-0">
           {/* A search mixes the chapters, so each board says which it's from */}
@@ -113,9 +136,11 @@ export function BoardCard({ board, books, only, top = TOP, still = false }: { bo
               {chapter.title}
             </p>
           )}
-          <h3 id={`board-${board.id}`} className="font-display text-xl font-bold tracking-tight">
-            {board.title}
-          </h3>
+          {!cover && (
+            <h3 id={`board-${board.id}`} className="font-display text-xl font-bold tracking-tight">
+              {board.title}
+            </h3>
+          )}
           <p className="mt-0.5 text-sm text-muted">{board.rule}</p>
         </div>
         <span className="mt-1.5 shrink-0 text-right text-xs font-semibold uppercase tracking-wide text-muted max-sm:hidden">{board.unit}</span>
