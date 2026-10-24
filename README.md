@@ -1,7 +1,7 @@
 # CourtSaga
 
-A free, simple diary for the tennis you watch: log any tour-level singles match since 2003, rank your
-favourites, and read your saga back. Live at [courtsaga.com](https://www.courtsaga.com).
+A free, simple diary for the tennis you watch: explore the story of any tour-level singles match since
+2003, star the ones you care about, read your saga back, and look up the records in Statistics. Live at [courtsaga.com](https://www.courtsaga.com).
 
 ## How it's built
 
@@ -18,7 +18,8 @@ favourites, and read your saga back. Live at [courtsaga.com](https://www.courtsa
 | `app/page.tsx`, `app/hero*.tsx` | The landing page. Its demos run on a sample log and save nothing. |
 | `app/demos/` | The sample log and its hand-checked rivalry records, for the demos only. |
 | `app/diary/` | The log, ranking and saga, used by both the demos and real diaries. `library.ts` holds the shared types and rules, `books.ts` the saga's rules, `store.tsx` the state and saving, and `finder.tsx` match search. |
-| `app/(app)/` | Signed-in pages (`/log`, `/rank`, `/saga`, `/account`) and the server actions that keep a diary. |
+| `app/(app)/` | The app's pages (`/explore`, `/saga`, `/statistics`, `/account`) and the server actions that keep a diary. Explore and Statistics open signed out too. |
+| `app/diary/records.ts`, `lib/records.ts` | Statistics: every board's rules, and the loader that reads a tour's matches and builds them. The pages are prerendered and rebuilt daily. |
 | `app/(auth)/` | Sign up and log in. |
 | `app/s/[slug]/` | A shared saga: read-only, kept out of search engines. |
 | `app/api/` | Better Auth's endpoints, and `GET /api/search`. |
@@ -71,7 +72,7 @@ migrations never reach the production database before it's merged. Every setting
 
 | Script | What it does |
 | --- | --- |
-| `npm run dev` / `build` / `start` / `lint` | The usual Next.js commands. `build` needs no database. |
+| `npm run dev` / `build` / `start` / `lint` | The usual Next.js commands. `build` needs no database, but without one the prerendered pages (the landing page's demo and Statistics) say the match data isn't available. |
 | `npm run db:generate` | Writes a new migration to `drizzle/` after a change to `db/schema.ts`. |
 | `npm run db:migrate` | Applies migrations to `DATABASE_URL_UNPOOLED` (or `DATABASE_URL`). |
 | `npm run import:matches -- <folder>` | Loads or refreshes the match data. |

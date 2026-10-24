@@ -112,7 +112,7 @@ export default async function Image() {
             <span>remember the</span>
             <span>story of tennis.</span>
           </div>
-          <div style={{ marginTop: 26, fontSize: 27, lineHeight: 1.35, color: "rgba(255,255,255,0.9)" }}>Star any match. Free.</div>
+          <div style={{ marginTop: 26, fontSize: 27, lineHeight: 1.35, color: "rgba(255,255,255,0.9)" }}>Star any match.</div>
         </div>
 
         {/* The service boxes: one photo, leaning in */}
