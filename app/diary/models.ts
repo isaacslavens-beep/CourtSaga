@@ -314,6 +314,8 @@ export function serveChance(c: ServeModel["fits"]["all"]["coef"], line: Record<S
 
 /** A rating's step: big while a player has few matches, settling as they play more (as FiveThirtyEight's) */
 const kFactor = (n: number) => 250 / (n + 5) ** 0.4;
+/** How much a match counts by its tournament: a Slam moves ratings most, a 250 least */
+export const tierWeight: Record<Tier, number> = { slam: 1.75, finals: 1.3, olympics: 1.2, "1000": 1.2, "500": 1, "250": 0.8, team: 0.8, other: 0.8 };
 const START = 1500;
 
 export function buildModels(input: ModelsInput): AdvancedBooks {
@@ -468,16 +470,17 @@ function buildElo(input: ModelsInput, all: ModelMatch[], games: ModelMatch[], fr
       }
     }
     const e = eloChance(a.elo, b.elo);
-    const ka = kFactor(a.n);
-    const kb = kFactor(b.n);
+    const weight = tierWeight[m.tier] ?? 1;
+    const ka = weight * kFactor(a.n);
+    const kb = weight * kFactor(b.n);
     a.elo += ka * (1 - e);
     b.elo -= kb * (1 - e);
     a.n++;
     b.n++;
     if (court) {
       const ec = eloChance(a.court[court], b.court[court]);
-      a.court[court] += kFactor(a.courtN[court]) * (1 - ec);
-      b.court[court] -= kFactor(b.courtN[court]) * (1 - ec);
+      a.court[court] += weight * kFactor(a.courtN[court]) * (1 - ec);
+      b.court[court] -= weight * kFactor(b.courtN[court]) * (1 - ec);
       a.courtN[court]++;
       b.courtN[court]++;
     }
@@ -519,7 +522,7 @@ function buildElo(input: ModelsInput, all: ModelMatch[], games: ModelMatch[], fr
   const elo: EloModel = {
     n: games.length,
     from: shownFrom,
-    K: "250 ÷ (matches played + 5)^0.4",
+    K: "the tournament's weight × 250 ÷ (matches played + 5)^0.4",
     seasons: kept,
     peaks,
     months,

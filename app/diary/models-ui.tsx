@@ -26,6 +26,7 @@ import {
   serveChance,
   serveRange,
   serveStats,
+  tierWeight,
   upsetModelChance,
   type AgeEra,
   type Calibration,
@@ -1285,6 +1286,11 @@ function RatingsPanel({ books }: { books: AdvancedBooks }) {
           </p>
           <EloFormula />
           <p>
+            <strong>Bigger tournaments count for more.</strong> A result moves ratings {tierWeight.slam}× as far at a Slam, {tierWeight.finals}× at the season finals, {tierWeight["1000"]}× at a 1000
+            and the Olympics, 1× at a 500 and {tierWeight["250"]}× at a 250, in team events and everywhere else. Without this, a run of wins at small events earned as much as a run at a Slam. It
+            costs a little in prediction: these weights score slightly worse on the numbers above than counting every match the same.
+          </p>
+          <p>
             <strong>Each surface has its own rating</strong>, from matches on it alone (carpet counts as hard). The chance uses a mix of the two; the slider sets it. {books.from} is a warm-up, because
             everyone starts level however good, so seasons from <strong>{e.from}</strong> are shown. A season&apos;s rating is where it stood after the player&apos;s last match of it. Players need 30
             matches in all, and a season needs 5 to be listed.
@@ -1305,7 +1311,7 @@ function EloFormula() {
       where={
         <>
           <i>E</i> is A&apos;s expected chance against B; <i>S</i> is 1 for a win, 0 for a loss; <i>n</i> is how many matches A has played, so a newcomer&apos;s rating moves fast and a veteran&apos;s
-          settles.
+          settles; <i>w</i> is the tournament&apos;s weight, so a Slam match moves ratings more than a 250.
         </>
       }
     >
@@ -1334,7 +1340,11 @@ function EloFormula() {
         <Sub>A</Sub>
         <Op>+</Op>
         <Frac
-          n="250"
+          n={
+            <>
+              <i>w</i> · 250
+            </>
+          }
           d={
             <>
               (<i>n</i> + 5)<Sup>0.4</Sup>
