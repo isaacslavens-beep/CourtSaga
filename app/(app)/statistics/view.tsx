@@ -19,7 +19,7 @@ export function StatisticsPage({ tour }: { tour: Tour }) {
           as="h1"
           onCourt
           compact
-          n={3}
+          n={2}
           verb="Look up"
           title="Statistics"
           body="Rivalries, title runs, streaks and seasons from every match since 2003. Pick a list or find a player, then open any match in Explore."

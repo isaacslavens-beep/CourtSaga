@@ -67,12 +67,12 @@ export function Hero() {
                 href="#explore"
                 className="inline-flex items-center gap-2.5 rounded-full bg-ball px-6 py-3 text-lg font-bold text-[#0b0d12] shadow-lg shadow-black/25 transition hover:-translate-y-0.5 hover:shadow-xl"
               >
-                Try it out
+                Take a look
                 <svg viewBox="0 0 16 16" aria-hidden className="h-5 w-5 fill-none stroke-current stroke-[2.5]" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M8 3v10M4 9l4 4 4-4" />
                 </svg>
               </a>
-              <p className="max-w-[16rem] text-sm text-white/80">A working demo with a sample fan&apos;s diary. Nothing you change is saved.</p>
+              <p className="max-w-[16rem] text-sm text-white/80">Explore, statistics and the saga, in a minute.</p>
             </div>
             <p className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-2">
               <Link

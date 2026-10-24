@@ -25,7 +25,7 @@ export default function SagaPage({ searchParams }: PageProps<"/saga">) {
           <Suspense
             fallback={
               <>
-                <SagaHeader step={2} kicker="Read back" title="Your saga" body={body} />
+                <SagaHeader step={3} kicker="Read back" title="Your saga" body={body} />
                 <OpeningDiary />
               </>
             }
@@ -46,7 +46,7 @@ async function Saga({ searchParams }: Pick<PageProps<"/saga">, "searchParams">) 
   const enough = diary.order.length >= SAGA_MIN_MATCHES;
   return (
     <>
-      <SagaHeader step={2} kicker="Read back" title="Your saga" body={body} lines={coverLines(diary)} />
+      <SagaHeader step={3} kicker="Read back" title="Your saga" body={body} lines={coverLines(diary)} />
       <div className="mt-10 space-y-12">
         {enough && <ShareSaga slug={slug} origin={origin} />}
         <LogProvider key={`${diary.version}:${spot?.id}`} mode="diary" rows={diary.rows} entries={diary.entries} order={diary.order} records={diary.records} spotlight={spot} saver={saver}>

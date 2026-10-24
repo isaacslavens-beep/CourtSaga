@@ -8,8 +8,8 @@ import { pageCourts } from "./courts";
 // The site's three parts, numbered as on the landing page, then the account
 const steps = [
   { href: "/explore", n: 1, label: "Explore" },
-  { href: "/saga", n: 2, label: "Saga" },
-  { href: "/statistics", n: 3, label: "Statistics" },
+  { href: "/statistics", n: 2, label: "Statistics" },
+  { href: "/saga", n: 3, label: "Saga" },
 ];
 
 const pill = (on: boolean) => `flex items-center gap-2 rounded-full font-semibold transition ${on ? "bg-white text-foreground shadow-md" : "text-white/90 hover:bg-white/10"}`;
@@ -19,7 +19,7 @@ export function AppNav() {
   const path = usePathname();
   const on = (href: string) => path === href || path.startsWith(`${href}/`);
   return (
-    <nav aria-label="Explore, saga and statistics" className="order-3 flex w-full items-center gap-1 sm:order-2 sm:ml-auto sm:w-auto sm:gap-1.5">
+    <nav aria-label="Explore, statistics and saga" className="order-3 flex w-full items-center gap-1 sm:order-2 sm:ml-auto sm:w-auto sm:gap-1.5">
       {steps.map((s) => (
         <Link key={s.href} href={s.href} aria-current={on(s.href) ? "page" : undefined} className={`${pill(on(s.href))} py-1 pl-1 pr-3 sm:py-1.5 sm:pl-1.5 sm:pr-3.5`}>
           <span className="flex h-7 w-7 items-center justify-center rounded-full bg-ball text-sm font-bold text-[#0b0d12] ring-1 ring-black/10">{s.n}</span>

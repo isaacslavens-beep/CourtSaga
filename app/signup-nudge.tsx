@@ -9,7 +9,8 @@ import { useEffect, useState } from "react";
 // Each step's line, then a shorter one for a phone
 const lines: Record<string, [string, string]> = {
   explore: ["Sign up free to explore any tennis match", "Explore any match"],
-  story: ["Sign up free to build your own saga", "Build your own saga"],
+  statistics: ["Sign up free to star the matches behind the records", "Star any match"],
+  saga: ["Sign up free to build your own saga", "Build your own saga"],
 };
 const fallback: [string, string] = ["CourtSaga is free. Sign up to start your own", "It's free"];
 

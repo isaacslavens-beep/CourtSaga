@@ -1,18 +1,21 @@
 "use client";
 
 import Image, { type StaticImageData } from "next/image";
+import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
 import alcarazAo2026Final from "@/public/photos/alcaraz-ao-2026-final.jpg";
 import rybakinaUso2026 from "@/public/photos/rybakina-uso-2026.jpg";
 import { Avatar, BallScore, TennisBall } from "./diary/fun";
 import { diaryPages, monthLabel, parseSets, roundName } from "./diary/library";
+import { sampleToData } from "./diary/media";
 import { useLog } from "./diary/store";
+import { glideTo } from "./glide";
 import { SlamLogo } from "./match-ui";
 
 /* The hero's picture of the product: two matches from the sample fan's log, side by side, each a photo
    with its log entry beneath. The cards lean towards each other so only their top corners overlap, over
-   the backdrop rather than either player. Each opens its match further down the page: one in the log in
-   step 1, the other in its rivalry's story in step 3. */
+   the backdrop rather than either player. One opens its match in Explore, the other goes to the saga
+   further down the page. */
 
 type Example = {
   id: string; // the match in the sample log
@@ -138,19 +141,18 @@ function ExampleCard({ ex, onOpen, className = "", children }: { ex: Example; on
           </span>
         )}
         <span className="mt-2.5 block text-sm font-semibold text-court transition group-hover:translate-y-0.5">
-          {ex.opensIn === "story" ? "Open in the saga ↓" : "Explore this match ↓"}
+          {ex.opensIn === "story" ? "See a saga ↓" : "Explore this match →"}
         </span>
-        <span className="sr-only">{ex.opensIn === "story" ? "Open this match in the saga below" : "Explore the story around this match below"}</span>
+        <span className="sr-only">{ex.opensIn === "story" ? "See what a saga looks like, below" : "Explore the story around this match"}</span>
       </span>
     </button>
   );
 }
 
 export function HeroShowcase() {
-  const { goTo } = useLog();
-
-  // One card opens its match in Explore, the other in the saga; each section glides there itself
-  const open = (ex: Example) => () => goTo(ex.opensIn, ex.id);
+  const router = useRouter();
+  const open = (ex: Example) => () =>
+    ex.opensIn === "explore" ? router.push(`/explore?m=${encodeURIComponent(sampleToData[ex.id])}`) : glideTo(document.getElementById("saga"), "start", 0);
 
   const [rybakina, alcaraz] = examples;
   return (
