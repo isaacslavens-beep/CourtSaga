@@ -82,6 +82,7 @@ const tiers: Record<Tour, Record<string, Tier>> = {
 const tierFixes: { tour: Tour; name: string; season: number; tier: Tier }[] = [
   { tour: "atp", name: "Doha", season: 2024, tier: "250" },
   { tour: "atp", name: "Los Cabos", season: 2024, tier: "250" },
+  { tour: "atp", name: "Winston-Salem", season: 2026, tier: "250" },
   { tour: "wta", name: "Prague Open", season: 2025, tier: "250" },
   { tour: "wta", name: "Charleston 2", season: 2021, tier: "250" },
 ];
