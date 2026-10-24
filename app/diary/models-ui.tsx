@@ -1448,7 +1448,8 @@ const pressureWords: Record<PressureMeasure, { label: string; chances: string; w
 const lasting = (r: number) => (r < 0.15 ? "almost nothing" : r < 0.35 ? "a little" : r < 0.6 ? "a fair amount" : "a lot");
 
 function PressurePanel({ books }: { books: AdvancedBooks }) {
-  const [measure, setMeasure] = useState<PressureMeasure>("saved");
+  // The men open on break points won, where the example player, Shelton, stands out
+  const [measure, setMeasure] = useState<PressureMeasure>(books.tour === "atp" ? "converted" : "saved");
   const fit = books.pressure[measure];
   const words = pressureWords[measure];
   // Each listed player: their edge in points (won minus expected, per 100 chances) and its 95% interval
@@ -1464,16 +1465,18 @@ function PressurePanel({ books }: { books: AdvancedBooks }) {
   const byKey = useMemo(() => new Map(rows.map((x) => [x.k, x])), [rows]);
   const keys = useMemo(() => [...new Set(pressureMeasures.flatMap((m) => Object.keys(books.pressure[m].players).map((i) => books.people[Number(i)])))], [books]);
   const topTen = useMemo(() => new Set(books.topTen.map((i) => books.people[i])), [books]);
-  // One player at a time: until someone is picked, the top-10 player whose edge on this measure is surest to be high
-  // (the highest low end of the 95% interval), among those with at least the typical top-10 player's number of chances,
-  // so a short career's lucky streak doesn't win
+  // One player at a time: until someone is picked, Shelton for the men; for the women, the top-10 player whose edge
+  // on this measure is surest to be high (the highest low end of the 95% interval), among those with at least the
+  // typical top-10 player's number of chances, so a short career's lucky streak doesn't win
   const [chosen, setChosen] = useState<string | null | undefined>(undefined);
+  const shelton = useMemo(() => (books.tour === "atp" ? keys.find((k) => books.full[k] === "Ben Shelton") : undefined), [books, keys]);
   const best = useMemo(() => {
+    if (shelton && byKey.has(shelton)) return shelton;
     const pool = rows.filter((x) => topTen.has(x.k));
     const counts = pool.map((x) => x.r[P.n]).sort((a, b) => a - b);
     const typical = counts[Math.floor(counts.length / 2)] ?? 0;
     return pool.filter((x) => x.r[P.n] >= typical).sort((a, b) => b.edge - b.half - (a.edge - a.half))[0]?.k;
-  }, [rows, topTen]);
+  }, [rows, topTen, shelton, byKey]);
   const picked = chosen === undefined ? (best ? [best] : []) : chosen ? [chosen] : [];
   const setPicked = (ks: string[]) => setChosen(ks[0] ?? null);
   const styles = chartStyles(picked.map((k) => books.names[k]));
