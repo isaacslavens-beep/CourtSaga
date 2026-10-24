@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { DataCredit } from "./credits";
 import { Hero } from "./hero";
-import { ExploreTaste, MoreLink, SagaTaste, StatisticsTaste } from "./landing";
+import { ExploreTaste, SagaTaste, SignUpLink, StatisticsTaste } from "./landing";
 import { SmoothAnchors } from "./smooth-anchors";
 import { rivalryRecords } from "./demos/rivalry-records";
 import { sampleEntries, sampleMatches, sampleOrder } from "./demos/sample";
@@ -15,13 +15,13 @@ const parts = [
     id: "explore",
     verb: "Explore",
     title: "Explore any match",
-    body: "The story around any match since 2003: the head-to-head, the draw, the season, and what came next.",
+    body: "The story around any match since 2003: the head-to-head, the draw, the season, and what came next. Pick one of these three.",
     taste: (
       <Suspense>
         <ExploreTaste />
       </Suspense>
     ),
-    more: { href: "/explore", label: "Explore a match" },
+    more: "Sign up to explore any match",
   },
   {
     id: "statistics",
@@ -33,15 +33,15 @@ const parts = [
         <StatisticsTaste />
       </Suspense>
     ),
-    more: { href: "/statistics", label: "See all the statistics" },
+    more: "Sign up for every list",
   },
   {
     id: "saga",
     verb: "Read back",
     title: "Read your saga",
-    body: "Star the matches you care about, watched or not, and they become a saga of your own: your rivalries, your five-setters, your finals.",
+    body: "Star the matches you care about, watched or not, and they become a saga of your own. Open one of these books from a fan's saga and turn the pages.",
     taste: <SagaTaste />,
-    more: { href: "/signup", label: "Start your saga" },
+    more: "Sign up to start your saga",
     room: true, // the saga's own reading room, not a court
   },
 ];
@@ -51,7 +51,7 @@ const photoCredits = [
   ["Rybakina, US Open 2026", "Just Women's Sports"],
   ["Alcaraz, Australian Open 2026", "ATP Tour"],
   ["Sinner at Wimbledon, 2025", "ATP Tour"],
-  ["Nadal, Australian Open 2022", "Axios"],
+  ["Alcaraz and Djokovic, Australian Open 2026", "Olympics.com"],
   ["Nadal and Federer, Australian Open 2009", "Tennis365"],
 ];
 
@@ -76,7 +76,7 @@ export default function Home() {
               <StepHeading n={i + 1} verb={p.verb} title={p.title} body={p.body} id={`${p.id}-title`} compact />
               <div className="mt-8">{p.taste}</div>
               <div className="mt-8">
-                <MoreLink href={p.more.href}>{p.more.label}</MoreLink>
+                <SignUpLink>{p.more}</SignUpLink>
               </div>
             </div>
           </section>

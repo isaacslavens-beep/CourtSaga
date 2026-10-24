@@ -13,6 +13,9 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           </span>
           <span className="font-display text-xl font-bold tracking-tight">CourtSaga</span>
         </Link>
+        <Link href="/" className="ml-auto rounded-full px-3 py-1.5 font-semibold text-white/90 transition hover:bg-white/10 hover:text-white">
+          ← Back
+        </Link>
       </header>
       <main className="flex flex-1 justify-center px-4 pb-16 pt-4 sm:pt-10">
         <div className="page-stack h-fit w-full max-w-md rounded-3xl bg-surface p-6 text-foreground ring-1 ring-black/10 sm:p-8">{children}</div>

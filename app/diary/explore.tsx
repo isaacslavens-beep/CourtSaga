@@ -35,11 +35,15 @@ function usePages(toLocal: (id: string) => string | undefined = (id) => id) {
 
 const linkClass = "cursor-pointer font-semibold text-court underline decoration-court/30 decoration-2 underline-offset-4 transition hover:decoration-court";
 
-function Parts({ parts, follow }: { parts: Part[]; follow: Follow }) {
+function Parts({ parts, follow, still = false }: { parts: Part[]; follow: Follow; still?: boolean }) {
   return (
     <>
       {parts.map((p, i) =>
-        typeof p === "string" ? (
+        typeof p === "string" || still ? (
+          <span key={i} className={typeof p === "string" ? "" : "font-semibold"}>
+            {typeof p === "string" ? p : p.text}
+          </span>
+        ) : typeof p === "string" ? (
           <span key={i}>{p}</span>
         ) : (
           <button key={i} type="button" onClick={() => follow(p.ref)} className={linkClass}>
@@ -52,12 +56,12 @@ function Parts({ parts, follow }: { parts: Part[]; follow: Follow }) {
 }
 
 /** A line of the story, with a dot in the colour of the player it's about */
-function FactLine({ fact, follow, colors }: { fact: Fact; follow: Follow; colors: Record<"a" | "b", string> }) {
+function FactLine({ fact, follow, colors, still }: { fact: Fact; follow: Follow; colors: Record<"a" | "b", string>; still?: boolean }) {
   return (
     <li className="flex gap-3">
       <span aria-hidden className="mt-2 h-2 w-2 shrink-0 rounded-full" style={{ background: fact.side ? colors[fact.side] : "var(--line)" }} />
       <span className="min-w-0 leading-relaxed">
-        <Parts parts={fact.parts} follow={follow} />
+        <Parts parts={fact.parts} follow={follow} still={still} />
       </span>
     </li>
   );
@@ -72,7 +76,7 @@ const shortSeason = (y: number) => `’${String(y).slice(2)}`;
 /** Every meeting, drawn exactly as the saga draws a rivalry: the head-to-head after each one */
 type StarOf = (id: string) => "watched" | "starred" | null;
 
-function H2HChart({ v, story, follow, page, starOf }: { v: H2HVisual; story: Story; follow: Follow; page: (id: string) => number | null; starOf: StarOf }) {
+function H2HChart({ v, story, follow, page, starOf, still }: { v: H2HVisual; story: Story; follow: Follow; page: (id: string) => number | null; starOf: StarOf; still?: boolean }) {
   const [A, B] = [story.names[story.a.key], story.names[story.b.key]];
   const glance: Glance = {
     faces: [A, B],
@@ -101,7 +105,7 @@ function H2HChart({ v, story, follow, page, starOf }: { v: H2HVisual; story: Sto
   return (
     <ShapeChart
       book={glance}
-      caption={`The head-to-head after every meeting: above the middle line ${A} leads, below it ${B} does. Filled dots are the meetings you starred; the dark-ringed one is this match.`}
+      caption={`The head-to-head after every meeting: above the middle line ${A} leads, below it ${B} does.${still ? " The dark-ringed dot is this match." : " Filled dots are the meetings you starred; the dark-ringed one is this match."}`}
       spotId={story.id}
       onMark={(x) => x.key !== story.id && follow(x.key)}
       markVerb="Explore it."
@@ -314,10 +318,10 @@ function StatsTable({ v, story, colors }: { v: StatsVisual; story: Story; colors
   );
 }
 
-function Picture({ thread, story, colors, follow, page, starOf }: { thread: Thread; story: Story; colors: Record<"a" | "b", string>; follow: Follow; page: (id: string) => number | null; starOf: StarOf }) {
+function Picture({ thread, story, colors, follow, page, starOf, still }: { thread: Thread; story: Story; colors: Record<"a" | "b", string>; follow: Follow; page: (id: string) => number | null; starOf: StarOf; still?: boolean }) {
   const v = thread.visual;
   if (!v) return null;
-  if (v.kind === "h2h") return <H2HChart v={v} story={story} follow={follow} page={page} starOf={starOf} />;
+  if (v.kind === "h2h") return <H2HChart v={v} story={story} follow={follow} page={page} starOf={starOf} still={still} />;
   if (v.kind === "event") return <EventGrid v={v} story={story} colors={colors} follow={follow} />;
   if (v.kind === "season") return <SeasonChart v={v} story={story} follow={follow} />;
   if (v.kind === "draw") return <DrawPaths v={v} story={story} follow={follow} />;
@@ -437,6 +441,7 @@ export function StoryView({
   take,
   starOf = () => null,
   lite = false,
+  still = false,
 }: {
   story: Story;
   follow: Follow;
@@ -446,6 +451,7 @@ export function StoryView({
   take?: ReactNode; // under the title: your take on it, or a way to star it
   starOf?: StarOf; // whether a match is starred, and watched
   lite?: boolean; // the landing's demo: on a phone, only the threads that read quickest
+  still?: boolean; // the landing page: the story and the head-to-head only, its matches named but not links
 }) {
   const match = asMatch(story);
   const [nameA, nameB] = [story.names[story.a.key], story.names[story.b.key]];
@@ -455,7 +461,8 @@ export function StoryView({
   const label = `${story.event} ${story.season} · ${roundName(match)}`;
 
   const h2h = story.threads.find((t) => t.id === "h2h");
-  const rest = story.threads.filter((t) => t.id !== "h2h");
+  // The landing page keeps it short: the head-to-head and nothing more
+  const rest = still ? [] : story.threads.filter((t) => t.id !== "h2h");
   const thread = (t: Thread) => (
     <section
       key={t.id}
@@ -469,13 +476,13 @@ export function StoryView({
       {t.facts.length > 0 && (
         <ul className="mt-3 space-y-2">
           {t.facts.map((f) => (
-            <FactLine key={f.key} fact={f} follow={follow} colors={colors} />
+            <FactLine key={f.key} fact={f} follow={follow} colors={colors} still={still} />
           ))}
         </ul>
       )}
       {t.visual && (
         <div className={t.facts.length ? "mt-5 border-t border-line pt-4" : "mt-4"}>
-          <Picture thread={t} story={story} colors={colors} follow={follow} page={page} starOf={starOf} />
+          <Picture thread={t} story={story} colors={colors} follow={follow} page={page} starOf={starOf} still={still} />
         </div>
       )}
     </section>
@@ -513,7 +520,7 @@ export function StoryView({
               </p>
             )}
             <p className="flex items-baseline justify-between gap-3 border-b border-line px-4 py-2.5 text-sm">
-              <span className="font-semibold">{here ? <span className="text-muted">Starred</span> : <span className="font-normal text-muted">Not in your saga</span>}</span>
+              <span className="font-semibold">{here ? <span className="text-muted">Starred</span> : still ? null : <span className="font-normal text-muted">Not in your saga</span>}</span>
               <span className="text-muted">
                 {new Date(`${story.date.slice(0, 7)}-15`).toLocaleDateString("en-GB", { month: "short", year: "numeric" })}
                 {story.minutes ? ` · ${Math.floor(story.minutes / 60)} h ${String(story.minutes % 60).padStart(2, "0")}` : ""}
@@ -547,7 +554,7 @@ export function StoryView({
                   style={{ animationDelay: `${150 + i * 220}ms` }}
                   className={`rise-in ${i === 0 ? "font-display text-2xl font-bold leading-snug tracking-tight sm:text-3xl" : "text-lg font-medium leading-relaxed"}`}
                 >
-                  <Parts parts={f.parts} follow={follow} />.
+                  <Parts parts={f.parts} follow={follow} still={still} />.
                 </li>
               ))}
             </ol>
@@ -561,7 +568,7 @@ export function StoryView({
       {/* The rivalry first, then where to go next, then everything else */}
       <div className="mt-10 grid items-start gap-5 lg:grid-flow-dense lg:grid-cols-2">
         {h2h && thread(h2h)}
-        {story.trail.length > 0 && <Trail story={story} follow={follow} page={page} lite={lite} />}
+        {story.trail.length > 0 && !still && <Trail story={story} follow={follow} page={page} lite={lite} />}
         {rest.map(thread)}
       </div>
     </div>

@@ -678,11 +678,12 @@ const Dice = ({ className }: { className?: string }) => (
   </svg>
 );
 
-export function SagaSection() {
+/** The saga's shelf and open book. `only` keeps just those books on the shelf (the landing page's few). */
+export function SagaSection({ only }: { only?: string[] } = {}) {
   const { mode, matches, entries, order, records, spotlight, openInLog } = useLog();
   const log: Diary = useMemo(() => ({ matches, entries, order, records }), [matches, entries, order, records]);
   const diary = diaryPages(entries, matches); // each match's page number in the log
-  const shelf = buildShelf(log);
+  const shelf = buildShelf(log).filter((b) => !only || only.includes(b.id));
   const counts = new Map(shelf.map((b) => [b.id, shelfCount(b.id, log)]));
   const [bookId, setBookId] = useState(shelf[0]?.id ?? "seasons");
   // Which spread of two pages is open: -1 is the closed book, showing its cover

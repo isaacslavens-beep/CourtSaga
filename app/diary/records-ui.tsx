@@ -30,7 +30,7 @@ function RowTitle({ row, names }: { row: BoardRow; names: Record<string, string>
   );
 }
 
-function RowLine({ row, names, full, tag }: { row: BoardRow; names: Record<string, string>; full: Record<string, string>; tag?: string }) {
+function RowLine({ row, names, full, tag, still }: { row: BoardRow; names: Record<string, string>; full: Record<string, string>; tag?: string; still?: boolean }) {
   const body = (
     <>
       <span
@@ -40,7 +40,7 @@ function RowLine({ row, names, full, tag }: { row: BoardRow; names: Record<strin
       >
         {row.rank}
       </span>
-      <span className="flex shrink-0 -space-x-2 max-sm:hidden">
+      <span className={`flex shrink-0 -space-x-2 max-sm:hidden ${still ? "lg:hidden" : ""}`}>
         {row.players.map((k) => (
           <Avatar key={k} name={names[k] ?? "?"} size="h-9 w-9 text-sm ring-2 ring-surface" />
         ))}
@@ -52,8 +52,8 @@ function RowLine({ row, names, full, tag }: { row: BoardRow; names: Record<strin
         </span>
         <span className="block text-sm leading-snug text-muted">{row.note}</span>
         {row.go && (
-          <span className="mt-0.5 block text-sm font-semibold leading-snug text-court">
-            {row.go.text} <span aria-hidden className="inline-block transition-transform group-hover:translate-x-1">→</span>
+          <span className={`mt-0.5 block text-sm leading-snug ${still ? "text-muted" : "font-semibold text-court"}`}>
+            {row.go.text} {!still && <span aria-hidden className="inline-block transition-transform group-hover:translate-x-1">→</span>}
           </span>
         )}
       </span>
@@ -61,7 +61,7 @@ function RowLine({ row, names, full, tag }: { row: BoardRow; names: Record<strin
     </>
   );
   const shape = "group flex w-full items-center gap-3 rounded-2xl px-2 py-2.5 text-left";
-  if (!row.go) return <div className={shape}>{body}</div>;
+  if (!row.go || still) return <div className={shape}>{body}</div>;
   return (
     <Link href={exploreHref(row.go.id)} prefetch={false} className={`${shape} transition hover:bg-court/5`}>
       {body}
@@ -76,7 +76,7 @@ const chip = (on: boolean) =>
  * One board: its title and rule, a choice of views where it has several (clay, grass, hard), and its top
  * rows with the rest a click away. Given `only`, it shows just the rows about those players, from every view.
  */
-export function BoardCard({ board, books, only, top = TOP }: { board: Board; books: RecordBooks; only?: Set<string>; top?: number }) {
+export function BoardCard({ board, books, only, top = TOP, still = false }: { board: Board; books: RecordBooks; only?: Set<string>; top?: number; still?: boolean }) {
   const chapter = chapters.find((c) => c.id === board.chapter)!;
   const [viewId, setViewId] = useState(board.views[0].id);
   const [open, setOpen] = useState(false);
@@ -115,7 +115,7 @@ export function BoardCard({ board, books, only, top = TOP }: { board: Board; boo
       <ol className="mt-3 divide-y divide-line">
         {rows.map(({ r, tag }, i) => (
           <li key={`${tag ?? view.id}-${i}`}>
-            <RowLine row={r} names={books.names} full={books.full} tag={tag} />
+            <RowLine row={r} names={books.names} full={books.full} tag={tag} still={still} />
           </li>
         ))}
       </ol>
