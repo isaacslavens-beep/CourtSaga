@@ -1014,6 +1014,9 @@ function FinalRow({
   );
 }
 
+// How many finals an event shows before "Show all"
+const RECENT_FINALS = 10;
+
 const surpriseHref = (slam: string | null) => (slam ? `/explore?m=random&slam=${encodeURIComponent(slam)}` : "/explore?m=random");
 const surpriseWhat = (slam: string | null) => (slam ? `Random ${slam} match` : "Random Grand Slam match");
 
@@ -1058,48 +1061,82 @@ function Start({ start, follow, slam, setSlam }: { start: StartData; follow: Fol
   const teasers = useTeasers();
   const cardNames = useMemo(() => namesOf([...start.classics.map((c) => c.row), ...start.diary]), [start.classics, start.diary]);
   const panel = useRef<HTMLDivElement>(null);
+  // A newly picked event starts at its last few finals again
+  const [everything, setEverything] = useState(false);
+  const [onTour, setOnTour] = useState<string>("atp");
   const pick = (t: string) => {
+    setEverything(false);
     setSlam(t === slam ? null : t);
     requestAnimationFrame(() => panel.current && panel.current.getBoundingClientRect().top > innerHeight * 0.6 && glideTo(panel.current, "center"));
   };
-  // Each tour that plays the picked event gets a column of its matches, year by year
+  // Each tour that plays the picked event gets a column of its matches, year by year: the last few finals
+  // to start with, everything (semifinals and bronze medal matches too) a click away. On a phone the
+  // columns are one at a time, picked by tour.
   const tours = (["atp", "wta"] as const).filter((tour) => finals.some((r) => r.tour === tour));
+  const shownTour = tours.includes(onTour as "atp" | "wta") ? onTour : tours[0];
   const finalsPanel = (
-    <div ref={panel} className={`fade-in mt-4 grid gap-6 rounded-3xl border border-line bg-surface p-4 shadow-sm sm:p-6 ${tours.length > 1 ? "lg:grid-cols-2" : ""}`}>
-      {tours.map((tour) => (
-        <div key={tour} className="min-w-0">
-          <h3 className="px-2 font-display text-lg font-bold">
-            {isSlamTile ? (tour === "atp" ? "Men's finals" : "Women's finals") : tour === "atp" ? "Men's" : "Women's"}
-          </h3>
-          <ul className="mt-1 divide-y divide-line">
-            {finals
-              .filter((r) => r.tour === tour)
-              // Within a year: the final, then the semifinals, then a bronze medal match
-              .sort((a, b) => b.season - a.season || roundRank(a.round) - roundRank(b.round))
-              .map((row, i, rows) => (
-                <li key={row.id} className={!isSlamTile && i > 0 && rows[i - 1].season === row.season ? "border-t-0" : ""}>
-                  <FinalRow
-                    row={row}
-                    tag={isSlamTile ? undefined : roundTags[row.round]}
-                    sameYear={!isSlamTile && i > 0 && rows[i - 1].season === row.season}
-                    page={page(row.id)}
-                    onOpen={() => follow(row.id)}
-                    names={finalNames(row)}
-                    teaser={teasers.get(row.id)}
-                    onPeek={() => teasers.want(row.id)}
-                  />
-                </li>
-              ))}
-          </ul>
+    <div ref={panel} className="fade-in mt-4 rounded-3xl border border-line bg-surface p-4 shadow-sm sm:p-6">
+      {tours.length > 1 && (
+        <div className="mb-3 flex rounded-full bg-background p-1 ring-1 ring-line lg:hidden" role="group" aria-label="Tour">
+          {tours.map((tour) => (
+            <button
+              key={tour}
+              type="button"
+              aria-pressed={shownTour === tour}
+              onClick={() => setOnTour(tour)}
+              className={`flex-1 cursor-pointer rounded-full px-4 py-1.5 text-sm font-bold transition ${shownTour === tour ? "bg-court text-court-ink shadow-sm" : "text-court"}`}
+            >
+              {tour === "atp" ? "Men" : "Women"}
+            </button>
+          ))}
         </div>
-      ))}
+      )}
+      <div className={`grid gap-6 ${tours.length > 1 ? "lg:grid-cols-2" : ""}`}>
+        {tours.map((tour) => {
+          const all = finals
+            .filter((r) => r.tour === tour)
+            // Within a year: the final, then the semifinals, then a bronze medal match
+            .sort((a, b) => b.season - a.season || roundRank(a.round) - roundRank(b.round));
+          const onlyFinals = all.filter((r) => r.round === "F");
+          const rows = everything ? all : onlyFinals.slice(0, RECENT_FINALS);
+          return (
+            <div key={tour} className={`min-w-0 ${shownTour === tour ? "" : "max-lg:hidden"}`}>
+              <h3 className="px-2 font-display text-lg font-bold">
+                {tour === "atp" ? "Men's finals" : "Women's finals"}
+                {!isSlamTile && everything && <span className="font-sans text-sm font-normal text-muted"> · with semifinals</span>}
+              </h3>
+              <ul className="mt-1 divide-y divide-line">
+                {rows.map((row, i) => (
+                  <li key={row.id} className={!isSlamTile && i > 0 && rows[i - 1].season === row.season ? "border-t-0" : ""}>
+                    <FinalRow
+                      row={row}
+                      tag={isSlamTile ? undefined : roundTags[row.round]}
+                      sameYear={!isSlamTile && i > 0 && rows[i - 1].season === row.season}
+                      page={page(row.id)}
+                      onOpen={() => follow(row.id)}
+                      names={finalNames(row)}
+                      teaser={teasers.get(row.id)}
+                      onPeek={() => teasers.want(row.id)}
+                    />
+                  </li>
+                ))}
+              </ul>
+              {all.length > rows.length && (
+                <button type="button" onClick={() => setEverything(true)} className="mt-2 cursor-pointer px-2 text-sm font-semibold text-court underline-offset-4 hover:underline">
+                  {isSlamTile ? `Show all ${onlyFinals.length} finals` : `Show all ${onlyFinals.length} finals, with semifinals`}
+                </button>
+              )}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
   return (
     <div className="space-y-12">
       <section>
         <h2 className="font-display text-2xl font-bold tracking-tight">Start at a Slam</h2>
-        <p className="text-muted">Pick one for every final played there, then follow the story from any of them.</p>
+        <p className="text-muted">Pick one for its last ten finals, then follow the story from any of them.</p>
         <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
           {slamTiles.map((t, i) => (
             <button
@@ -1108,14 +1145,14 @@ function Start({ start, follow, slam, setSlam }: { start: StartData; follow: Fol
               aria-pressed={slam === t}
               onClick={() => pick(t)}
               style={{ background: slamColours[t], animationDelay: `${i * 70}ms` }}
-              className={`rise-in group flex cursor-pointer flex-col items-center gap-3 rounded-3xl px-3 py-5 font-semibold text-white shadow-md transition duration-200 hover:-translate-y-1.5 hover:shadow-xl ${
+              className={`rise-in group flex cursor-pointer flex-col items-center gap-2 rounded-3xl px-3 py-3 font-semibold text-white shadow-md transition duration-200 hover:-translate-y-1.5 hover:shadow-xl sm:gap-3 sm:py-5 ${
                 slam === t ? "-translate-y-1.5 shadow-xl ring-4 ring-ball ring-offset-2 ring-offset-[var(--page)]" : slam ? "opacity-70 hover:opacity-100" : ""
               }`}
             >
               <span className="transition-transform duration-300 group-hover:-rotate-6 group-hover:scale-110">
-                <SlamLogo event={t} size="h-16 w-16 sm:h-20 sm:w-20" />
+                <SlamLogo event={t} size="h-12 w-12 sm:h-20 sm:w-20" />
               </span>
-              <span className="text-center font-display text-lg">{t}</span>
+              <span className="text-center font-display text-base sm:text-lg">{t}</span>
               <span className="rounded-full bg-white/20 px-2.5 py-0.5 text-xs">{start.finals.filter((r) => r.event === t).length} finals</span>
             </button>
           ))}
@@ -1124,7 +1161,7 @@ function Start({ start, follow, slam, setSlam }: { start: StartData; follow: Fol
 
         {/* The big events after the Slams, smaller: a flag and the city, or the event's own mark */}
         <h3 className="mt-8 font-display text-lg font-bold tracking-tight">Masters &amp; 1000s, tour finals and the Olympics</h3>
-        <p className="text-sm text-muted">Finals, semifinals and bronze medal matches, men&apos;s and women&apos;s.</p>
+        <p className="text-sm text-muted">Their last ten finals, men&apos;s and women&apos;s, with semifinals a click away.</p>
         <div className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-6 lg:grid-cols-8">
           {bigEvents.map((b, i) => (
             <button
