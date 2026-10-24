@@ -442,6 +442,7 @@ export function StoryView({
   starOf = () => null,
   lite = false,
   still = false,
+  short = false,
 }: {
   story: Story;
   follow: Follow;
@@ -451,7 +452,8 @@ export function StoryView({
   take?: ReactNode; // under the title: your take on it, or a way to star it
   starOf?: StarOf; // whether a match is starred, and watched
   lite?: boolean; // the landing's demo: on a phone, only the threads that read quickest
-  still?: boolean; // the landing page: the story and the head-to-head only, its matches named but not links
+  still?: boolean; // the story to read and nothing more: its matches named but not links, no trail onwards
+  short?: boolean; // the landing page: only the head-to-head after the story
 }) {
   const match = asMatch(story);
   const [nameA, nameB] = [story.names[story.a.key], story.names[story.b.key]];
@@ -461,8 +463,7 @@ export function StoryView({
   const label = `${story.event} ${story.season} · ${roundName(match)}`;
 
   const h2h = story.threads.find((t) => t.id === "h2h");
-  // The landing page keeps it short: the head-to-head and nothing more
-  const rest = still ? [] : story.threads.filter((t) => t.id !== "h2h");
+  const rest = short ? [] : story.threads.filter((t) => t.id !== "h2h");
   const thread = (t: Thread) => (
     <section
       key={t.id}
@@ -1285,7 +1286,8 @@ export function ExploreSection({
   const page = usePages();
   const starOf = useStarState();
   const top = useRef<HTMLDivElement>(null);
-  const follow = (id: string) => start(() => router.push(`/explore?m=${encodeURIComponent(id)}`, { scroll: false }));
+  // Signed out, a shared link shows that match and nowhere else to go
+  const follow = (id: string) => (guest ? undefined : start(() => router.push(`/explore?m=${encodeURIComponent(id)}`, { scroll: false })));
   const first = useRef(true);
 
   // A new story: bring its top into view
@@ -1299,16 +1301,20 @@ export function ExploreSection({
 
   return (
     <div className="space-y-8">
-      <MatchFinder seasons={seasons} onPick={(row) => follow(row.id)} inside={<SurpriseSmall slam={story ? slam : picked} />} />
+      {!guest && <MatchFinder seasons={seasons} onPick={(row) => follow(row.id)} inside={<SurpriseSmall slam={story ? slam : picked} />} />}
       <div ref={top} className="scroll-mt-6">
         {missing && <p className="mb-6 rounded-2xl bg-fault/10 px-4 py-3 font-medium text-fault">That match isn&apos;t in the record.</p>}
         {story ? (
           <>
             {/* Back to where Explore starts */}
-            <Link href="/explore" className="mb-6 inline-block font-semibold text-court underline-offset-4 hover:underline">
-              ← All Slams
-            </Link>
-            <Crumbs story={story} follow={follow} />
+            {!guest && (
+              <>
+                <Link href="/explore" className="mb-6 inline-block font-semibold text-court underline-offset-4 hover:underline">
+                  ← All Slams
+                </Link>
+                <Crumbs story={story} follow={follow} />
+              </>
+            )}
             <StoryView
               story={story}
               follow={follow}
@@ -1317,11 +1323,12 @@ export function ExploreSection({
               star={<ShareLink story={story} />}
               take={guest ? <GuestTake /> : <YourTake story={story} />}
               starOf={starOf}
+              still={guest}
             />
             {/* At the foot of the story: keep this match, or try another */}
             <div className="mt-12 flex flex-col items-center gap-8">
               {guest ? <StarDemo /> : <YourTake story={story} ask />}
-              <SurpriseMe again slam={slam} />
+              {!guest && <SurpriseMe again slam={slam} />}
             </div>
           </>
         ) : (

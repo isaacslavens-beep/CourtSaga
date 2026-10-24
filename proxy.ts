@@ -11,6 +11,9 @@ export function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
   if (pathname === "/") return hasSession(request) ? NextResponse.redirect(new URL("/explore", request.url)) : NextResponse.next();
   if (hasSession(request)) return NextResponse.next();
+  // Signed out, Explore opens only a match someone shared
+  const m = request.nextUrl.searchParams.get("m");
+  if (pathname === "/explore" && m && m !== "random") return NextResponse.next();
   const login = new URL("/login", request.url);
   login.searchParams.set("next", pathname + search);
   return NextResponse.redirect(login);
@@ -28,8 +31,16 @@ export const config = {
       ],
     },
     {
-      // Explore and Statistics open signed out too, so a shared link works for anyone
+      // Explore opens signed out too, so a shared match's link works for anyone (the page lets a guest
+      // see only that match)
       source: "/(saga|account)",
+      missing: [
+        { type: "header", key: "next-router-prefetch" },
+        { type: "header", key: "purpose", value: "prefetch" },
+      ],
+    },
+    {
+      source: "/(explore|statistics)/:path*",
       missing: [
         { type: "header", key: "next-router-prefetch" },
         { type: "header", key: "purpose", value: "prefetch" },

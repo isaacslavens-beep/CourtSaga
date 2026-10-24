@@ -54,7 +54,7 @@ export function LandingExplore({ initial, choices }: { initial: Story | null; ch
       </div>
       {failed && <p className="mb-4 rounded-2xl bg-fault/10 px-4 py-3 font-medium text-fault">That story didn&apos;t load. Check your connection and try again.</p>}
       {story ? (
-        <StoryView story={story} follow={(id) => void open(id)} pending={pending} page={() => null} lite still />
+        <StoryView story={story} follow={(id) => void open(id)} pending={pending} page={() => null} lite still short />
       ) : (
         <p className="text-muted">The match data isn&apos;t available right now.</p>
       )}

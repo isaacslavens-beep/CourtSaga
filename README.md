@@ -18,7 +18,7 @@ A free, simple diary for the tennis you watch: explore the story of any tour-lev
 | `app/page.tsx`, `app/hero*.tsx` | The landing page. Its demos run on a sample log and save nothing. |
 | `app/demos/` | The sample log and its hand-checked rivalry records, for the demos only. |
 | `app/diary/` | The log, ranking and saga, used by both the demos and real diaries. `library.ts` holds the shared types and rules, `books.ts` the saga's rules, `store.tsx` the state and saving, and `finder.tsx` match search. |
-| `app/(app)/` | The app's pages (`/explore`, `/saga`, `/statistics`, `/account`) and the server actions that keep a diary. Explore and Statistics open signed out too. |
+| `app/(app)/` | The app's pages (`/explore`, `/saga`, `/statistics`, `/account`) and the server actions that keep a diary. Explore opens signed out only for a shared match, with nowhere to go from it. |
 | `app/diary/records.ts`, `lib/records.ts` | Statistics: every board's rules, and the loader that reads a tour's matches and builds them. The pages are prerendered and rebuilt daily. |
 | `app/(auth)/` | Sign up and log in. |
 | `app/s/[slug]/` | A shared saga: read-only, kept out of search engines. |

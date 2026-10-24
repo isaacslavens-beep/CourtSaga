@@ -56,6 +56,8 @@ async function Exploring({ searchParams }: Pick<PageProps<"/explore">, "searchPa
   const session = await getSession();
   const user = session?.user ?? null;
   const { m, slam } = await searchParams;
+  // Signed out, Explore only opens a match someone shared
+  if (!user && (typeof m !== "string" || m === "random")) redirect("/login?next=%2Fexplore");
   // A Slam or a big event picked on the start page, which Surprise me keeps to
   const known: string[] = [...slams, ...bigEvents.map((b) => b.key)];
   const atSlam = typeof slam === "string" && known.includes(slam) ? slam : undefined;

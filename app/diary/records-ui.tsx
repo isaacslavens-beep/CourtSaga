@@ -1,7 +1,14 @@
 "use client";
 
+import Image, { type StaticImageData } from "next/image";
 import Link from "next/link";
 import { useMemo, useState, useSyncExternalStore } from "react";
+import rivalriesPhoto from "@/public/photos/statistics/rivalries.jpg";
+import eventsPhoto from "@/public/photos/statistics/events.jpg";
+import streaksPhoto from "@/public/photos/statistics/streaks.jpg";
+import seasonsPhoto from "@/public/photos/statistics/seasons.jpg";
+import matchesPhoto from "@/public/photos/statistics/matches.jpg";
+import specialistsPhoto from "@/public/photos/statistics/specialists.jpg";
 import { Avatar } from "./fun";
 import { chapters, type Board, type BoardRow, type ChapterId, type RecordBooks } from "./records";
 
@@ -10,6 +17,16 @@ import { chapters, type Board, type BoardRow, type ChapterId, type RecordBooks }
 
 const fold = (s: string) => s.normalize("NFKD").replace(/[̀-ͯ]/g, "").toLowerCase();
 const exploreHref = (id: string) => `/explore?m=${encodeURIComponent(id)}`;
+
+// Each chapter's tile photo, and the part of it to keep in frame
+const chapterPhotos: Record<ChapterId, { src: StaticImageData; alt: string; position: string }> = {
+  rivalries: { src: rivalriesPhoto, alt: "Nadal and Federer side by side with their trophies", position: "object-[50%_30%]" },
+  events: { src: eventsPhoto, alt: "Centre Court at Wimbledon from the stands", position: "object-center" },
+  streaks: { src: streaksPhoto, alt: "Djokovic with the Australian Open trophy, fist clenched", position: "object-[45%_30%]" },
+  seasons: { src: seasonsPhoto, alt: "Alcaraz smiling with the Wimbledon trophy", position: "object-[25%_25%]" },
+  matches: { src: matchesPhoto, alt: "Serena Williams roaring with a raised fist at the US Open", position: "object-[40%_30%]" },
+  specialists: { src: specialistsPhoto, alt: "Nadal hitting a forehand on clay at Roland Garros", position: "object-[55%_20%]" },
+};
 
 // How many rows a board shows before "Show all"
 const TOP = 5;
@@ -93,7 +110,7 @@ export function BoardCard({ board, books, only, top = TOP, still = false }: { bo
           {/* A search mixes the chapters, so each board says which it's from */}
           {only && (
             <p className="text-xs font-semibold uppercase tracking-wide text-muted">
-              <span aria-hidden>{chapter.icon}</span> {chapter.title}
+              {chapter.title}
             </p>
           )}
           <h3 id={`board-${board.id}`} className="font-display text-xl font-bold tracking-tight">
@@ -272,15 +289,24 @@ export function RecordsView({ books }: { books: RecordBooks }) {
                 aria-pressed={chapter === c.id}
                 onClick={() => setChapter(c.id)}
                 style={{ animationDelay: `${i * 50}ms` }}
-                className={`rise-in group flex cursor-pointer flex-col items-center gap-1 rounded-2xl border bg-surface px-2 py-3 text-center shadow-sm transition duration-200 hover:-translate-y-1 hover:shadow-md sm:py-4 ${
-                  chapter === c.id ? "-translate-y-1 border-transparent shadow-md ring-4 ring-ball" : "border-line"
+                className={`rise-in group relative flex aspect-[4/3] cursor-pointer flex-col justify-end overflow-hidden rounded-2xl text-left text-white shadow-sm transition duration-200 hover:-translate-y-1 hover:shadow-md ${
+                  chapter === c.id ? "-translate-y-1 shadow-md ring-4 ring-ball" : "ring-1 ring-black/10"
                 }`}
               >
-                <span aria-hidden className="text-3xl leading-none transition-transform duration-300 group-hover:scale-110">
-                  {c.icon}
+                <Image
+                  src={chapterPhotos[c.id].src}
+                  alt={chapterPhotos[c.id].alt}
+                  fill
+                  placeholder="blur"
+                  sizes="(min-width: 640px) 12rem, 33vw"
+                  className={`object-cover transition-transform duration-500 group-hover:scale-105 ${chapterPhotos[c.id].position}`}
+                />
+                {/* A shade at the foot of the photo, so the words read on any picture */}
+                <span aria-hidden className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/15 to-transparent" />
+                <span className="relative px-2.5 pb-2 sm:px-3 sm:pb-2.5">
+                  <span className="block font-display text-sm font-bold leading-tight sm:text-base">{c.title}</span>
+                  <span className="block text-[11px] text-white/80">{books.boards.filter((b) => b.chapter === c.id).length} lists</span>
                 </span>
-                <span className="font-display text-base font-bold leading-tight">{c.title}</span>
-                <span className="text-[11px] text-muted">{books.boards.filter((b) => b.chapter === c.id).length} lists</span>
               </button>
             ))}
           </div>

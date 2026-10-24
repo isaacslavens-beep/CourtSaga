@@ -40,13 +40,13 @@ export type RecordsInput = { tour: Tour; matches: RecordMatch[]; players: Record
 
 export type ChapterId = "rivalries" | "events" | "streaks" | "seasons" | "matches" | "specialists";
 
-export const chapters: { id: ChapterId; title: string; icon: string; blurb: string }[] = [
-  { id: "rivalries", title: "Rivalries", icon: "🤝", blurb: "Head-to-heads: the one-sided, the closest, the most played and the turned around." },
-  { id: "events", title: "Tournaments", icon: "🏆", blurb: "Titles and unbeaten runs at one event, Slams in a row, and the unlikeliest champions." },
-  { id: "streaks", title: "Streaks", icon: "🔥", blurb: "Wins in a row: anywhere, on one surface, in finals, over the top 10, and in sets." },
-  { id: "seasons", title: "Seasons", icon: "📅", blurb: "The best single years: by wins, titles, Slams and wins over the top 10." },
-  { id: "matches", title: "Matches", icon: "🎾", blurb: "The longest matches, the most aces, the unlikeliest wins and the comebacks." },
-  { id: "specialists", title: "Specialists", icon: "🎯", blurb: "Bagels, tiebreaks, deciding sets, serving, returning, and the youngest and oldest champions." },
+export const chapters: { id: ChapterId; title: string; blurb: string }[] = [
+  { id: "rivalries", title: "Rivalries", blurb: "Head-to-heads: the one-sided, the closest, the most played and the turned around." },
+  { id: "events", title: "Tournaments", blurb: "Titles and unbeaten runs at one event, Slams in a row, and the unlikeliest champions." },
+  { id: "streaks", title: "Streaks", blurb: "Wins in a row: anywhere, on one surface, in finals, over the top 10, and in sets." },
+  { id: "seasons", title: "Seasons", blurb: "The best single years: by wins, titles, Slams and wins over the top 10." },
+  { id: "matches", title: "Matches", blurb: "The longest matches, the most aces, the unlikeliest wins and the comebacks." },
+  { id: "specialists", title: "Specialists", blurb: "Bagels, tiebreaks, deciding sets, serving, returning, and the youngest and oldest champions." },
 ];
 
 /** One line of a board: who, the number, a line about it, and the match it opens in Explore */
