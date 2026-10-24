@@ -366,6 +366,7 @@ function Plot({
   tip,
   onPick,
   xGrid = false,
+  drag = false,
 }: {
   x: Axis;
   y: Axis;
@@ -375,6 +376,7 @@ function Plot({
   tip?: (at: number) => Tip | null;
   onPick?: (x: number, y: number) => void;
   xGrid?: boolean;
+  drag?: boolean; // picking slides along the x axis, so show a sideways cursor
 }) {
   const [ref, width] = useWidth();
   const [hover, setHover] = useState<number | null>(null);
@@ -407,7 +409,7 @@ function Plot({
         height={height}
         role="img"
         aria-label={label}
-        className={`block touch-pan-y overflow-visible ${onPick ? "cursor-crosshair" : ""}`}
+        className={`block touch-pan-y overflow-visible ${onPick ? (drag ? "cursor-ew-resize" : "cursor-crosshair") : ""}`}
         onPointerDown={(e) => {
           if (!onPick) return;
           const [cx, cy] = where(e);
@@ -1341,10 +1343,20 @@ function RatingsPanel({ books }: { books: InteractBooks }) {
 }
 
 /** The page's opening: the top 10 by rating at any month, a timeline of the range they spanned, and the list itself */
+// The validated categorical palette in slot order; the first four are the players' own colours
+const SLOTS = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300", "#6250d6", "#e34948"];
+const ownSlot: Record<string, number> = { Alcaraz: 0, Sinner: 1, Djokovic: 2, Rybakina: 3 };
+const OTHERS = "#9aa5b4";
+
 function TopTen({ books }: { books: InteractBooks }) {
   const e = books.elo;
   const [month, setMonth] = useState(e.months.length - 1);
+  const [moved, setMoved] = useState(false);
   const [topCourt, setTopCourt] = useState<CourtOrAll>("all");
+  const travel = (i: number) => {
+    setMonth(i);
+    setMoved(true);
+  };
   const tops = e.top[topCourt];
   const top = tops[month] ?? [];
   const yearStarts = e.months.map((m, i) => [m, i] as const).filter(([m]) => m.endsWith("-01"));
@@ -1360,6 +1372,44 @@ function TopTen({ books }: { books: InteractBooks }) {
     const t = tops[i]?.[0];
     return t ? books.names[books.people[t[0]]] : "";
   };
+  // Shade each month by its No. 1: the longest reigns take a colour each (players keep their own), the rest share grey
+  const reigns = useMemo(() => {
+    const months = new Map<string, number>();
+    for (let i = 0; i < tops.length; i++) {
+      const t = tops[i]?.[0];
+      if (t) months.set(books.people[t[0]], (months.get(books.people[t[0]]) ?? 0) + 1);
+    }
+    const order = [...months].sort((a, b) => b[1] - a[1]).map(([k]) => k);
+    const color = new Map<string, string>();
+    const used = new Set<number>();
+    for (const k of order) if (books.names[k] in ownSlot) used.add(ownSlot[books.names[k]]);
+    for (const k of order) {
+      const own = ownSlot[books.names[k]];
+      if (own !== undefined) color.set(k, SLOTS[own]);
+      else {
+        const free = SLOTS.findIndex((_, i) => !used.has(i));
+        if (free < 0) break;
+        used.add(free);
+        color.set(k, SLOTS[free]);
+      }
+    }
+    return { color, order, months };
+  }, [tops, books]);
+  const keyAt = (i: number) => {
+    const t = tops[i]?.[0];
+    return t ? books.people[t[0]] : null;
+  };
+  const shadeOf = (k: string | null) => (k && reigns.color.get(k)) || OTHERS;
+  const named = reigns.order.filter((k) => reigns.color.has(k));
+  const othersCount = reigns.order.length - named.length;
+  // Runs of months under the same No. 1, drawn as one shaded slice each
+  const runs: { k: string | null; from: number; to: number }[] = [];
+  for (const [, i] of filled) {
+    const k = reigns.color.has(keyAt(i) ?? "") ? keyAt(i) : null;
+    const last = runs[runs.length - 1];
+    if (last && last.k === k && last.to === i - 1) last.to = i;
+    else runs.push({ k, from: i, to: i });
+  }
   const row = "grid grid-cols-[1.75rem_1.75rem_5.5rem_minmax(0,1fr)_3rem] items-center gap-3 sm:grid-cols-[1.75rem_1.75rem_9rem_minmax(0,1fr)_3rem]";
   return (
     <Card className="shadow-xl shadow-court/5">
@@ -1375,12 +1425,27 @@ function TopTen({ books }: { books: InteractBooks }) {
       <div className="mt-5">
         <Figure
           title="The top of the game, month by month"
-          sub="Drag across the timeline to travel."
-          legend={<Legend items={[{ label: "No. 1", color: INK }, { label: "No. 1 to No. 10", color: BLUE, kind: "band" }]} />}
+          sub="The shaded band runs from No. 1 down to No. 10, coloured by whoever was No. 1 that month."
+          legend={
+            <Legend
+              items={[
+                { label: "No. 1", color: INK },
+                ...named.map((k) => ({ label: `${books.names[k]} · ${num(reigns.months.get(k) ?? 0)} mo`, color: shadeOf(k), kind: "band" as const })),
+                ...(othersCount ? [{ label: `${othersCount} other${othersCount > 1 ? "s" : ""}`, color: OTHERS, kind: "band" as const }] : []),
+              ]}
+            />
+          }
         >
+          <p className={`mb-2 flex items-center gap-2 text-sm font-semibold text-court transition-opacity duration-500 ${moved ? "opacity-60" : ""}`}>
+            <span aria-hidden className="inline-flex h-6 shrink-0 items-center whitespace-nowrap rounded-full bg-court/10 px-2 font-mono text-xs">
+              ‹ ›
+            </span>
+            Drag or swipe along the chart to see the top 10 in any month
+          </p>
           <Plot
-            height={220}
+            height={240}
             label="Top 10 ratings over time"
+            drag
             x={{
               min: 0,
               max: e.months.length - 1,
@@ -1390,7 +1455,7 @@ function TopTen({ books }: { books: InteractBooks }) {
               title: "Month",
             }}
             y={{ min: yTicks[0], max: yTicks[yTicks.length - 1], ticks: yTicks, format: (v) => num(v), title: "Elo rating" }}
-            onPick={(at) => setMonth(clamp(Math.round(at), 0, e.months.length - 1))}
+            onPick={(at) => travel(clamp(Math.round(at), 0, e.months.length - 1))}
             tip={(at) => {
               const i = clamp(Math.round(at), 0, e.months.length - 1);
               return {
@@ -1412,16 +1477,37 @@ function TopTen({ books }: { books: InteractBooks }) {
           >
             {(s) => {
               const upper = filled.map(([, i]): [number, number] => [s.x(i), s.y(firsts[i])]);
-              const lower = filled.map(([, i]): [number, number] => [s.x(i), s.y(tenths[i])]);
+              // Each reign's slice reaches half a month either side, so neighbouring slices meet
+              const slice = (from: number, to: number) => {
+                const xs = [Math.max(0, from - 0.5), ...Array.from({ length: to - from + 1 }, (_, j) => from + j), Math.min(e.months.length - 1, to + 0.5)];
+                // Half-months take the midpoint with the neighbour, so the slices join without a step
+                const at = (v: number, ys: number[]) => {
+                  const a = ys[Math.floor(v)] || ys[Math.ceil(v)];
+                  const b = ys[Math.ceil(v)] || a;
+                  return s.y((a + b) / 2);
+                };
+                return bandPath(
+                  xs.map((v): [number, number] => [s.x(v), at(v, firsts)]),
+                  xs.map((v): [number, number] => [s.x(v), at(v, tenths)]),
+                );
+              };
+              const hx = s.x(month);
               return (
                 <>
-                  <path d={bandPath(upper, lower)} fill={BLUE} fillOpacity={0.16} />
+                  {runs.map((r) => (
+                    <path key={r.from} d={slice(r.from, r.to)} fill={shadeOf(r.k)} fillOpacity={0.45} />
+                  ))}
                   <path d={linePath(upper)} fill="none" stroke={INK} strokeWidth={1.75} strokeLinejoin="round" />
                   {firsts[month] > 0 && (
                     <>
-                      <line x1={s.x(month)} x2={s.x(month)} y1={s.top} y2={s.bottom} stroke={INK} strokeOpacity={0.5} />
-                      <circle cx={s.x(month)} cy={s.y(firsts[month])} r={5.5} fill={INK} stroke="var(--surface)" strokeWidth={2} />
-                      <Callout x={s.x(month)} y={s.y(firsts[month])} text={`${monthLabel(e.months[month])}: ${leaderAt(month)}`} s={s} />
+                      <line x1={hx} x2={hx} y1={s.top} y2={s.bottom} stroke={INK} strokeWidth={2} />
+                      <circle cx={hx} cy={s.y(firsts[month])} r={5.5} fill={shadeOf(keyAt(month))} stroke={INK} strokeWidth={2} />
+                      <Callout x={hx} y={s.y(firsts[month])} text={`${monthLabel(e.months[month])}: ${leaderAt(month)}`} s={s} />
+                      {/* A grip on the line, to show it can be dragged */}
+                      <g transform={`translate(${clamp(hx, s.left + 17, s.right - 17)} ${s.bottom - 14})`}>
+                        <rect x={-17} y={-11} width={34} height={22} rx={11} fill={INK} />
+                        <path d="M-5 -4 L-10 0 L-5 4 M5 -4 L10 0 L5 4" fill="none" stroke="var(--surface)" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" />
+                      </g>
                     </>
                   )}
                 </>
@@ -1431,13 +1517,13 @@ function TopTen({ books }: { books: InteractBooks }) {
         </Figure>
       </div>
       <div className="mt-4">
-        <Slider label="Month" value={month} shown={monthLabel(e.months[month])} min={0} max={e.months.length - 1} onChange={setMonth} />
+        <Slider label="Month" value={month} shown={monthLabel(e.months[month])} min={0} max={e.months.length - 1} onChange={travel} />
       </div>
       <div className={`${row} mt-4 border-b-2 border-foreground/20 pb-1 text-[10.5px] font-semibold uppercase tracking-wider text-muted`}>
         <span className="col-span-3">Player</span>
         <span className="relative h-4 font-mono font-normal normal-case tracking-normal">
-          {scale.map((t) => (
-            <span key={t} className="absolute -translate-x-1/2" style={{ left: `${((t - lo) / (hi - lo)) * 100}%` }}>
+          {scale.map((t, i) => (
+            <span key={t} className={`absolute -translate-x-1/2 ${i > 0 && i < scale.length - 1 ? "hidden sm:inline" : ""}`} style={{ left: `${((t - lo) / (hi - lo)) * 100}%` }}>
               {num(t)}
             </span>
           ))}
