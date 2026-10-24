@@ -124,7 +124,6 @@ export type ServeModel = {
 export type AgeModel = {
   minMatches: number; // a player counts towards the typical career with this many matches
   // Per era, the typical career by whole years of age: points above or below a player's own career win
-  // rate (weighted by matches), and how many players and matches it's from
   // rate (weighted by matches), its standard error, and how many players and matches it's from
   eras: Record<AgeEra, { ages: { age: number; diff: number; se: number; players: number; matches: number }[]; fit: [number, number, number]; peak: number; players: number }>;
   // Every player who counts, all seasons: [age, won, lost] for each whole year of age, to set beside it
@@ -311,10 +310,6 @@ export function serveChance(c: ServeModel["fits"]["all"]["coef"], line: Record<S
   return sigmoid(c.a + c.in1 * line.in1 + c.won1 * line.won1 + c.won2 * line.won2);
 }
 
-/**
- * The length model's minutes. Given how many sets, that many; without, the average over how often matches
- * on that surface go each number of sets.
- */
 /* ---------- Building the models ---------- */
 
 /** A rating's step: big while a player has few matches, settling as they play more (as FiveThirtyEight's) */

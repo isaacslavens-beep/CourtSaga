@@ -84,7 +84,7 @@ const tours = [
   { tour: "wta", label: "Women", href: "/advanced/women" },
 ] as const;
 
-// The open panel lives in the address (#draws), as Statistics' chapters do
+// The open panel lives in the address (#serve), as Statistics' chapters do
 const hashEvent = "courtsaga-hash";
 const subscribeHash = (on: () => void) => {
   window.addEventListener("hashchange", on);
@@ -589,8 +589,8 @@ function CalibrationChart({ calibration, n }: { calibration: Calibration; n: str
           {Math.abs(drift) < 1.5
             ? "The dots sit on the line: the chances can be taken at face value."
             : drift > 0
-              ? `The dots sit a little under the line: the model is overconfident by about ${Math.round(drift)} points.`
-              : `The dots sit a little over the line: the model is too cautious by about ${Math.round(-drift)} points.`}
+              ? `The dots sit a little under the line: the model is overconfident by about ${Math.round(drift)} percentage points.`
+              : `The dots sit a little over the line: the model is too cautious by about ${Math.round(-drift)} percentage points.`}
         </>
       }
     >
@@ -880,8 +880,9 @@ function UpsetsPanel({ books }: { books: AdvancedBooks }) {
         <Formula
           where={
             <>
-              <i>p</i> is the better-ranked player&apos;s chance; <i>r</i> are the two rankings; <i>b</i> is how much the gap counts; a bracket is 1 when true, else 0. At equal rankings ln 1 = 0, so it&apos;s 50–50. Fitted by maximum
-              likelihood.
+              <i>p</i> is the better-ranked player&apos;s chance; logit <i>p</i> = ln(<i>p</i> ÷ (1 − <i>p</i>)), the log of the odds. <i>r</i>
+              <sub>high</sub> is the better-ranked player&apos;s ranking (the smaller number), <i>r</i>
+              <sub>low</sub> the other&apos;s; <i>b</i> is how much the gap counts; a bracket is 1 when true, else 0. At equal rankings ln 1 = 0, so it&apos;s 50–50. Fitted by maximum likelihood.
             </>
           }
         >
@@ -926,8 +927,8 @@ function UpsetsPanel({ books }: { books: AdvancedBooks }) {
           </Eq>
         </Formula>
         <p>
-          Each time the gap doubles (No. 10 v No. 20, or No. 50 v No. 100), the better-ranked player&apos;s odds grow <strong>×{doubling(0).toFixed(2)}</strong> on hard courts, ×{doubling(m.coef.clay).toFixed(2)}{" "}
-          on clay and ×{doubling(m.coef.grass).toFixed(2)} on grass{m.bo5 ? <>, and ×{doubling(m.coef.bo5).toFixed(2)} on hard in best of five</> : null}. &ldquo;Any surface&rdquo; uses the hard-court line.
+          Each time the ratio between the two rankings doubles (No. 10 v No. 20 becoming No. 10 v No. 40), the better-ranked player&apos;s odds of winning (chance of winning ÷ chance of losing) are multiplied by <strong>×{doubling(0).toFixed(2)}</strong> on hard courts, ×{doubling(m.coef.clay).toFixed(2)}{" "}
+          on clay and ×{doubling(m.coef.grass).toFixed(2)} on grass{m.bo5 ? <>, and ×{doubling(m.coef.bo5).toFixed(2)} on hard in best of five</> : null}. &ldquo;Any surface&rdquo; uses the hard-court line, which sits close to the average of all three.
         </p>
         <Coefficients
           n="1.3"
@@ -1163,7 +1164,7 @@ function RatingsPanel({ books }: { books: AdvancedBooks }) {
           </div>
           {court !== "all" && (
             <div className="mt-4 max-w-md">
-              <Slider label={`How much the ${court} rating counts`} value={mix} shown={`${mix}%`} min={0} max={100} step={5} onChange={setMix} hint="The rest is the overall rating. 50% is the usual mix." />
+              <Slider label={`How much the ${court} rating counts`} value={mix} shown={`${mix}%`} min={0} max={100} step={5} onChange={setMix} hint="The rest is the overall rating. 50% is the mix the accuracy figures use." />
             </div>
           )}
           {a && b && ra && rb && chance !== null && (
@@ -1280,15 +1281,15 @@ function RatingsPanel({ books }: { books: AdvancedBooks }) {
           />
           <p>
             <strong>Elo ratings</strong> from {num(e.n)} completed matches since {books.from}. Everyone starts at 1,500. After each match the winner takes points from the loser: more for an upset, fewer
-            for a win that was expected. On the same matches, the better-ranked player won {pct1(e.rankAccuracy)}.
+            for a win that was expected. For comparison, in those matches where both players had a ranking, the better-ranked player won {pct1(e.rankAccuracy)}.
           </p>
           <EloFormula />
           <p>
             <strong>Each surface has its own rating</strong>, from matches on it alone (carpet counts as hard). The chance uses a mix of the two; the slider sets it. {books.from} is a warm-up, because
             everyone starts level however good, so seasons from <strong>{e.from}</strong> are shown. A season&apos;s rating is where it stood after the player&apos;s last match of it. Players need 30
-            matches, and a season 5.
+            matches in all, and a season needs 5 to be listed.
           </p>
-          {bo5 && <p>Best of five turns the best-of-three chance into a chance per set and plays to three sets won. Ratings learn from both lengths, so this is an estimate.</p>}
+          {bo5 && <p>For best of five, the best-of-three chance is turned into the chance of winning a single set, then played out to three sets won. Ratings learn from both lengths, so this is an estimate.</p>}
           <CalibrationChart calibration={e.calibration} n="2.2" />
           <p>Ratings don&apos;t fade with time off, and they aren&apos;t the official rankings.</p>
         </Behind>
@@ -1297,7 +1298,6 @@ function RatingsPanel({ books }: { books: AdvancedBooks }) {
   );
 }
 
-/** The page's opening: the top 10 by rating at any month, a timeline of the range they spanned, and the list itself */
 /** The Elo update, set as mathematics: shared by Across eras and the top 10 */
 function EloFormula() {
   return (
@@ -1355,6 +1355,7 @@ const SLOTS = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300",
 const ownSlot: Record<string, number> = { Alcaraz: 0, Sinner: 1, Djokovic: 2, Rybakina: 3 };
 const OTHERS = "#9aa5b4";
 
+/** The page's opening: the top 10 by rating at any month, a timeline of the range they spanned, and the list itself */
 function TopTen({ books }: { books: AdvancedBooks }) {
   const e = books.elo;
   const [month, setMonth] = useState(e.months.length - 1);
@@ -1436,7 +1437,7 @@ function TopTen({ books }: { books: AdvancedBooks }) {
             <div className="mt-3 space-y-3 rounded-2xl bg-background px-4 py-4 text-sm leading-relaxed text-muted [&_strong]:font-semibold [&_strong]:text-foreground">
               <p>
                 <strong>Elo</strong> is a rating built from results alone, one match at a time, in the order they were played. Everyone starts at <strong>1,500</strong>. After each completed match the
-                winner takes points from the loser: a lot for beating someone rated far higher, a little for beating someone rated far lower. Walkovers don&apos;t count. Neither does the score: a
+                winner takes points from the loser: a lot for beating someone rated far higher, a little for beating someone rated far lower. Walkovers and retirements don&apos;t count. Neither does the score: a
                 win is a win.
               </p>
               <EloFormula />
@@ -1633,7 +1634,7 @@ function ServePanel({ books }: { books: AdvancedBooks }) {
           />
         </div>
         <div className="mt-6">
-          <Answer value={pct1(chance)} label="chance of winning" sub={<>for a player who serves like this{onCourt(court)}, whatever the opponent does on serve.</>} />
+          <Answer value={pct1(chance)} label="chance of winning" sub={<>for a player who serves like this{onCourt(court)}, averaged over every kind of opponent.</>} />
           <Meter value={chance} label="Chance of winning" />
           {player && (
             <p className="mt-4 rounded-2xl bg-background px-4 py-3 text-sm text-muted">
@@ -1655,7 +1656,7 @@ function ServePanel({ books }: { books: AdvancedBooks }) {
           ))}
         </div>
         <div className="mt-8">
-          <Figure n="3.4" title="Worth most from here" sub="What one more point in 100 on each would add to the winning chance, from the sliders as they are">
+          <Figure n="3.4" title="Worth most from here" sub="What one more point in 100 on each would add to the winning chance, in percentage points, from the sliders as they are">
             <ul className="space-y-2">
               {levers.map((l) => (
                 <li key={l.s} className="grid grid-cols-[minmax(0,9rem)_1fr_auto] items-center gap-3 text-sm sm:grid-cols-[minmax(0,13rem)_1fr_auto]">
@@ -1691,7 +1692,7 @@ function ServePanel({ books }: { books: AdvancedBooks }) {
               <i>x</i>
               <sub>1</sub>, <i>x</i>
               <sub>2</sub>, <i>x</i>
-              <sub>3</sub>: first serves in, first-serve and second-serve points won, in %. Fitted per surface by maximum likelihood. Aces and double faults are already inside the points won.
+              <sub>3</sub>: first serves in, first-serve and second-serve points won, in %. Fitted per surface by maximum likelihood. Each <i>β</i> is the effect of one stat with the other two held fixed. Aces and double faults are already inside the points won.
             </>
           }
         >
@@ -1728,7 +1729,7 @@ function ServePanel({ books }: { books: AdvancedBooks }) {
           ]}
         />
         <p>
-          It sees only one side&apos;s serve: how the opponent served is in the opponent&apos;s own line. The columns in each figure are <strong>the real record</strong>: of players who served in that range,
+          It sees only one side&apos;s serve: how the opponent served is in the opponent&apos;s own line. The stats come from the same match, so this describes how serving and winning go together; it isn&apos;t a forecast. The columns in each figure are <strong>the real record</strong>: of players who served in that range,
           how many won. The averages{onCourt(court)}: {fit.mean.in1}% first serves in, {fit.mean.won1}% won on first serve, {fit.mean.won2}% won on second.
         </p>
       </Behind>
@@ -1938,7 +1939,7 @@ function PressurePanel({ books }: { books: AdvancedBooks }) {
             <>
               <Answer
                 value={signed(leader.edge, 1)}
-                label={`points ${leader.edge >= 0 ? "above" : "below"} expectation`}
+                label={`per 100 ${words.chances}, ${leader.edge >= 0 ? "above" : "below"} expected`}
                 sub={
                   <>
                     {books.full[lead]} {words.won} {num(leader.r[P.won])} of {num(leader.r[P.n])} {words.chances} ({pct1(leader.share)}). A player with the same {words.base} in those matches would
@@ -1996,7 +1997,7 @@ function PressurePanel({ books }: { books: AdvancedBooks }) {
               shown && hover ? (
                 <>
                   <strong className="text-foreground">{books.full[hover]}</strong>: {words.won} {num(shown.r[P.won])} of {num(shown.r[P.n])} ({pct1(shown.share)}), expected {pct1(shown.expected)},{" "}
-                  <span className="font-mono">{signed(shown.edge, 1)}</span> points
+                  <span className="font-mono">{signed(shown.edge, 1)}</span> per 100
                 </>
               ) : (
                 <>Above the diagonal: winning more of the {words.chances} than the rest of their play predicts. Below: fewer. The dotted line on a picked player is the edge.</>
@@ -2173,7 +2174,7 @@ function PressurePanel({ books }: { books: AdvancedBooks }) {
           {measure === "saved" || measure === "converted" ? (
             <>Break points come from each match&apos;s stats line.</>
           ) : measure === "tiebreaks" ? (
-            <>Tiebreaks come from the score: any set won 7–6, or by a game at 12–12 or later.</>
+            <>Tiebreaks come from the score: any set that ended 7–6, or 13–12 after a final-set tiebreak at 12–12.</>
           ) : (
             <>A deciding set is the third of a best of three or the fifth of a best of five.</>
           )}
@@ -2220,7 +2221,7 @@ function PressurePanel({ books }: { books: AdvancedBooks }) {
         </p>
         <p>
           The baseline counts the big points themselves ({measure === "saved" || measure === "converted" ? "a break point is also a serve point" : "a tiebreak's or a decider's points are among the match's points"}), which
-          pulls the expectation a little towards what happened, the same for everyone. Edges are shown raw, not shrunk, so small samples swing widest.
+          pulls the expectation towards what happened, the same for everyone: a little for break points and tiebreaks, more for deciding sets, which can be a third of a match&apos;s points. Edges are shown raw, not shrunk, so small samples swing widest.
         </p>
       </Behind>
     </div>
@@ -2304,7 +2305,7 @@ function AgesPanel({ books }: { books: AdvancedBooks }) {
           <Figure
             n="5.1"
             title="Win rate at each age, against the player's own career win rate"
-            sub="Above the line: winning more than usual for that player."
+            sub="In percentage points. Above the line: winning more than usual for that player."
             legend={
               <Legend
                 items={[
@@ -2321,7 +2322,7 @@ function AgesPanel({ books }: { books: AdvancedBooks }) {
               height={310}
               label="Win rate by age against career average"
               x={{ min: 16, max: 40, ticks: [16, 20, 24, 28, 32, 36, 40], minor: Array.from({ length: 25 }, (_, i) => 16 + i), format: String, title: "Age" }}
-              y={{ min: yMin, max: yMax, ticks: yTicks, format: (v) => (v ? signed(v) : "0"), title: "Points above career win rate" }}
+              y={{ min: yMin, max: yMax, ticks: yTicks, format: (v) => (v ? signed(v) : "0"), title: "Pct points above own career" }}
               tip={(at) => {
                 const age = Math.round(at);
                 const t = typical.ages.find((a) => a.age === age);
@@ -2419,18 +2420,24 @@ function AgesPanel({ books }: { books: AdvancedBooks }) {
         <Formula
           where={
             <>
-              <i>d</i> is the typical points above career win rate at age <i>a</i>, fitted by weighted least squares through the ages shown. Where the curve tops out, <i>a</i>*, is the typical peak.
+              <i>d</i> is the typical percentage points above career win rate at age <i>a</i>, fitted by weighted least squares through the ages shown: <i>β</i>
+              <sub>0</sub> = {fixed(typical.fit[0], 1)}, <i>β</i>
+              <sub>1</sub> = {fixed(typical.fit[1], 2)}, <i>β</i>
+              <sub>2</sub> = {fixed(typical.fit[2], 3)}. Where the curve tops out, <i>a</i>*, is the typical peak.
             </>
           }
         >
           <Eq>
             <V>d</V>(<V>a</V>)<Op>=</Op>
-            {fixed(typical.fit[0], 1)}
-            <Op>{typical.fit[1] >= 0 ? "+" : "−"}</Op>
-            {Math.abs(typical.fit[1]).toFixed(2)}
+            <V>β</V>
+            <Sub>0</Sub>
+            <Op>+</Op>
+            <V>β</V>
+            <Sub>1</Sub>
             <V>a</V>
-            <Op>{typical.fit[2] >= 0 ? "+" : "−"}</Op>
-            {Math.abs(typical.fit[2]).toFixed(3)}
+            <Op>+</Op>
+            <V>β</V>
+            <Sub>2</Sub>
             <V>a</V>
             <Sup>2</Sup>
           </Eq>
@@ -2454,7 +2461,7 @@ function AgesPanel({ books }: { books: AdvancedBooks }) {
             {Number.isFinite(typical.peak) ? typical.peak : "–"}
           </Eq>
         </Formula>
-        <p>Players who fade early leave the tour, so the late thirties are the strongest players&apos; late thirties even after the comparison. The teenage years are the few who made the tour that young.</p>
+        <p>Even compared with themselves, the late thirties include only players who aged well enough to keep playing, so the curve flatters them a little. The teenage years include only the few good enough to make the tour that young.</p>
       </Behind>
     </div>
   );
