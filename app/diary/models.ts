@@ -3,8 +3,6 @@
 // the data, so the same data always gives the same models. Each model also says what it was fitted on and
 // how well it does, because the page shows that next to every answer.
 //
-//   upsets   a logistic regression of the better-ranked player winning on the ranking gap, plus the real
-//            record of every pairing of ranking bands
 //   elo      an Elo rating for every player, overall and per surface, season by season
 //   serve    a logistic regression of winning on how a player served
 //   pressure how players do on the big points (break points, tiebreaks, deciding sets) against what their
@@ -51,34 +49,8 @@ export const courts: Court[] = ["hard", "clay", "grass"];
 export type CourtOrAll = "all" | Court;
 export const courtsOrAll: CourtOrAll[] = ["all", ...courts];
 
-// Ranking bands for the upsets' real record
-export const BANDS = [1, 2, 4, 6, 11, 21, 31, 51, 76, 101, 151, 251];
-export const bandLabels = BANDS.map((lo, i) => (BANDS[i + 1] ? (BANDS[i + 1] - 1 === lo ? `${lo}` : `${lo}–${BANDS[i + 1] - 1}`) : `${lo}+`));
-export const bandOf = (rank: number) => {
-  let b = 0;
-  while (b + 1 < BANDS.length && rank >= BANDS[b + 1]) b++;
-  return b;
-};
-
 /** How often a model's favourite won, by how sure it was: 50–55%, 55–60%, … 95–100% */
 export type Calibration = { n: number; won: number }[];
-
-export type UpsetModel = {
-  n: number; // matches fitted
-  // logit P(better-ranked wins) = gap × (slope + bo5 + clay + grass), gap = ln(underdog's rank / favourite's)
-  coef: { slope: number; bo5: number; clay: number; grass: number };
-  se: { slope: number; bo5: number; clay: number; grass: number }; // standard errors
-  bo5: boolean; // whether this tour plays best-of-five enough to offer it
-  // The real record: cells[court][bestOf][favourite's band][underdog's band], flattened (see cellIndex)
-  cells: { n: number[]; upsets: number[]; latest: (string | null)[] }; // latest: the most recent upset, to open in Explore
-  calibration: Calibration;
-  accuracy: number; // how often the better-ranked player won
-  brier: number; // mean squared error of the chances: 0.25 for a coin flip, lower is better
-  logLoss: number; // mean −ln(chance given to what happened): 0.693 for a coin flip
-};
-export const BEST_OFS = ["any", 3, 5] as const;
-export const cellIndex = (court: CourtOrAll, bestOf: (typeof BEST_OFS)[number], fav: number, dog: number) =>
-  ((courtsOrAll.indexOf(court) * BEST_OFS.length + BEST_OFS.indexOf(bestOf)) * BANDS.length + fav) * BANDS.length + dog;
 
 /**
  * A player's season, for head-to-heads, as a row of numbers to keep the page small: who (an index into
@@ -117,9 +89,6 @@ export type ServeModel = {
   fits: Record<CourtOrAll, { n: number; coef: Record<ServeStat | "a", number>; se: Record<ServeStat | "a", number>; mean: Record<ServeStat, number>; accuracy: number }>;
   // The real record, two points at a time over serveRange: bins[court][stat] = [{ n, won }] from the range's low end
   bins: Record<CourtOrAll, Record<ServeStat, { n: number; won: number }[]>>;
-  // Each player's serving across their matches with stats (≥ 20), per surface: [matches, won, then the
-  // rates in % in serveStats order]
-  players: Record<number, Partial<Record<CourtOrAll, number[]>>>;
   years: [number, number]; // the seasons with serve stats
 };
 
@@ -165,7 +134,7 @@ export type AdvancedBooks = {
   people: string[]; // player keys the models name, indexed
   names: Record<string, string>;
   full: Record<string, string>;
-  upsets: UpsetModel;
+  bo5: boolean; // whether this tour plays best-of-five enough to offer it
   elo: EloModel;
   serve: ServeModel;
   ages: AgeModel;
@@ -300,13 +269,6 @@ export function bestOfFive(p3: number) {
 /** A rating for one surface: `mix` of the surface's own, the rest overall (0.5 is what the page starts on) */
 export const blend = (overall: number, surface: number, mix = 0.5) => overall * (1 - mix) + surface * mix;
 
-/** The upsets model's chance that the better-ranked player wins */
-export function upsetModelChance(c: UpsetModel["coef"], favRank: number, dogRank: number, court: CourtOrAll, bestOf: 3 | 5) {
-  const gap = Math.log(Math.max(dogRank, favRank) / Math.min(dogRank, favRank));
-  // "Any surface" uses the hard-court line, the most common surface
-  return sigmoid(gap * (c.slope + (bestOf === 5 ? c.bo5 : 0) + (court === "clay" ? c.clay : 0) + (court === "grass" ? c.grass : 0)));
-}
-
 /** The serve model's chance of winning, given a serving line in % */
 export function serveChance(c: ServeModel["fits"]["all"]["coef"], line: Record<ServeStat, number>) {
   return sigmoid(c.a + c.in1 * line.in1 + c.won1 * line.won1 + c.won2 * line.won2);
@@ -333,11 +295,12 @@ export function buildModels(input: ModelsInput): AdvancedBooks {
     return i;
   };
 
-  const upsets = buildUpsets(games);
+  // Best of five is offered only where a tour plays enough of it (the WTA hardly does)
+  const bo5 = games.filter((m) => m.bestOf === 5).length > 1000;
   const elo = buildElo(input, all, games, from, idx, tierWeight);
   const flat = buildElo(input, all, games, from, () => 0, null, new Set(games.filter((m) => tierWeight[m.tier] > 0).map((m) => m.id)));
   elo.unweighted = { accuracy: flat.accuracy, brier: flat.brier, logLoss: flat.logLoss };
-  const serve = buildServe(games, idx);
+  const serve = buildServe(games);
   const ages = buildAges(games, idx);
   const pressure = buildPressure(games, idx, input);
   // Who has been ranked in the top 10, of the players already named
@@ -355,54 +318,7 @@ export function buildModels(input: ModelsInput): AdvancedBooks {
     full[p.key] = p.name;
   }
 
-  return { tour: input.tour, from, last: input.last, people, names, full, upsets, elo, serve, ages, pressure, topTen };
-}
-
-function buildUpsets(games: ModelMatch[]): UpsetModel {
-  const size = courtsOrAll.length * BEST_OFS.length * BANDS.length * BANDS.length;
-  const cells = { n: new Array<number>(size).fill(0), upsets: new Array<number>(size).fill(0), latest: new Array<string | null>(size).fill(null) };
-  const X: number[][] = [];
-  const y: number[] = [];
-  let favWins = 0;
-  for (const m of games) {
-    if (!m.wr || !m.lr || m.wr === m.lr) continue;
-    const court = courtOf(m.surface);
-    if (!court) continue;
-    const favWon = m.wr < m.lr;
-    const fav = Math.min(m.wr, m.lr);
-    const dog = Math.max(m.wr, m.lr);
-    const gap = Math.log(dog / fav);
-    X.push([gap, m.bestOf === 5 ? gap : 0, court === "clay" ? gap : 0, court === "grass" ? gap : 0]);
-    y.push(favWon ? 1 : 0);
-    if (favWon) favWins++;
-    for (const c of ["all", court] as CourtOrAll[])
-      for (const b of ["any", m.bestOf] as const) {
-        const i = cellIndex(c, b, bandOf(fav), bandOf(dog));
-        cells.n[i]++;
-        if (!favWon) {
-          cells.upsets[i]++;
-          cells.latest[i] = m.id; // matches run in order, so the last one seen is the latest
-        }
-      }
-  }
-  // Best of five gets its own term only where a tour plays enough of it (the WTA hardly does)
-  const fiveSets = X.filter((x) => x[1]).length > 1000;
-  const fitted = logistic(fiveSets ? X : X.map(([g, , c, gr]) => [g, c, gr]), y);
-  const spread = (v: number[]) => (fiveSets ? v : [v[0], 0, v[1], v[2]]);
-  const [slope, bo5, clay, grass] = spread(fitted.beta);
-  const coef = { slope: round3(slope), bo5: round3(bo5), clay: round3(clay), grass: round3(grass) };
-  const [seSlope, seBo5, seClay, seGrass] = spread(fitted.se);
-  const se = { slope: round4(seSlope), bo5: round4(seBo5), clay: round4(seClay), grass: round4(seGrass) };
-  const calibration = emptyCalibration();
-  let brier = 0;
-  let logLoss = 0;
-  X.forEach((x, i) => {
-    const p = sigmoid(x[0] * coef.slope + x[1] * coef.bo5 + x[2] * coef.clay + x[3] * coef.grass);
-    calibrate(calibration, p, y[i] === 1);
-    brier += (y[i] - p) ** 2;
-    logLoss -= Math.log(y[i] ? p : 1 - p);
-  });
-  return { n: X.length, coef, se, bo5: fiveSets, cells, calibration, accuracy: favWins / X.length, brier: round4(brier / X.length), logLoss: round4(logLoss / X.length) };
+  return { tour: input.tour, from, last: input.last, people, names, full, bo5, elo, serve, ages, pressure, topTen };
 }
 
 /** Elo with `weights` by tournament, or every match counting the same (null), scored on `scored` matches (all it rates, if left out) */
@@ -544,13 +460,13 @@ function buildElo(input: ModelsInput, all: ModelMatch[], games: ModelMatch[], fr
   return elo;
 }
 
-function buildServe(games: ModelMatch[], idx: (k: string) => number): ServeModel {
-  type Line = { k: string; season: number; court: Court | null; won: boolean; in1: number; won1: number; won2: number; svpt: number; first: number; firstWon: number; secondWon: number };
+function buildServe(games: ModelMatch[]): ServeModel {
+  type Line = { season: number; court: Court | null; won: boolean; in1: number; won1: number; won2: number };
   const lines: Line[] = [];
   for (const m of games)
-    for (const [k, st, won] of [
-      [m.w, m.wst, true],
-      [m.l, m.lst, false],
+    for (const [st, won] of [
+      [m.wst, true],
+      [m.lst, false],
     ] as const) {
       if (!st) continue;
       const svpt = st[STAT.svpt];
@@ -558,7 +474,7 @@ function buildServe(games: ModelMatch[], idx: (k: string) => number): ServeModel
       const second = svpt - first;
       // A side with too few points served, or numbers that don't add up, says little
       if (svpt < 30 || first <= 0 || second <= 0 || st[STAT.won1] > first || st[STAT.won2] > second) continue;
-      lines.push({ k, season: m.season, court: courtOf(m.surface), won, in1: (first / svpt) * 100, won1: (st[STAT.won1] / first) * 100, won2: (st[STAT.won2] / second) * 100, svpt, first, firstWon: st[STAT.won1], secondWon: st[STAT.won2] });
+      lines.push({ season: m.season, court: courtOf(m.surface), won, in1: (first / svpt) * 100, won1: (st[STAT.won1] / first) * 100, won2: (st[STAT.won2] / second) * 100 });
     }
 
   const fits = {} as ServeModel["fits"];
@@ -589,32 +505,7 @@ function buildServe(games: ModelMatch[], idx: (k: string) => number): ServeModel
     }
   }
 
-  // Each player's serving: totals over their matches with stats, as rates
-  const totals = new Map<string, Map<CourtOrAll, { n: number; won: number; svpt: number; first: number; firstWon: number; secondWon: number }>>();
-  for (const l of lines)
-    for (const c of ["all", l.court].filter(Boolean) as CourtOrAll[]) {
-      let p = totals.get(l.k);
-      if (!p) totals.set(l.k, (p = new Map()));
-      let t = p.get(c);
-      if (!t) p.set(c, (t = { n: 0, won: 0, svpt: 0, first: 0, firstWon: 0, secondWon: 0 }));
-      t.n++;
-      if (l.won) t.won++;
-      t.svpt += l.svpt;
-      t.first += l.first;
-      t.firstWon += l.firstWon;
-      t.secondWon += l.secondWon;
-    }
-  const players: ServeModel["players"] = {};
-  for (const [k, byCourt] of totals) {
-    if ((byCourt.get("all")?.n ?? 0) < 20) continue;
-    const row: ServeModel["players"][number] = {};
-    for (const [c, t] of byCourt) {
-      if (t.n < 20) continue;
-      row[c] = [t.n, t.won, round1((t.first / t.svpt) * 100), round1((t.firstWon / t.first) * 100), round1((t.secondWon / (t.svpt - t.first)) * 100)];
-    }
-    players[idx(k)] = row;
-  }
-  return { fits, bins, players, years: extent(lines.map((l) => l.season)) };
+  return { fits, bins, years: extent(lines.map((l) => l.season)) };
 }
 
 function buildAges(games: ModelMatch[], idx: (k: string) => number): AgeModel {

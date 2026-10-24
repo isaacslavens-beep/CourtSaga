@@ -3,7 +3,6 @@
 import Image, { type StaticImageData } from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
-import upsetsPhoto from "@/public/photos/rybakina-uso-2026.jpg";
 import ratingsPhoto from "@/public/photos/nadal-federer-ao-2009-final.jpg";
 import servePhoto from "@/public/photos/sinner-wimbledon-2025.jpg";
 import pressurePhoto from "@/public/photos/djokovic-wimbledon-centre-court.jpg";
@@ -11,12 +10,8 @@ import agesPhoto from "@/public/photos/federer-roland-garros.jpg";
 import { Avatar, chartStyles } from "./fun";
 import {
   ageEras,
-  bandLabels,
-  bandOf,
-  BANDS,
   bestOfFive,
   blend,
-  cellIndex,
   courtMatches,
   courtRating,
   eloChance,
@@ -27,7 +22,6 @@ import {
   serveRange,
   serveStats,
   tierWeight,
-  upsetModelChance,
   type AgeEra,
   type Calibration,
   type CourtOrAll,
@@ -42,7 +36,6 @@ import {
    at once. Every chart is drawn with one kit (Plot, Figure, Callout), so they read as one set of figures. */
 
 const fold = (s: string) => s.normalize("NFKD").replace(/[̀-ͯ]/g, "").toLowerCase();
-const exploreHref = (id: string) => `/explore?m=${encodeURIComponent(id)}`;
 const pct = (x: number) => (x > 0 && x < 0.005 ? "<1%" : x < 1 && x > 0.995 ? ">99%" : `${Math.round(x * 100)}%`);
 const pct1 = (x: number) => `${(Math.round(x * 1000) / 10).toLocaleString("en-GB")}%`;
 const num = (n: number) => n.toLocaleString("en-GB");
@@ -71,11 +64,10 @@ function wilson(won: number, n: number, z = 1.96): [number, number] {
 
 /* ---------- The panels, and which is open ---------- */
 
-type PanelId = "upsets" | "ratings" | "serve" | "pressure" | "ages";
+type PanelId = "ratings" | "serve" | "pressure" | "ages";
 const panels: { id: PanelId; title: string; blurb: string; photo: StaticImageData; alt: string; position: string }[] = [
-  { id: "upsets", title: "Upsets", blurb: "Set two rankings and a surface, and see how often the lower-ranked player wins.", photo: upsetsPhoto, alt: "Rybakina at the US Open", position: "object-[45%_25%]" },
   { id: "ratings", title: "Across eras", blurb: "Put any two players, each in any season, against each other, and see who led when.", photo: ratingsPhoto, alt: "Nadal and Federer after the 2009 Australian Open final", position: "object-[50%_30%]" },
-  { id: "serve", title: "Serving", blurb: "Set a serving line, or load a player's, and see what it's worth.", photo: servePhoto, alt: "Sinner stretching for a forehand at Wimbledon", position: "object-[55%_35%]" },
+  { id: "serve", title: "Serving", blurb: "Set a serving line and see what it's worth.", photo: servePhoto, alt: "Sinner stretching for a forehand at Wimbledon", position: "object-[55%_35%]" },
   { id: "pressure", title: "Under pressure", blurb: "Break points, tiebreaks and deciding sets: who wins more of the big points than the rest of their play says they should, and whether that lasts.", photo: pressurePhoto, alt: "Djokovic lunging on Centre Court at Wimbledon", position: "object-center" },
   { id: "ages", title: "Ages", blurb: "When players do their best tennis, and how any player's career compares.", photo: agesPhoto, alt: "Federer raising a finger at Roland Garros", position: "object-[50%_20%]" },
 ];
@@ -135,14 +127,6 @@ function Slider({ label, value, shown, min, max, step = 1, onChange, hint }: { l
       {hint && <span className="block text-xs text-muted">{hint}</span>}
     </label>
   );
-}
-
-// Rankings run on a log scale, so No. 1 to No. 10 gets as much of the slider as No. 50 to No. 500
-const RANK_MAX = 500;
-const toRank = (t: number) => Math.max(1, Math.min(RANK_MAX, Math.round(Math.exp((t / 1000) * Math.log(RANK_MAX)))));
-const fromRank = (r: number) => Math.round((Math.log(r) / Math.log(RANK_MAX)) * 1000);
-function RankSlider({ label, rank, onChange }: { label: string; rank: number; onChange: (r: number) => void }) {
-  return <Slider label={label} value={fromRank(rank)} shown={`No. ${rank}`} min={0} max={1000} onChange={(t) => onChange(toRank(t))} />;
 }
 
 /** The big answer: one number, what it is, and a line under it */
@@ -557,16 +541,7 @@ function niceTicks(max: number, count = 4, min = 0) {
   const start = Math.floor(min / step) * step;
   return Array.from({ length: Math.ceil((max - start) / step) + 1 }, (_, i) => start + i * step);
 }
-/** Minor ticks for a log axis: 2 to 9 in each decade */
-const logMinor = (lo: number, hi: number) => {
-  const out: number[] = [];
-  for (let d = 10 ** Math.floor(Math.log10(lo)); d <= hi; d *= 10) for (let m = 2; m <= 9; m++) if (m * d > lo && m * d < hi) out.push(Number((m * d).toPrecision(3)));
-  return out;
-};
-
 const linePath = (points: [number, number][]) => points.map(([x, y], i) => `${i ? "L" : "M"}${x.toFixed(1)} ${y.toFixed(1)}`).join("");
-const areaPath = (points: [number, number][], base: number) =>
-  points.length ? `${linePath(points)}L${points[points.length - 1][0].toFixed(1)} ${base}L${points[0][0].toFixed(1)} ${base}Z` : "";
 /** The shape between an upper and a lower line */
 const bandPath = (upper: [number, number][], lower: [number, number][]) =>
   upper.length ? `${linePath(upper)}${[...lower].reverse().map(([x, y]) => `L${x.toFixed(1)} ${y.toFixed(1)}`).join("")}Z` : "";
@@ -700,367 +675,6 @@ function Coefficients({ n, title, rows, unit, digits = 3 }: { n: string; title: 
   );
 }
 
-/* ---------- Colour for amounts: one hue, light to dark ---------- */
-
-// The site's rating ramp, from a pale tint to the darkest blue
-const ramp = ["#e6eef8", "#b3d0f3", "#86b6ef", "#5598e7", "#2a78d6", "#1c5cab", "#104281"];
-function rampColor(t: number) {
-  const x = clamp(t, 0, 1) * (ramp.length - 1);
-  const i = Math.min(ramp.length - 2, Math.floor(x));
-  const f = x - i;
-  const rgb = (h: string) => [1, 3, 5].map((k) => parseInt(h.slice(k, k + 2), 16));
-  const [a, b] = [rgb(ramp[i]), rgb(ramp[i + 1])];
-  return `rgb(${a.map((v, k) => Math.round(v + (b[k] - v) * f)).join(" ")})`;
-}
-
-/* ---------- Upsets ---------- */
-
-function UpsetsPanel({ books }: { books: AdvancedBooks }) {
-  const m = books.upsets;
-  const [fav, setFav] = useState(5);
-  const [dog, setDog] = useState(60);
-  const [court, setCourt] = useState<CourtOrAll>("all");
-  const [bestOf, setBestOf] = useState<3 | 5>(3);
-  const bo = m.bo5 ? bestOf : 3;
-  const boKey = m.bo5 ? bo : "any";
-  const upset = 1 - upsetModelChance(m.coef, fav, dog, court, bo);
-  const cell = cellIndex(court, boKey, bandOf(fav), bandOf(dog));
-  const n = m.cells.n[cell];
-  const real = m.cells.upsets[cell];
-  const latest = m.cells.latest[cell];
-  const sameBand = bandOf(fav) === bandOf(dog);
-  const setPair = (f: number, d: number) => {
-    const a = clamp(Math.round(f), 1, RANK_MAX - 1);
-    setFav(a);
-    setDog(clamp(Math.round(d), a + 1, RANK_MAX));
-  };
-  // The real record for each underdog band against this favourite's band
-  const dots = BANDS.map((lo, b) => {
-    const i = cellIndex(court, boKey, bandOf(fav), b);
-    const hi = BANDS[b + 1] ? BANDS[b + 1] - 1 : RANK_MAX;
-    return { b, n: m.cells.n[i], upsets: m.cells.upsets[i], x: Math.max(fav + 1, Math.sqrt(lo * hi)) };
-  }).filter((d) => d.n >= 20 && d.b >= bandOf(fav));
-  const biggest = Math.max(1, ...dots.map((d) => d.n));
-  const curve: number[] = [];
-  for (let r = fav + 1; r <= RANK_MAX; r = Math.max(r + 1, Math.round(r * 1.04))) curve.push(r);
-  if (curve[curve.length - 1] !== RANK_MAX) curve.push(RANK_MAX);
-  const modelAt = (r: number) => 1 - upsetModelChance(m.coef, fav, r, court, bo);
-  const yMax = clamp(Math.ceil((Math.max(0, ...dots.map((d) => wilson(d.upsets, d.n)[1])) * 100) / 10) * 10, 50, 100);
-  const doubling = (extra: number) => Math.exp((m.coef.slope + extra) * Math.LN2);
-  const [wlo, whi] = wilson(real, n);
-
-  return (
-    <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)]">
-      <Card>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <RankSlider label="Better-ranked player" rank={fav} onChange={(r) => setPair(r, Math.max(dog, r + 1))} />
-          <RankSlider label="Lower-ranked player" rank={dog} onChange={(r) => (r <= fav ? setPair(r - 1, r) : setDog(r))} />
-        </div>
-        <div className="mt-4 flex flex-wrap gap-x-6 gap-y-3">
-          <Chips label="Surface" options={(["all", "hard", "clay", "grass"] as CourtOrAll[]).map((c) => ({ id: c, label: courtWords[c] }))} value={court} onChange={setCourt} />
-          {m.bo5 && <Chips label="Match" options={[{ id: 3, label: "Best of 3" }, { id: 5, label: "Best of 5" }]} value={bestOf} onChange={(v) => setBestOf(v as 3 | 5)} />}
-        </div>
-        <div className="mt-6">
-          <Answer value={pct1(upset)} label="chance of an upset" sub={<>No. {dog} beats No. {fav}{onCourt(court)}{m.bo5 ? `, best of ${bo}` : ""}, says the model.</>} />
-          <Meter value={upset} label="Chance of an upset" />
-          <p className="mt-4 rounded-2xl bg-background px-4 py-3 text-sm text-muted">
-            {n ? (
-              <>
-                <strong className="text-foreground">The real record:</strong> {num(n)} {n === 1 ? "match" : "matches"} between No. {bandLabels[bandOf(fav)]} and No. {bandLabels[bandOf(dog)]}
-                {onCourt(court)}
-                {m.bo5 ? `, best of ${bo}` : ""}
-                {sameBand ? " (both in the same band, so the gap is small)" : ""}. The lower-ranked player won <strong className="text-foreground">{num(real)}</strong>
-                {n >= 30 ? (
-                  <>
-                    {" "}
-                    ({pct1(real / n)}; 95% interval {pct1(wlo)} to {pct1(whi)}).
-                  </>
-                ) : (
-                  ". Too few to say much."
-                )}{" "}
-                {latest && (
-                  <Link href={exploreHref(latest)} prefetch={false} className="font-semibold text-court underline-offset-4 hover:underline">
-                    Open the latest one in Explore →
-                  </Link>
-                )}
-              </>
-            ) : (
-              <>No real match has paired those rankings{onCourt(court)}{m.bo5 ? `, best of ${bo}` : ""}, so only the model can say.</>
-            )}
-          </p>
-        </div>
-
-        <div className="mt-8">
-          <Figure
-            n="1.1"
-            title={`Upset chance against No. ${fav}`}
-            sub="Drag across the chart to move the lower-ranked player."
-            legend={<Legend items={[{ label: "Model", color: BLUE }, { label: "Real record by ranking band, 95% interval", color: ORANGE, kind: "dot" }]} />}
-            note="Dot size: how many matches. The model is one smooth line through every band at once; each dot is one band on its own."
-          >
-            <Plot
-              height={280}
-              label={`Chance of an upset against No. ${fav}`}
-              x={{
-                min: fav + 1,
-                max: RANK_MAX,
-                log: true,
-                ticks: [2, 5, 10, 20, 50, 100, 200, 500].filter((t) => t > fav),
-                minor: logMinor(fav + 1, RANK_MAX),
-                format: (v) => `${v}`,
-                title: "Lower-ranked player's ranking, log scale",
-              }}
-              y={{ min: 0, max: yMax, ticks: niceTicks(yMax, 5), format: (v) => `${v}%`, title: "Chance of an upset" }}
-              onPick={(r) => setDog(clamp(Math.round(r), fav + 1, RANK_MAX))}
-              tip={(at) => {
-                const r = clamp(Math.round(at), fav + 1, RANK_MAX);
-                const d = dots.find((d) => bandOf(r) === d.b);
-                return {
-                  at: r,
-                  marks: [{ y: modelAt(r) * 100, color: BLUE }],
-                  body: (
-                    <>
-                      <strong>
-                        No. <span className="n">{r}</span> v No. <span className="n">{fav}</span>
-                      </strong>
-                      <br />
-                      Model <span className="n">{pct1(modelAt(r))}</span>
-                      {d && (
-                        <>
-                          <br />
-                          No. {bandLabels[d.b]} won <span className="n">{num(d.upsets)}</span> of <span className="n">{num(d.n)}</span> (<span className="n">{pct1(d.upsets / d.n)}</span>)
-                        </>
-                      )}
-                    </>
-                  ),
-                };
-              }}
-            >
-              {(s) => {
-                const pts = curve.map((r): [number, number] => [s.x(r), s.y(modelAt(r) * 100)]);
-                return (
-                  <>
-                    <path d={areaPath(pts, s.bottom)} fill={BLUE} fillOpacity={0.08} />
-                    <path d={linePath(pts)} fill="none" stroke={BLUE} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
-                    {dots.map((d) => {
-                      const [lo, hi] = wilson(d.upsets, d.n);
-                      return (
-                        <g key={d.b}>
-                          <line x1={s.x(d.x)} x2={s.x(d.x)} y1={s.y(lo * 100)} y2={s.y(Math.min(yMax, hi * 100))} stroke={ORANGE} strokeWidth={1.5} />
-                          <circle cx={s.x(d.x)} cy={s.y(Math.min(yMax, (d.upsets / d.n) * 100))} r={px(3 + 3.5 * Math.sqrt(d.n / biggest))} fill={ORANGE} stroke="var(--surface)" strokeWidth={2} />
-                        </g>
-                      );
-                    })}
-                    <Guides x={s.x(dog)} y={s.y(upset * 100)} s={s} />
-                    <circle cx={s.x(dog)} cy={s.y(upset * 100)} r={6.5} fill={BLUE} stroke="var(--surface)" strokeWidth={2.5} />
-                    <Callout x={s.x(dog)} y={s.y(upset * 100)} text={`No. ${dog}: ${pct1(upset)}`} s={s} />
-                  </>
-                );
-              }}
-            </Plot>
-          </Figure>
-        </div>
-
-        <div className="mt-8">
-          <UpsetGrid books={books} court={court} boKey={boKey} fav={fav} dog={dog} onPick={setPair} />
-        </div>
-      </Card>
-      <Behind>
-        <Stats
-          items={[
-            { label: "Matches", value: num(m.n) },
-            { label: "Better-ranked won", value: pct1(m.accuracy) },
-            { label: "Brier score", value: m.brier.toFixed(3), hint: "The mean squared error of the chances. A coin flip scores 0.250; lower is better." },
-            { label: "Log-loss", value: m.logLoss.toFixed(3), hint: "The mean of −ln(the chance given to what happened). A coin flip scores 0.693; lower is better." },
-          ]}
-        />
-        <p>
-          Built from <strong>{num(m.n)} completed matches</strong> with both players ranked, {books.from} to {books.last.slice(0, 4)}. Rankings are as they stood that week. Walkovers, retirements, the
-          Laver Cup and the Next Gen Finals are left out, and carpet counts as hard. On the last two scores a coin flip would get 0.250 and 0.693.
-        </p>
-        <Formula
-          where={
-            <>
-              <i>p</i> is the better-ranked player&apos;s chance; logit <i>p</i> = ln(<i>p</i> ÷ (1 − <i>p</i>)), the log of the odds. <i>r</i>
-              <sub>high</sub> is the better-ranked player&apos;s ranking (the smaller number), <i>r</i>
-              <sub>low</sub> the other&apos;s; <i>b</i> is how much the gap counts; a bracket is 1 when true, else 0. At equal rankings ln 1 = 0, so it&apos;s 50–50. Fitted by maximum likelihood.
-            </>
-          }
-        >
-          <Eq>
-            logit <V>p</V>
-            <Op>=</Op>
-            <V>b</V>
-            <Op>·</Op>ln
-            <Frac
-              n={
-                <>
-                  <V>r</V>
-                  <Sub>low</Sub>
-                </>
-              }
-              d={
-                <>
-                  <V>r</V>
-                  <Sub>high</Sub>
-                </>
-              }
-            />
-          </Eq>
-          <Eq>
-            <V>b</V>
-            <Op>=</Op>
-            <V>β</V>
-            <Sub>0</Sub>
-            {m.bo5 && (
-              <>
-                <Op>+</Op>
-                <V>β</V>
-                <Sub>1</Sub>[bo5]
-              </>
-            )}
-            <Op>+</Op>
-            <V>β</V>
-            <Sub>2</Sub>[clay]
-            <Op>+</Op>
-            <V>β</V>
-            <Sub>3</Sub>[grass]
-          </Eq>
-        </Formula>
-        <p>
-          Each time the ratio between the two rankings doubles (No. 10 v No. 20 becoming No. 10 v No. 40), the better-ranked player&apos;s odds of winning (chance of winning ÷ chance of losing) are multiplied by <strong>×{doubling(0).toFixed(2)}</strong> on hard courts, ×{doubling(m.coef.clay).toFixed(2)}{" "}
-          on clay and ×{doubling(m.coef.grass).toFixed(2)} on grass{m.bo5 ? <>, and ×{doubling(m.coef.bo5).toFixed(2)} on hard in best of five</> : null}. &ldquo;Any surface&rdquo; uses the hard-court line, which sits close to the average of all three.
-        </p>
-        <Coefficients
-          n="1.3"
-          title="The fitted coefficients"
-          unit="on the log-odds scale"
-          rows={[
-            { label: "β₀ ranking gap", value: m.coef.slope, se: m.se.slope },
-            ...(m.bo5 ? [{ label: "β₁ best of five", value: m.coef.bo5, se: m.se.bo5 }] : []),
-            { label: "β₂ clay", value: m.coef.clay, se: m.se.clay },
-            { label: "β₃ grass", value: m.coef.grass, se: m.se.grass },
-          ]}
-        />
-        <p>
-          <strong>The real record</strong> groups rankings into bands (1, 2–3, 4–5, 6–10, 11–20 … 251+) and counts every match between two bands. It&apos;s there to check the model against.
-        </p>
-        <CalibrationChart calibration={m.calibration} n="1.4" />
-      </Behind>
-    </div>
-  );
-}
-
-/** Every pairing of ranking bands at once: how often the lower-ranked player won */
-function UpsetGrid({ books, court, boKey, fav, dog, onPick }: { books: AdvancedBooks; court: CourtOrAll; boKey: 3 | 5 | "any"; fav: number; dog: number; onPick: (f: number, d: number) => void }) {
-  const m = books.upsets;
-  const [ref, width] = useWidth();
-  const [hover, setHover] = useState<[number, number] | null>(null);
-  const bands = BANDS.length;
-  const left = 34;
-  const top = 22;
-  const size = Math.max(18, Math.min(46, Math.floor((width - left - 4) / bands)));
-  const grid = size * bands;
-  const height = top + grid + 36;
-  const showText = size >= 34;
-  const cellOf = (f: number, d: number) => {
-    const i = cellIndex(court, boKey, f, d);
-    return { n: m.cells.n[i], upsets: m.cells.upsets[i] };
-  };
-  // A ranking inside band b, to set when its square is clicked
-  const inside = (b: number) => (BANDS[b + 1] ? Math.round(Math.sqrt(BANDS[b] * (BANDS[b + 1] - 1))) : 300);
-  const fb = bandOf(fav);
-  const db = bandOf(dog);
-  const hovered = hover ? cellOf(hover[0], hover[1]) : null;
-  const steps = [0, 10, 20, 30, 40, 50];
-  return (
-    <Figure
-      n="1.2"
-      title="The real record, every pairing of ranking bands"
-      sub="Click a square to set both rankings."
-      legend={
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-semibold text-muted">
-          <span>Lower-ranked player won</span>
-          <span className="inline-flex items-center gap-0.5">
-            {steps.map((t) => (
-              <span key={t} className="flex flex-col items-center">
-                <span className="h-2.5 w-6 rounded-sm" style={{ background: rampColor(t / 50) }} />
-                <span className="font-mono text-[9.5px] font-normal">{t === 50 ? "50+" : t}</span>
-              </span>
-            ))}
-            <span className="ml-1 font-mono text-[9.5px] font-normal">%</span>
-          </span>
-          <span className="inline-flex items-center gap-1">
-            <span className="h-2.5 w-2.5 rounded-sm bg-line" /> under 20 matches
-          </span>
-        </div>
-      }
-      note={
-        hovered && hover ? (
-          <>
-            <strong className="text-foreground">
-              No. {bandLabels[hover[0]]} v No. {bandLabels[hover[1]]}
-            </strong>
-            :{" "}
-            {hovered.n ? (
-              <>
-                {num(hovered.upsets)} upsets in {num(hovered.n)} matches ({pct1(hovered.upsets / hovered.n)})
-              </>
-            ) : (
-              "no matches"
-            )}
-          </>
-        ) : (
-          <>Rows: the better-ranked player&apos;s band. Columns: the lower-ranked player&apos;s. Outlined: the rankings set above.</>
-        )
-      }
-    >
-      <div ref={ref}>
-        <svg width={width} height={height} role="img" aria-label="Upset rate for every pairing of ranking bands" className="block overflow-visible" onPointerLeave={() => setHover(null)}>
-          <text x={left} y={10} className={axisTitle}>
-            Lower-ranked player, from No. →
-          </text>
-          {BANDS.map((lo, d) => (
-            <text key={`c${d}`} x={px(left + d * size + size / 2)} y={top + grid + 14} textAnchor="middle" className={`${tickText} ${d === db ? "fill-foreground font-semibold" : ""}`}>
-              {lo}
-            </text>
-          ))}
-          {BANDS.map((lo, f) => (
-            <text key={`r${f}`} x={left - 6} y={px(top + f * size + size / 2)} dy="0.34em" textAnchor="end" className={`${tickText} ${f === fb ? "fill-foreground font-semibold" : ""}`}>
-              {lo}
-            </text>
-          ))}
-          <text x={0} y={height - 2} className={axisTitle}>
-            ↑ Better-ranked player, from No.
-          </text>
-          {BANDS.map((_, f) =>
-            BANDS.map((__, d) => {
-              if (d < f) return null;
-              const c = cellOf(f, d);
-              const rate = c.n ? c.upsets / c.n : 0;
-              const enough = c.n >= 20;
-              const x = left + d * size;
-              const y = top + f * size;
-              return (
-                <g key={`${f}-${d}`} className="cursor-pointer" onPointerEnter={() => setHover([f, d])} onClick={() => onPick(BANDS[f], Math.max(BANDS[f] + 1, inside(d)))}>
-                  <rect x={x + 1} y={y + 1} width={size - 2} height={size - 2} rx={3} fill={enough ? rampColor(rate / 0.5) : "var(--line)"} fillOpacity={enough ? 1 : 0.55} />
-                  {showText && enough && (
-                    <text x={px(x + size / 2)} y={px(y + size / 2)} dy="0.34em" textAnchor="middle" className="pointer-events-none font-mono text-[10px] font-semibold tabular-nums" fill={rate > 0.24 ? "#ffffff" : "#0f1b2d"}>
-                      {Math.round(rate * 100)}
-                    </text>
-                  )}
-                </g>
-              );
-            }),
-          )}
-          {hover && <rect x={left + hover[1] * size + 0.5} y={top + hover[0] * size + 0.5} width={size - 1} height={size - 1} rx={3.5} fill="none" stroke={INK} strokeOpacity={0.45} pointerEvents="none" />}
-          <rect x={left + db * size} y={top + fb * size} width={size} height={size} rx={4} fill="none" stroke={INK} strokeWidth={2.5} pointerEvents="none" />
-        </svg>
-      </div>
-    </Figure>
-  );
-}
-
 /* ---------- Across eras: Elo ---------- */
 
 type Choice = { key: string; season: number };
@@ -1092,7 +706,7 @@ function RatingsPanel({ books }: { books: AdvancedBooks }) {
   const [court, setCourt] = useState<CourtOrAll>("grass");
   const [mix, setMix] = useState(50);
   const [bestOf, setBestOf] = useState<3 | 5>(books.tour === "atp" ? 5 : 3);
-  const bo5 = books.upsets.bo5;
+  const bo5 = books.bo5;
   const five = bo5 && bestOf === 5;
 
   const rowOf = (p: Choice | null) => (p ? byPlayer.get(p.key)?.find((r) => r[S.season] === p.season) ?? null : null);
@@ -1193,7 +807,7 @@ function RatingsPanel({ books }: { books: AdvancedBooks }) {
           {a && b && (
             <div className="mt-8">
               <Figure
-                n="2.1"
+                n="1.1"
                 title={`Season by season${court === "all" ? "" : `, ${mix}% ${court}`}`}
                 sub="Click a season on either line to pick it."
                 legend={<Legend items={[a, b].map((p) => ({ label: books.names[p.key], color: colorOf(p.key) }))} />}
@@ -1314,7 +928,7 @@ function RatingsPanel({ books }: { books: AdvancedBooks }) {
             matches in all, and a season needs 5 to be listed.
           </p>
           {bo5 && <p>For best of five, the best-of-three chance is turned into the chance of winning a single set, then played out to three sets won. Ratings learn from both lengths, so this is an estimate.</p>}
-          <CalibrationChart calibration={e.calibration} n="2.2" />
+          <CalibrationChart calibration={e.calibration} n="1.2" />
           <p>Ratings don&apos;t fade with time off, and they aren&apos;t the official rankings.</p>
         </Behind>
       </div>
@@ -1622,19 +1236,10 @@ function ServePanel({ books }: { books: AdvancedBooks }) {
   const m = books.serve;
   const [court, setCourt] = useState<CourtOrAll>("all");
   const [line, setLine] = useState<Record<ServeStat, number>>(() => ({ ...m.fits.all.mean }));
-  const [player, setPlayer] = useState<string | null>(null);
   const fit = m.fits[court];
   const chance = serveChance(fit.coef, line);
-  const keys = useMemo(() => Object.keys(m.players).map((p) => books.people[Number(p)]), [m.players, books.people]);
-  const playerRow = (k: string, c: CourtOrAll) => m.players[books.people.indexOf(k)]?.[c];
-  const load = (k: string | null, c: CourtOrAll) => {
-    const row = k ? playerRow(k, c) ?? playerRow(k, "all") : null;
-    setLine(row ? { in1: row[2], won1: row[3], won2: row[4] } : { ...m.fits[c].mean });
-  };
   const levers = serveStats.map((s) => ({ s, gain: serveChance(fit.coef, { ...line, [s]: line[s] + 1 }) - chance })).sort((x, y) => y.gain - x.gain);
   const topGain = Math.max(0.0001, ...levers.map((l) => l.gain));
-  const row = player ? playerRow(player, court) : null;
-  const rated = row ? serveChance(fit.coef, { in1: row[2], won1: row[3], won2: row[4] }) : 0;
 
   return (
     <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)]">
@@ -1645,46 +1250,20 @@ function ServePanel({ books }: { books: AdvancedBooks }) {
           value={court}
           onChange={(c) => {
             setCourt(c);
-            load(player, c);
+            setLine({ ...m.fits[c].mean });
           }}
         />
-        <div className="mt-4 max-w-md">
-          <PlayerPicker
-            label="Load a player's serving (optional)"
-            keys={keys}
-            books={books}
-            value={player}
-            onChange={(k) => {
-              setPlayer(k);
-              load(k, court);
-            }}
-            placeholder="Find a player"
-          />
-        </div>
         <div className="mt-6">
           <Answer value={pct1(chance)} label="chance of winning" sub={<>for a player who serves like this{onCourt(court)}, averaged over every kind of opponent.</>} />
           <Meter value={chance} label="Chance of winning" />
-          {player && (
-            <p className="mt-4 rounded-2xl bg-background px-4 py-3 text-sm text-muted">
-              {row ? (
-                <>
-                  <strong className="text-foreground">{books.full[player]}</strong>, {num(row[0])} matches with serve stats{onCourt(court)}: won <strong className="text-foreground">{num(row[1])}</strong> (
-                  {pct1(row[1] / row[0])}). The sliders hold those averages, which the model rates at {pct1(rated)}.
-                  {Math.abs(rated - row[1] / row[0]) > 0.08 && <> The gap is the rest of the game, mostly returning, which this model can&apos;t see.</>}
-                </>
-              ) : (
-                <>{books.full[player]} has fewer than 20 matches with serve stats{onCourt(court)}, so the sliders hold every surface.</>
-              )}
-            </p>
-          )}
         </div>
         <div className="mt-8 space-y-8">
           {serveStats.map((s, i) => (
-            <ServeFigure key={s} n={`3.${i + 1}`} stat={s} line={line} coef={fit.coef} onChange={(v) => setLine({ ...line, [s]: v })} bins={m.bins[court][s]} mean={fit.mean[s]} />
+            <ServeFigure key={s} n={`2.${i + 1}`} stat={s} line={line} coef={fit.coef} onChange={(v) => setLine({ ...line, [s]: v })} bins={m.bins[court][s]} mean={fit.mean[s]} />
           ))}
         </div>
         <div className="mt-8">
-          <Figure n="3.4" title="Worth most from here" sub="What one more point in 100 on each would add to the winning chance, in percentage points, from the sliders as they are">
+          <Figure n="2.4" title="Worth most from here" sub="What one more point in 100 on each would add to the winning chance, in percentage points, from the sliders as they are">
             <ul className="space-y-2">
               {levers.map((l) => (
                 <li key={l.s} className="grid grid-cols-[minmax(0,9rem)_1fr_auto] items-center gap-3 text-sm sm:grid-cols-[minmax(0,13rem)_1fr_auto]">
@@ -1747,7 +1326,7 @@ function ServePanel({ books }: { books: AdvancedBooks }) {
           </Eq>
         </Formula>
         <Coefficients
-          n="3.5"
+          n="2.5"
           title={`The fitted coefficients, ${courtWords[court].toLowerCase()}`}
           unit="log-odds per percentage point"
           rows={[
@@ -2006,10 +1585,22 @@ function PressurePanel({ books }: { books: AdvancedBooks }) {
             </p>
           )}
         </div>
+        <div className="mt-4 rounded-2xl bg-background px-4 py-3 text-sm text-muted">
+          <strong className="text-foreground">What the edge means.</strong> For every match, take how well a player played in it ({words.base}) and work out how many of its {words.chances} the
+          typical tour player, playing exactly that well, would have {words.won}. The edge is what the player really {words.won} minus that, per 100 {words.chances}: +3 means 3 more out of every 100,
+          −3 means 3 fewer, ±0 exactly as expected.
+          {leader && lead && Math.abs(leader.edge) >= 0.5 && (
+            <>
+              {" "}
+              So {books.names[lead]}&apos;s {signed(leader.edge, 1)} is about {num(Math.round(Math.abs(leader.edge)))} {leader.edge > 0 ? "more" : "fewer"} {words.won} out of every 100 {words.chances}.
+            </>
+          )}{" "}
+          It shows who rises or slips on the big points compared with the rest of their own game, not who is best overall.
+        </div>
 
         <div className="mt-8">
           <Figure
-            n="4.1"
+            n="3.1"
             title={`${words.label}: won against expected`}
             sub={`Everyone with ${fit.min}+ ${words.chances}, ${fit.years[0]}–${fit.years[1]}. Hover a dot to see who; click to compare.`}
             legend={
@@ -2076,7 +1667,7 @@ function PressurePanel({ books }: { books: AdvancedBooks }) {
 
         <div className="mt-8">
           <Figure
-            n="4.2"
+            n="3.2"
             title={`Furthest ${side} expectation`}
             sub={`Players who have been ranked in the top 10, in points per 100 ${words.chances}, with the 95% interval`}
             legend={<Legend items={[{ label: "Edge", color: BLUE, kind: "dot" }, { label: "95% interval", color: BLUE }]} />}
@@ -2136,7 +1727,7 @@ function PressurePanel({ books }: { books: AdvancedBooks }) {
 
         <div className="mt-8">
           <Figure
-            n="4.3"
+            n="3.3"
             title="Does the edge last?"
             sub={`Each player's edge in even seasons against odd seasons, for the ${num(halves.length)} with enough of both`}
             legend={<Legend items={[{ label: "A player", color: BLUE, kind: "dot" }, { label: "Best straight line", color: ORANGE }]} />}
@@ -2234,7 +1825,7 @@ function PressurePanel({ books }: { books: AdvancedBooks }) {
           </Eq>
         </Formula>
         <Coefficients
-          n="4.4"
+          n="3.4"
           title="The fitted curve"
           unit="on the log-odds scale"
           rows={[
@@ -2331,7 +1922,7 @@ function AgesPanel({ books }: { books: AdvancedBooks }) {
         </div>
         <div className="mt-8">
           <Figure
-            n="5.1"
+            n="4.1"
             title="Win rate at each age, against the player's own career win rate"
             sub="In percentage points. Above the line: winning more than usual for that player."
             legend={
@@ -2499,7 +2090,7 @@ function AgesPanel({ books }: { books: AdvancedBooks }) {
 
 export function AdvancedView({ books }: { books: AdvancedBooks }) {
   const hash = useSyncExternalStore(subscribeHash, () => location.hash, () => "");
-  const panel = panels.find((p) => `#${p.id}` === hash)?.id ?? "upsets";
+  const panel = panels.find((p) => `#${p.id}` === hash)?.id ?? "ratings";
   const current = panels.find((p) => p.id === panel)!;
   const here = tours.find((t) => t.tour === books.tour)!;
 
@@ -2525,9 +2116,9 @@ export function AdvancedView({ books }: { books: AdvancedBooks }) {
 
       <div className="rounded-3xl border border-line bg-surface p-4 shadow-sm sm:p-6">
         <p className="font-display text-lg font-bold">
-          Pick a model <span className="font-sans text-sm font-normal text-muted">· five ways to play with the numbers</span>
+          Pick a model <span className="font-sans text-sm font-normal text-muted">· four ways to play with the numbers</span>
         </p>
-        <div className="mt-4 grid grid-cols-3 gap-2 sm:grid-cols-5 sm:gap-3">
+        <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
           {panels.map((p, i) => (
             <button
               key={p.id}
@@ -2556,7 +2147,6 @@ export function AdvancedView({ books }: { books: AdvancedBooks }) {
           {current.title}
         </h2>
         <p className="mb-4 text-muted">{current.blurb}</p>
-        {panel === "upsets" && <UpsetsPanel books={books} />}
         {panel === "ratings" && <RatingsPanel books={books} />}
         {panel === "serve" && <ServePanel books={books} />}
         {panel === "pressure" && <PressurePanel books={books} />}
