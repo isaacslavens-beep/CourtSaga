@@ -100,6 +100,7 @@ export function BoardCard({
   top = TOP,
   still = false,
   cover,
+  label,
 }: {
   board: Board;
   books: RecordBooks;
@@ -107,6 +108,7 @@ export function BoardCard({
   top?: number;
   still?: boolean;
   cover?: ChapterId; // a chapter's photo across the top, with the title over it
+  label?: string; // on the photo's corner, e.g. which tour
 }) {
   const chapter = chapters.find((c) => c.id === board.chapter)!;
   const [viewId, setViewId] = useState(board.views[0].id);
@@ -123,6 +125,7 @@ export function BoardCard({
         <div className="relative -mx-4 -mt-4 mb-4 h-40 sm:-mx-6 sm:-mt-6 sm:h-44">
           <Image src={chapterPhotos[cover].src} alt={chapterPhotos[cover].alt} fill placeholder="blur" sizes="(min-width: 1024px) 24rem, 100vw" className={`object-cover ${chapterPhotos[cover].position}`} />
           <span aria-hidden className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/10 to-transparent" />
+          {label && <span className="absolute left-4 top-3 rounded-full bg-white px-2.5 py-0.5 text-xs font-bold tracking-wide text-[#0b0d12] shadow sm:left-6">{label}</span>}
           <h3 id={`board-${board.id}`} className="absolute inset-x-4 bottom-3 font-display text-2xl font-bold tracking-tight text-white sm:inset-x-6">
             {board.title}
           </h3>
@@ -161,7 +164,9 @@ export function BoardCard({
           </li>
         ))}
       </ol>
-      {!found && view.rows.length > top && (
+      {/* On the landing page the rest waits for an account */}
+      {!found && still && view.rows.length > top && <p className="mt-2 px-2 text-sm font-semibold text-muted">Sign up for the full list of {view.rows.length}.</p>}
+      {!found && !still && view.rows.length > top && (
         <button type="button" onClick={() => setOpen(!open)} className="mt-2 cursor-pointer px-2 text-sm font-semibold text-court underline-offset-4 hover:underline">
           {open ? `Show the top ${top}` : `Show all ${view.rows.length}`}
         </button>

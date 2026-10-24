@@ -64,7 +64,7 @@ export async function StatisticsTaste() {
   return (
     <div className="grid items-start gap-5 lg:grid-cols-3">
       {shown.map(({ books, cover }) => (
-        <BoardCard key={books.boards[0].id} board={books.boards[0]} books={books} top={3} still cover={cover} />
+        <BoardCard key={books.boards[0].id} board={books.boards[0]} books={books} top={3} still cover={cover} label={books.tour === "atp" ? "ATP" : "WTA"} />
       ))}
     </div>
   );
