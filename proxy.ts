@@ -40,7 +40,7 @@ export const config = {
       ],
     },
     {
-      source: "/(explore|statistics)/:path*",
+      source: "/(explore|statistics|interact)/:path*",
       missing: [
         { type: "header", key: "next-router-prefetch" },
         { type: "header", key: "purpose", value: "prefetch" },
