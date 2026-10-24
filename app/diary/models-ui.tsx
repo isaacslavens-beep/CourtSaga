@@ -8,7 +8,6 @@ import ratingsPhoto from "@/public/photos/nadal-federer-ao-2009-final.jpg";
 import servePhoto from "@/public/photos/sinner-wimbledon-2025.jpg";
 import pressurePhoto from "@/public/photos/djokovic-wimbledon-centre-court.jpg";
 import agesPhoto from "@/public/photos/federer-roland-garros.jpg";
-import lengthPhoto from "@/public/photos/nadal-ao-2022-final.jpg";
 import { Avatar, chartStyles } from "./fun";
 import {
   ageEras,
@@ -21,7 +20,6 @@ import {
   courtMatches,
   courtRating,
   eloChance,
-  lengthPrediction,
   P,
   pressureMeasures,
   S,
@@ -54,7 +52,6 @@ const signed = (n: number, digits = 0) => {
 };
 /** A fixed-point number with a true minus sign */
 const fixed = (n: number, digits: number) => n.toFixed(digits).replace("-", "−");
-const hm = (min: number) => `${Math.floor(min / 60)} h ${String(Math.round(min % 60)).padStart(2, "0")}`;
 const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const monthLabel = (m: string) => `${monthNames[Number(m.slice(5, 7)) - 1]} ${m.slice(0, 4)}`;
 const courtWords: Record<CourtOrAll, string> = { all: "Any surface", hard: "Hard", clay: "Clay", grass: "Grass" };
@@ -73,14 +70,13 @@ function wilson(won: number, n: number, z = 1.96): [number, number] {
 
 /* ---------- The panels, and which is open ---------- */
 
-type PanelId = "upsets" | "ratings" | "serve" | "pressure" | "ages" | "length";
+type PanelId = "upsets" | "ratings" | "serve" | "pressure" | "ages";
 const panels: { id: PanelId; title: string; blurb: string; photo: StaticImageData; alt: string; position: string }[] = [
   { id: "upsets", title: "Upsets", blurb: "Set two rankings and a surface, and see how often the lower-ranked player wins.", photo: upsetsPhoto, alt: "Rybakina at the US Open", position: "object-[45%_25%]" },
   { id: "ratings", title: "Across eras", blurb: "Put any two players, each in any season, against each other, and see who led when.", photo: ratingsPhoto, alt: "Nadal and Federer after the 2009 Australian Open final", position: "object-[50%_30%]" },
   { id: "serve", title: "Serving", blurb: "Set a serving line, or load a player's, and see what it's worth.", photo: servePhoto, alt: "Sinner stretching for a forehand at Wimbledon", position: "object-[55%_35%]" },
   { id: "pressure", title: "Under pressure", blurb: "Break points, tiebreaks and deciding sets: who wins more of the big points than the rest of their play says they should, and whether that lasts.", photo: pressurePhoto, alt: "Djokovic lunging on Centre Court at Wimbledon", position: "object-center" },
   { id: "ages", title: "Ages", blurb: "When players do their best tennis, and how any player's career compares.", photo: agesPhoto, alt: "Federer raising a finger at Roland Garros", position: "object-[50%_20%]" },
-  { id: "length", title: "Match length", blurb: "How long a match should take, and the ones that ran furthest past it.", photo: lengthPhoto, alt: "Nadal roaring after the 2022 Australian Open final", position: "object-[55%_30%]" },
 ];
 
 const tours = [
@@ -211,7 +207,6 @@ const V = ({ children }: { children: ReactNode }) => <i className="px-[0.04em]">
 const Sub = ({ children }: { children: ReactNode }) => <sub className="text-[0.68em] not-italic">{children}</sub>;
 const Sup = ({ children }: { children: ReactNode }) => <sup className="text-[0.68em]">{children}</sup>;
 const Op = ({ children }: { children: ReactNode }) => <span className="px-[0.26em]">{children}</span>;
-const Sigma = () => <span className="text-[1.3em] leading-none">Σ</span>;
 function Frac({ n, d }: { n: ReactNode; d: ReactNode }) {
   return (
     <span className="mx-[0.15em] inline-flex flex-col items-center align-middle text-[0.88em] leading-tight">
@@ -534,12 +529,12 @@ function Legend({ items }: { items: { label: string; color: string; kind?: "line
 }
 
 /** A numbered figure: what it shows, its key, the chart, and a line on how to read it */
-function Figure({ n, title, sub, legend, note, children }: { n: string; title: string; sub?: ReactNode; legend?: ReactNode; note?: ReactNode; children: ReactNode }) {
+function Figure({ n, title, sub, legend, note, children }: { n?: string; title: string; sub?: ReactNode; legend?: ReactNode; note?: ReactNode; children: ReactNode }) {
   return (
     <figure className="min-w-0">
       <figcaption className="mb-2">
         <p className="flex items-baseline gap-2">
-          <span className="shrink-0 font-mono text-[10.5px] font-semibold uppercase tracking-wider text-court">Fig. {n}</span>
+          {n && <span className="shrink-0 font-mono text-[10.5px] font-semibold uppercase tracking-wider text-court">Fig. {n}</span>}
           <span className="text-sm font-semibold text-foreground">{title}</span>
         </p>
         {sub && <p className="text-xs text-muted">{sub}</p>}
@@ -1337,17 +1332,15 @@ function RatingsPanel({ books }: { books: InteractBooks }) {
             matches, and a season 5.
           </p>
           {bo5 && <p>Best of five turns the best-of-three chance into a chance per set and plays to three sets won. Ratings learn from both lengths, so this is an estimate.</p>}
-          <CalibrationChart calibration={e.calibration} n="2.3" />
+          <CalibrationChart calibration={e.calibration} n="2.2" />
           <p>Ratings don&apos;t fade with time off, and they aren&apos;t the official rankings.</p>
         </Behind>
       </div>
-
-      <TopTen books={books} />
     </div>
   );
 }
 
-/** The top 10 by rating at any month: a timeline of the range they spanned, and the list itself */
+/** The page's opening: the top 10 by rating at any month, a timeline of the range they spanned, and the list itself */
 function TopTen({ books }: { books: InteractBooks }) {
   const e = books.elo;
   const [month, setMonth] = useState(e.months.length - 1);
@@ -1369,17 +1362,18 @@ function TopTen({ books }: { books: InteractBooks }) {
   };
   const row = "grid grid-cols-[1.75rem_1.75rem_5.5rem_minmax(0,1fr)_3rem] items-center gap-3 sm:grid-cols-[1.75rem_1.75rem_9rem_minmax(0,1fr)_3rem]";
   return (
-    <Card>
+    <Card className="shadow-xl shadow-court/5">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h3 className="font-display text-xl font-bold tracking-tight">The top 10 at any moment</h3>
-          <p className="text-sm text-muted">By rating at the end of the month, for anyone with a match in the year before and 20 matches in all (10 on the surface).</p>
+          <h2 className="font-display text-2xl font-bold tracking-tight sm:text-3xl">The top 10 at any moment</h2>
+          <p className="text-sm text-muted">
+            Every month since {e.months[0]?.slice(0, 4)}, by Elo rating at the month&apos;s end (see Across eras below), for anyone with a match in the year before and 20 matches in all (10 on the surface).
+          </p>
         </div>
         <Chips label="Rating" options={(["all", "hard", "clay", "grass"] as CourtOrAll[]).map((c) => ({ id: c, label: c === "all" ? "Overall" : courtWords[c] }))} value={topCourt} onChange={setTopCourt} />
       </div>
       <div className="mt-5">
         <Figure
-          n="2.2"
           title="The top of the game, month by month"
           sub="Drag across the timeline to travel."
           legend={<Legend items={[{ label: "No. 1", color: INK }, { label: "No. 1 to No. 10", color: BLUE, kind: "band" }]} />}
@@ -2358,270 +2352,6 @@ function AgesPanel({ books }: { books: InteractBooks }) {
   );
 }
 
-/* ---------- Match length ---------- */
-
-const minutesWord = (m: number) => (Math.round(m) === 0 ? "makes no difference" : m > 0 ? `adds ${Math.round(m)} minutes` : `takes ${Math.round(-m)} minutes off`);
-
-function LengthPanel({ books }: { books: InteractBooks }) {
-  const fits = books.length;
-  const options = ([3, 5] as const).filter((b) => fits[b]);
-  const [bo, setBo] = useState<3 | 5>(options[0] ?? 3);
-  const fit = fits[bo]!;
-  const [sets, setSets] = useState<number | null>(null);
-  const [court, setCourt] = useState<CourtOrAll>("all");
-  const [season, setSeason] = useState(fit.years[1]);
-  const minutes = lengthPrediction(fit, court, 1, 1, season, sets);
-  const hist = fit.hist[court][sets === null ? 0 : fit.sets.indexOf(sets) + 1] ?? [];
-  const total = hist.reduce((t, v) => t + v, 0);
-  // Before a match, the range is the real spread; with the sets known, the model's own
-  const quantileOf = (q: number) => {
-    let seen = 0;
-    for (let i = 0; i < hist.length; i++) {
-      seen += hist[i];
-      if (seen >= q * total) return i * 10 + 5;
-    }
-    return hist.length * 10;
-  };
-  const [lo, hi] = sets === null ? [quantileOf(0.1), quantileOf(0.9)] : [minutes + fit.spread[0], minutes + fit.spread[1]];
-  const binTicks = niceTicks(Math.max(1, ...hist));
-  const xMax = Math.max(180, Math.ceil((hist.length * 10) / 60) * 60);
-  const share = fit.share[court];
-  const shareTotal = share.reduce((t, v) => t + v, 0) || 1;
-  const decade = fit.coef.year * 10;
-  const longest = fit.longest.slice(0, 6);
-  const longMax = Math.ceil(Math.max(60, ...longest.map((l) => l.minutes)) / 60) * 60;
-  const longRow = "grid grid-cols-[42%_minmax(0,1fr)] items-center sm:grid-cols-[36%_minmax(0,1fr)]";
-
-  return (
-    <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)]">
-      <Card>
-        <div className="flex flex-wrap gap-x-6 gap-y-3">
-          {options.length > 1 && (
-            <Chips
-              label="Match"
-              options={options.map((b) => ({ id: b, label: `Best of ${b}` }))}
-              value={bo}
-              onChange={(b) => {
-                setBo(b as 3 | 5);
-                setSets(null);
-              }}
-            />
-          )}
-          <Chips label="Sets played" options={[{ id: 0, label: "Not known yet" }, ...fit.sets.map((n) => ({ id: n, label: `${n} sets` }))]} value={sets ?? 0} onChange={(n) => setSets(n || null)} />
-          <Chips label="Surface" options={(["all", "hard", "clay", "grass"] as CourtOrAll[]).map((c) => ({ id: c, label: courtWords[c] }))} value={court} onChange={setCourt} />
-        </div>
-        <div className="mt-4 max-w-md">
-          <Slider label="Season" value={season} shown={String(season)} min={fit.years[0]} max={fit.years[1]} onChange={setSeason} />
-        </div>
-        <div className="mt-6">
-          <Answer
-            value={hm(minutes)}
-            label="expected"
-            sub={
-              <>
-                8 in 10 such matches take {hm(Math.max(0, lo))} to {hm(hi)}.
-                {sets === null && (
-                  <>
-                    {" "}
-                    Best of {bo}
-                    {onCourt(court)}, matches went {fit.sets.map((n, i) => `${n} sets ${pct(share[i] / shareTotal)}`).join(", ")} of the time.
-                  </>
-                )}
-              </>
-            }
-          />
-        </div>
-        <div className="mt-8">
-          <Figure
-            n="6.1"
-            title={`Real lengths, best of ${bo}${sets === null ? "" : `, ${sets} sets`}${onCourt(court)}`}
-            sub={`${num(total)} matches in 10-minute bins, every season`}
-            legend={
-              <Legend
-                items={[
-                  { label: "Inside the 80% range", color: BLUE, kind: "bar" },
-                  { label: "Outside it", color: "rgb(42 120 214 / 0.3)", kind: "bar" },
-                  { label: "The model's answer", color: ORANGE },
-                ]}
-              />
-            }
-          >
-            <Plot
-              height={260}
-              label="Real match lengths"
-              x={{
-                min: 0,
-                max: xMax,
-                ticks: Array.from({ length: xMax / 60 + 1 }, (_, i) => i * 60),
-                minor: Array.from({ length: xMax / 30 + 1 }, (_, i) => i * 30),
-                format: (v) => (v ? `${v / 60} h` : "0"),
-                title: "Match length",
-              }}
-              y={{ min: 0, max: binTicks[binTicks.length - 1], ticks: binTicks, format: (v) => (v >= 1000 ? `${v / 1000}k` : num(v)), title: "Matches" }}
-              tip={(at) => {
-                const b = clamp(Math.floor(at / 10), 0, hist.length - 1);
-                return {
-                  at: b * 10 + 5,
-                  body: (
-                    <>
-                      <span className="n">
-                        {hm(b * 10)} to {hm(b * 10 + 10)}
-                      </span>
-                      <br />
-                      <strong className="n">{num(hist[b] ?? 0)}</strong> matches (<span className="n">{pct1((hist[b] ?? 0) / Math.max(1, total))}</span>)
-                    </>
-                  ),
-                };
-              }}
-            >
-              {(s) => (
-                <>
-                  {hist.map((v, b) => {
-                    if (!v) return null;
-                    const x0 = s.x(b * 10) + 0.5;
-                    const x1 = s.x(b * 10 + 10) - 0.5;
-                    const y = s.y(v);
-                    const inside = b * 10 + 5 >= lo && b * 10 + 5 <= hi;
-                    return <rect key={b} x={px(x0)} y={y} width={px(Math.max(1, x1 - x0))} height={px(s.bottom - y)} rx={Math.min(2.5, (x1 - x0) / 2)} fill={BLUE} fillOpacity={inside ? 0.75 : 0.25} />;
-                  })}
-                  {/* The 80% range as a bracket over the bars */}
-                  <path d={`M${s.x(Math.max(0, lo))} ${s.top + 12}V${s.top + 6}H${s.x(hi)}V${s.top + 12}`} fill="none" stroke={INK} strokeOpacity={0.55} />
-                  <text x={(s.x(Math.max(0, lo)) + s.x(hi)) / 2} y={s.top + 1} textAnchor="middle" className="fill-muted font-mono text-[10.5px]">
-                    80%: {hm(Math.max(0, lo))} to {hm(hi)}
-                  </text>
-                  <line x1={s.x(minutes)} x2={s.x(minutes)} y1={s.top + 18} y2={s.bottom} stroke={ORANGE} strokeWidth={2.5} />
-                  <Callout x={s.x(minutes)} y={s.top + 18} text={hm(minutes)} s={s} above={false} />
-                </>
-              )}
-            </Plot>
-          </Figure>
-        </div>
-        <div className="mt-8">
-          <Figure
-            n="6.2"
-            title={`Furthest past the model, best of ${bo}`}
-            sub="Each line runs from what the model expected, the sets known, to how long it really took. Open any in Explore."
-            legend={<Legend items={[{ label: "Model", color: "var(--muted)", kind: "dot" }, { label: "Real length", color: ORANGE, kind: "dot" }]} />}
-          >
-            <div className={`${longRow} border-b-2 border-foreground/20 pb-1`}>
-              <span className="text-[10.5px] font-semibold uppercase tracking-wider text-muted">Match</span>
-              <span className="relative h-4 font-mono text-[10.5px] text-muted">
-                {Array.from({ length: longMax / 60 + 1 }, (_, i) => (
-                  <span key={i} className={`absolute whitespace-nowrap ${i === 0 ? "" : i === longMax / 60 ? "-translate-x-full" : "-translate-x-1/2"}`} style={{ left: `${((i * 60) / longMax) * 100}%` }}>
-                    {i ? `${i} h` : "0"}
-                  </span>
-                ))}
-              </span>
-            </div>
-            <ol className="divide-y divide-line">
-              {longest.map((l) => (
-                <li key={l.id}>
-                  <Link href={exploreHref(l.id)} prefetch={false} className={`${longRow} py-2 transition hover:bg-court/5`}>
-                    <span className="min-w-0 pr-3 text-sm leading-tight">
-                      <strong className="block truncate">
-                        {books.names[books.people[l.w]]} beat {books.names[books.people[l.l]]}
-                      </strong>
-                      <span className="block truncate text-xs text-muted">
-                        {l.at} · <span className="font-mono">{hm(l.minutes)}</span> <span className="font-mono">({signed(l.minutes - l.predicted)} min)</span>
-                      </span>
-                    </span>
-                    <span className="relative h-6">
-                      {Array.from({ length: longMax / 60 + 1 }, (_, i) => (
-                        <span key={i} className="absolute inset-y-0 w-px bg-line" style={{ left: `${((i * 60) / longMax) * 100}%` }} />
-                      ))}
-                      <span className="absolute top-1/2 h-0.5 -translate-y-1/2 rounded-full" style={{ left: `${(l.predicted / longMax) * 100}%`, width: `${((l.minutes - l.predicted) / longMax) * 100}%`, background: ORANGE, opacity: 0.55 }} />
-                      <span className="absolute top-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-muted bg-surface" style={{ left: `${(l.predicted / longMax) * 100}%` }} />
-                      <span className="absolute top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full ring-2 ring-surface" style={{ left: `${(l.minutes / longMax) * 100}%`, background: ORANGE }} />
-                    </span>
-                  </Link>
-                </li>
-              ))}
-            </ol>
-          </Figure>
-        </div>
-      </Card>
-      <Behind>
-        <Stats
-          items={[
-            { label: "Matches", value: num(fit.n) },
-            { label: "80% of misses", value: `${signed(fit.spread[0])} to ${signed(fit.spread[1])}`, hint: "Minutes, real length minus the model's, the sets known" },
-            { label: "R², before", value: fit.r2Before.toFixed(3), hint: "How much of the spread in lengths the model explains before a ball is struck" },
-            { label: "R², sets known", value: fit.r2.toFixed(3), hint: "The same, once the number of sets is known" },
-          ]}
-        />
-        <p>
-          Built from <strong>{num(fit.n)} completed best-of-{bo} matches</strong> with a time and both players ranked, {fit.years[0]} to {fit.years[1]}
-          {fit.years[0] > books.from ? <> (the data has few match times for this tour before {fit.years[0]})</> : null}. Times under two or over eight minutes a game are left out as typos.
-        </p>
-        <Formula
-          where={
-            <>
-              <i>m</i> is minutes; <i>g</i> = |ln(<i>r</i>
-              <sub>1</sub>/<i>r</i>
-              <sub>2</sub>)|, the ranking gap; <i>t</i> = season − 2015; a bracket is 1 when true. Fitted by least squares.
-            </>
-          }
-        >
-          <Eq>
-            <V>m</V>
-            <Op>=</Op>
-            <V>β</V>
-            <Sub>0</Sub>
-            <Op>+</Op>
-            <V>β</V>
-            <Sub>1</Sub>[clay]
-            <Op>+</Op>
-            <V>β</V>
-            <Sub>2</Sub>[grass]
-          </Eq>
-          <Eq>
-            <Op>+</Op>
-            <V>β</V>
-            <Sub>3</Sub>
-            <V>g</V>
-            <Op>+</Op>
-            <V>β</V>
-            <Sub>4</Sub>
-            <V>t</V>
-            <Op>+</Op>
-            <Sigma />
-            <Sub>
-              <i>k</i>
-            </Sub>
-            <V>γ</V>
-            <Sub>
-              <i>k</i>
-            </Sub>
-            [<V>k</V> sets]
-          </Eq>
-        </Formula>
-        <Coefficients
-          n="6.3"
-          title="What adds minutes"
-          unit="in minutes"
-          digits={1}
-          rows={[
-            ...fit.sets.slice(1).map((n, i) => ({ label: `γ ${n} sets`, value: fit.coef.perSet[i + 1], se: fit.se.perSet[i + 1] })),
-            { label: "β₁ clay", value: fit.coef.clay, se: fit.se.clay },
-            { label: "β₂ grass", value: fit.coef.grass, se: fit.se.grass },
-            { label: "β₃ ranking gap", value: fit.coef.gap, se: fit.se.gap },
-            { label: "β₄ a decade", value: decade, se: fit.se.year * 10 },
-          ]}
-        />
-        <p>
-          Each set past {fit.sets[0]} adds about <strong>{Math.round(fit.coef.perSet[1])} minutes</strong>. Against hard courts, clay {minutesWord(fit.coef.clay)} and grass {minutesWord(fit.coef.grass)}.
-          Matches have grown {Math.abs(decade).toFixed(0)} minutes {decade >= 0 ? "longer" : "shorter"} a decade. The ranking gap hardly matters (doubling it changes a match by{" "}
-          {Math.abs(fit.coef.gap * Math.LN2).toFixed(1)} minutes), so the answer is for two players ranked alike.
-        </p>
-        <p>
-          <strong>How good it is:</strong> before a ball is struck, these facts explain only <strong>{pct(fit.r2Before)}</strong> of why one match is longer than another. Once the sets are known, they explain{" "}
-          {pct(fit.r2)}. &ldquo;Not known yet&rdquo; averages over how often matches go each number of sets.
-        </p>
-      </Behind>
-    </div>
-  );
-}
-
 /* ---------- The page ---------- */
 
 export function InteractView({ books }: { books: InteractBooks }) {
@@ -2632,12 +2362,9 @@ export function InteractView({ books }: { books: InteractBooks }) {
 
   return (
     <div className="space-y-8">
-      <div className="rounded-3xl border border-line bg-surface p-4 shadow-xl shadow-court/5 sm:p-6">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <p className="font-display text-lg font-bold">
-            Pick a model <span className="font-sans text-sm font-normal text-muted">· six ways to play with the numbers</span>
-          </p>
-          <div className="flex rounded-full bg-background p-1 ring-1 ring-line" role="group" aria-label="Tour">
+      <div className="space-y-3">
+        <div className="flex justify-end">
+          <div className="flex rounded-full bg-surface p-1 shadow-sm ring-1 ring-line" role="group" aria-label="Tour">
             {tours.map((t) => (
               <Link
                 key={t.tour}
@@ -2650,7 +2377,14 @@ export function InteractView({ books }: { books: InteractBooks }) {
             ))}
           </div>
         </div>
-        <div className="mt-4 grid grid-cols-3 gap-2 sm:grid-cols-6 sm:gap-3">
+        <TopTen key={books.tour} books={books} />
+      </div>
+
+      <div className="rounded-3xl border border-line bg-surface p-4 shadow-sm sm:p-6">
+        <p className="font-display text-lg font-bold">
+          Pick a model <span className="font-sans text-sm font-normal text-muted">· five ways to play with the numbers</span>
+        </p>
+        <div className="mt-4 grid grid-cols-3 gap-2 sm:grid-cols-5 sm:gap-3">
           {panels.map((p, i) => (
             <button
               key={p.id}
@@ -2684,7 +2418,6 @@ export function InteractView({ books }: { books: InteractBooks }) {
         {panel === "serve" && <ServePanel books={books} />}
         {panel === "pressure" && <PressurePanel books={books} />}
         {panel === "ages" && <AgesPanel books={books} />}
-        {panel === "length" && <LengthPanel books={books} />}
       </section>
 
       <p className="text-sm text-muted">

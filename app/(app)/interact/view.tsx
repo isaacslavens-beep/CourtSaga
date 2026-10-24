@@ -13,7 +13,7 @@ import { OpeningDiary } from "../loading-page";
 // The models' formulas are set in a maths face, loaded only here
 const mathFace = STIX_Two_Text({ subsets: ["latin"], style: ["normal", "italic"], variable: "--font-math", preload: false });
 
-export const interactDescription = "Play with models fitted to every tour-level singles match since 2003: upset odds, ratings across eras, serving, play under pressure, ages and match lengths.";
+export const interactDescription = "Play with models fitted to every tour-level singles match since 2003: upset odds, ratings across eras, serving, play under pressure and ages, opening on the top 10 at any moment.";
 
 export function InteractPage({ tour }: { tour: Tour }) {
   return (

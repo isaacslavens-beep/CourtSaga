@@ -10,7 +10,6 @@
 //   pressure how players do on the big points (break points, tiebreaks, deciding sets) against what their
 //            play in those same matches would lead you to expect, and whether that edge lasts
 //   ages     a typical career: how players do at each age against their own career average
-//   length   a linear regression of a match's minutes on what was known before it started
 
 import { parseScore, type Outcome, type Player, type Round, type Surface, type Tier, type Tour } from "./library";
 
@@ -138,22 +137,6 @@ export const ageEras: { id: AgeEra; label: string; seasons: [number, number] }[]
   { id: "late", label: "2015 on", seasons: [2015, 9999] },
 ];
 
-export type LengthFit = {
-  n: number;
-  sets: number[]; // how many sets a match can go: [2, 3] or [3, 4, 5]
-  // minutes = a + clay + grass + gap·|ln(rank ratio)| + year·(season − 2015) + perSet[i] for going sets[i] sets
-  coef: { a: number; clay: number; grass: number; gap: number; year: number; perSet: number[] };
-  se: { a: number; clay: number; grass: number; gap: number; year: number; perSet: number[] }; // standard errors
-  r2: number; // with the sets known
-  r2Before: number; // the same model before the match, the sets unknown
-  spread: [number, number]; // the 10th and 90th percentiles of actual − predicted, the sets known
-  share: Record<CourtOrAll, number[]>; // how often matches went each number of sets, in sets order
-  hist: Record<CourtOrAll, number[][]>; // matches per 10 minutes from 0: in all, then for each number of sets
-  longest: { id: string; w: number; l: number; at: string; minutes: number; predicted: number }[]; // furthest past the prediction, the sets known
-  years: [number, number]; // the seasons with match times
-};
-export type LengthModel = Partial<Record<3 | 5, LengthFit>>;
-
 /** The big points: the chances, what decides how many a player should win, and the tour's own curve between them */
 export type PressureMeasure = "saved" | "converted" | "tiebreaks" | "deciders";
 export const pressureMeasures: PressureMeasure[] = ["saved", "converted", "tiebreaks", "deciders"];
@@ -185,7 +168,6 @@ export type InteractBooks = {
   elo: EloModel;
   serve: ServeModel;
   ages: AgeModel;
-  length: LengthModel;
   pressure: PressureModel;
 };
 
@@ -291,7 +273,6 @@ function ols(X: number[][], y: number[]) {
 
 /** The lowest and highest of many numbers (spreading 100,000 into Math.min overflows the stack) */
 const extent = (xs: number[]): [number, number] => xs.reduce<[number, number]>(([lo, hi], x) => [Math.min(lo, x), Math.max(hi, x)], [Infinity, -Infinity]);
-const quantile = (sorted: number[], q: number) => sorted[Math.min(sorted.length - 1, Math.max(0, Math.round(q * (sorted.length - 1))))] ?? 0;
 
 /* ---------- Win chances: the rules the page and the models share ---------- */
 
@@ -333,15 +314,6 @@ export function serveChance(c: ServeModel["fits"]["all"]["coef"], line: Record<S
  * The length model's minutes. Given how many sets, that many; without, the average over how often matches
  * on that surface go each number of sets.
  */
-export function lengthPrediction(fit: LengthFit, court: CourtOrAll, favRank: number, dogRank: number, season: number, sets: number | null) {
-  const c = fit.coef;
-  const base = c.a + (court === "clay" ? c.clay : 0) + (court === "grass" ? c.grass : 0) + c.gap * Math.abs(Math.log(dogRank / favRank)) + c.year * (season - 2015);
-  if (sets !== null) return base + (c.perSet[fit.sets.indexOf(sets)] ?? 0);
-  const share = fit.share[court];
-  const total = share.reduce((t, v) => t + v, 0) || 1;
-  return base + share.reduce((t, v, i) => t + (v / total) * c.perSet[i], 0);
-}
-
 /* ---------- Building the models ---------- */
 
 /** A rating's step: big while a player has few matches, settling as they play more (as FiveThirtyEight's) */
@@ -365,7 +337,6 @@ export function buildModels(input: ModelsInput): InteractBooks {
   const elo = buildElo(input, all, games, from, idx);
   const serve = buildServe(games, idx);
   const ages = buildAges(games, idx);
-  const length = buildLength(games, idx);
   const pressure = buildPressure(games, idx, input);
 
   // Name everyone the page shows: a surname, or a full name where two clash
@@ -379,7 +350,7 @@ export function buildModels(input: ModelsInput): InteractBooks {
     full[p.key] = p.name;
   }
 
-  return { tour: input.tour, from, last: input.last, people, names, full, upsets, elo, serve, ages, length, pressure };
+  return { tour: input.tour, from, last: input.last, people, names, full, upsets, elo, serve, ages, pressure };
 }
 
 function buildUpsets(games: ModelMatch[]): UpsetModel {
@@ -706,62 +677,6 @@ function buildAges(games: ModelMatch[], idx: (k: string) => number): AgeModel {
     if (list.reduce((t, [, w, l]) => t + w + l, 0) >= minMatches) players[idx(k)] = list;
   }
   return { minMatches, eras, players };
-}
-
-function buildLength(games: ModelMatch[], idx: (k: string) => number): LengthModel {
-  const out: LengthModel = {};
-  for (const bo of [3, 5] as const) {
-    const sets = bo === 3 ? [2, 3] : [3, 4, 5];
-    // Matches with both rankings and a believable length: two to eight minutes a game, as a typo in the
-    // data (220 minutes for 6-3 6-2) would otherwise lead the list of long matches. A super tiebreak in
-    // place of a set is still a set, and counts as one game.
-    const set = games
-      .map((m) => {
-        const played = parseScore(m.score).sets;
-        return { m, n: played.length, perGame: (m.minutes ?? 0) / played.reduce((t, x) => t + (x.super ? 1 : x.w + x.l), 0) };
-      })
-      .filter(({ m, n, perGame }) => m.bestOf === bo && sets.includes(n) && m.minutes !== null && perGame >= 2 && perGame <= 8 && m.wr && m.lr && courtOf(m.surface));
-    if (set.length < 1000) continue;
-    const row = ({ m, n }: (typeof set)[number], withSets: boolean) => {
-      const c = courtOf(m.surface);
-      const x = [1, c === "clay" ? 1 : 0, c === "grass" ? 1 : 0, Math.abs(Math.log(m.lr! / m.wr!)), m.season - 2015];
-      return withSets ? [...x, ...sets.slice(1).map((s) => (n === s ? 1 : 0))] : x;
-    };
-    const y = set.map(({ m }) => m.minutes!);
-    const { beta, se, r2 } = ols(
-      set.map((g) => row(g, true)),
-      y,
-    );
-    const coef = { a: round1(beta[0]), clay: round1(beta[1]), grass: round1(beta[2]), gap: round1(beta[3]), year: round3(beta[4]), perSet: [0, ...beta.slice(5).map(round1)] };
-    const errors = { a: round3(se[0]), clay: round3(se[1]), grass: round3(se[2]), gap: round3(se[3]), year: round4(se[4]), perSet: [0, ...se.slice(5).map(round3)] };
-    const share = {} as LengthFit["share"];
-    const hist = {} as LengthFit["hist"];
-    for (const c of courtsOrAll) {
-      const here = set.filter(({ m }) => c === "all" || courtOf(m.surface) === c);
-      share[c] = sets.map((s) => here.filter((g) => g.n === s).length);
-      hist[c] = [null, ...sets].map((s) => {
-        const bins = new Array<number>(72).fill(0);
-        for (const g of here) if (s === null || g.n === s) bins[Math.floor(g.m.minutes! / 10)]++;
-        while (bins.length && !bins[bins.length - 1]) bins.pop();
-        return bins;
-      });
-    }
-    const fit: LengthFit = { n: set.length, sets, coef, se: errors, r2: round3(r2), r2Before: 0, spread: [0, 0], share, hist, longest: [], years: extent(set.map(({ m }) => m.season)) };
-    const known = set.map(({ m, n }) => lengthPrediction(fit, courtOf(m.surface)!, Math.min(m.wr!, m.lr!), Math.max(m.wr!, m.lr!), m.season, n));
-    const before = set.map(({ m }) => lengthPrediction(fit, courtOf(m.surface)!, Math.min(m.wr!, m.lr!), Math.max(m.wr!, m.lr!), m.season, null));
-    const mean = y.reduce((t, v) => t + v, 0) / y.length;
-    const sst = y.reduce((t, v) => t + (v - mean) ** 2, 0);
-    fit.r2Before = round3(1 - y.reduce((t, v, i) => t + (v - before[i]) ** 2, 0) / sst);
-    const residuals = y.map((v, i) => v - known[i]).sort((a, b) => a - b);
-    fit.spread = [Math.round(quantile(residuals, 0.1)), Math.round(quantile(residuals, 0.9))];
-    fit.longest = set
-      .map(({ m }, i) => ({ m, minutes: m.minutes!, predicted: Math.round(known[i]) }))
-      .sort((a, b) => b.minutes - b.predicted - (a.minutes - a.predicted))
-      .slice(0, 10)
-      .map(({ m, minutes, predicted }) => ({ id: m.id, w: idx(m.w), l: idx(m.l), at: `${m.event} ${m.season}`, minutes, predicted }));
-    out[bo] = fit;
-  }
-  return out;
 }
 
 /**
