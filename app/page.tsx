@@ -39,7 +39,7 @@ const parts = [
     id: "saga",
     verb: "Read back",
     title: "Read your saga",
-    body: "Star the matches you care about, watched or not, and they become a saga of your own. Open one of these books from a fan's saga and turn the pages.",
+    body: "The matches you star become a saga of your own. Open one of these books and turn the pages.",
     taste: <SagaTaste />,
     more: "Sign up to start your saga",
     room: true, // the saga's own reading room, not a court

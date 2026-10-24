@@ -29,7 +29,7 @@ const noDiary: DiaryData = { rows: [], entries: {}, order: [], version: "guest" 
 
 export default function ExplorePage({ searchParams }: PageProps<"/explore">) {
   return (
-    <div className="court-uso flex flex-1 flex-col">
+    <div className="court-wimbledon flex flex-1 flex-col">
       <CourtBand compact>
         <StepHeading
           as="h1"

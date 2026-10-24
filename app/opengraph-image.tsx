@@ -5,7 +5,7 @@ import { join } from "node:path";
 /* The card a shared link shows: a still of the hero. The Slams along the top, the court seen from above
    with the net on the right, the words in the backcourt and one photo over the service boxes. */
 
-export const alt = "CourtSaga: explore and remember the story of tennis.";
+export const alt = "CourtSaga: explore and track the story of tennis.";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -109,7 +109,7 @@ export default async function Image() {
         <div style={{ position: "absolute", left: C.left + 64, top: C.top + C.alley, height: C.bottom - C.top - 2 * C.alley, width: C.service - C.left - 100, display: "flex", flexDirection: "column", justifyContent: "center" }}>
           <div style={{ display: "flex", flexDirection: "column", fontFamily: "Bricolage", fontSize: 56, lineHeight: 1.05, letterSpacing: -2 }}>
             <span>Explore and</span>
-            <span>remember the</span>
+            <span>track the</span>
             <span>story of tennis.</span>
           </div>
           <div style={{ marginTop: 26, fontSize: 27, lineHeight: 1.35, color: "rgba(255,255,255,0.9)" }}>Star any match.</div>

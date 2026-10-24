@@ -8,10 +8,6 @@ export function SharedFrame({ children }: { children: ReactNode }) {
   return (
     <div className="court-saga saga-room flex flex-1 flex-col">
       <header className="bg-[var(--header)] text-white">
-        <div aria-hidden className="flex h-1.5">
-          <span className="flex-1 bg-[var(--slam-a)]" />
-          <span className="flex-1 bg-[var(--slam-b)]" />
-        </div>
         <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-4 py-4 sm:px-8">
           <Link href="/" className="flex items-center gap-2">
             <span aria-hidden className="text-2xl leading-none">

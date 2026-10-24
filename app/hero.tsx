@@ -56,7 +56,7 @@ export function Hero() {
           <div className="relative flex flex-col justify-center px-11 pb-14 pt-20 sm:px-16 lg:py-20 lg:pl-16 lg:pr-12">
             <span aria-hidden className={`${line} max-lg:left-1/2 max-lg:top-0 max-lg:h-3 max-lg:w-[3px] lg:left-0 lg:top-1/2 lg:h-[3px] lg:w-3`} />
             <h1 className="hero-title font-display text-[2.6rem] font-bold leading-[1.02] tracking-tight sm:text-6xl lg:text-[3.25rem] xl:text-6xl">
-              Explore and remember the story of tennis.
+              Explore and track the story of tennis.
             </h1>
             <p className="mt-6 max-w-lg text-lg font-medium leading-relaxed text-white/90 sm:text-xl">
               Explore the story behind any match, and star the ones you care about to build a saga of your
@@ -72,7 +72,6 @@ export function Hero() {
                   <path d="M8 3v10M4 9l4 4 4-4" />
                 </svg>
               </a>
-              <p className="max-w-[16rem] text-sm text-white/80">Explore, statistics and the saga, in a minute.</p>
             </div>
             <p className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-2">
               <Link

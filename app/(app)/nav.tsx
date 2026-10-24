@@ -30,15 +30,11 @@ export function AppNav() {
   );
 }
 
-/** The header sits on the surround of the page's court, under a strip of that Slam's two colours */
+/** The header sits in the colour of the page's court */
 export function CourtHeader({ children }: { children: ReactNode }) {
   const court = pageCourts[usePathname()] ?? "uso";
   return (
     <header className={`court-${court} bg-[var(--header)] text-white`}>
-      <div aria-hidden className="flex h-1.5">
-        <span className="flex-1 bg-[var(--slam-a)]" />
-        <span className="flex-1 bg-[var(--slam-b)]" />
-      </div>
       {children}
     </header>
   );
