@@ -1,3 +1,4 @@
+import { STIX_Two_Text } from "next/font/google";
 import { Suspense } from "react";
 import { interactModels } from "@/lib/models";
 import type { Tour } from "../../diary/library";
@@ -9,11 +10,14 @@ import { OpeningDiary } from "../loading-page";
 /* Interact, for one tour: the models (app/diary/models.ts) on Roland Garros's clay. Nothing here depends
    on who's looking, so the page is built ahead of time and rebuilt as the data changes. */
 
+// The models' formulas are set in a maths face, loaded only here
+const mathFace = STIX_Two_Text({ subsets: ["latin"], style: ["normal", "italic"], variable: "--font-math", preload: false });
+
 export const interactDescription = "Play with models fitted to every tour-level singles match since 2003: upset odds, ratings across eras, serving, draws, ages and match lengths.";
 
 export function InteractPage({ tour }: { tour: Tour }) {
   return (
-    <div className="court-rg flex flex-1 flex-col">
+    <div className={`court-rg flex flex-1 flex-col ${mathFace.variable}`}>
       <CourtBand compact>
         <StepHeading
           as="h1"

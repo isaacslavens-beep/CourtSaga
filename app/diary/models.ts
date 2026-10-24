@@ -67,11 +67,14 @@ export type UpsetModel = {
   n: number; // matches fitted
   // logit P(better-ranked wins) = gap × (slope + bo5 + clay + grass), gap = ln(underdog's rank / favourite's)
   coef: { slope: number; bo5: number; clay: number; grass: number };
+  se: { slope: number; bo5: number; clay: number; grass: number }; // standard errors
   bo5: boolean; // whether this tour plays best-of-five enough to offer it
   // The real record: cells[court][bestOf][favourite's band][underdog's band], flattened (see cellIndex)
   cells: { n: number[]; upsets: number[]; latest: (string | null)[] }; // latest: the most recent upset, to open in Explore
   calibration: Calibration;
   accuracy: number; // how often the better-ranked player won
+  brier: number; // mean squared error of the chances: 0.25 for a coin flip, lower is better
+  logLoss: number; // mean −ln(chance given to what happened): 0.693 for a coin flip
 };
 export const BEST_OFS = ["any", 3, 5] as const;
 export const cellIndex = (court: CourtOrAll, bestOf: (typeof BEST_OFS)[number], fav: number, dog: number) =>
@@ -99,6 +102,8 @@ export type EloModel = {
   calibration: Calibration; // matches from `from` on, rated half overall, half surface
   accuracy: number;
   rankAccuracy: number; // the better-ranked player, on the same matches with rankings
+  brier: number;
+  logLoss: number;
 };
 
 export type ServeStat = "in1" | "won1" | "won2";
@@ -107,7 +112,7 @@ export const serveRange: Record<ServeStat, [number, number]> = { in1: [40, 80], 
 
 export type ServeModel = {
   // Per surface: logit P(win) = a + b·first serves in % + c·first-serve points won % + d·second-serve points won %
-  fits: Record<CourtOrAll, { n: number; coef: Record<ServeStat | "a", number>; mean: Record<ServeStat, number>; accuracy: number }>;
+  fits: Record<CourtOrAll, { n: number; coef: Record<ServeStat | "a", number>; se: Record<ServeStat | "a", number>; mean: Record<ServeStat, number>; accuracy: number }>;
   // The real record, two points at a time over serveRange: bins[court][stat] = [{ n, won }] from the range's low end
   bins: Record<CourtOrAll, Record<ServeStat, { n: number; won: number }[]>>;
   // Each player's serving across their matches with stats (≥ 20), per surface: [matches, won, then the
@@ -120,7 +125,8 @@ export type AgeModel = {
   minMatches: number; // a player counts towards the typical career with this many matches
   // Per era, the typical career by whole years of age: points above or below a player's own career win
   // rate (weighted by matches), and how many players and matches it's from
-  eras: Record<AgeEra, { ages: { age: number; diff: number; players: number; matches: number }[]; fit: [number, number, number]; peak: number; players: number }>;
+  // rate (weighted by matches), its standard error, and how many players and matches it's from
+  eras: Record<AgeEra, { ages: { age: number; diff: number; se: number; players: number; matches: number }[]; fit: [number, number, number]; peak: number; players: number }>;
   // Every player who counts, all seasons: [age, won, lost] for each whole year of age, to set beside it
   players: Record<number, [number, number, number][]>;
 };
@@ -136,6 +142,7 @@ export type LengthFit = {
   sets: number[]; // how many sets a match can go: [2, 3] or [3, 4, 5]
   // minutes = a + clay + grass + gap·|ln(rank ratio)| + year·(season − 2015) + perSet[i] for going sets[i] sets
   coef: { a: number; clay: number; grass: number; gap: number; year: number; perSet: number[] };
+  se: { a: number; clay: number; grass: number; gap: number; year: number; perSet: number[] }; // standard errors
   r2: number; // with the sets known
   r2Before: number; // the same model before the match, the sets unknown
   spread: [number, number]; // the 10th and 90th percentiles of actual − predicted, the sets known
@@ -191,6 +198,7 @@ const chron = (x: ModelMatch, y: ModelMatch) =>
 const courtOf = (s: Surface): Court | null => (s === "clay" ? "clay" : s === "grass" ? "grass" : s === "hard" || s === "carpet" ? "hard" : null);
 const round1 = (x: number) => Math.round(x * 10) / 10;
 const round3 = (x: number) => Math.round(x * 1000) / 1000;
+const round4 = (x: number) => Math.round(x * 10000) / 10000;
 const sigmoid = (z: number) => 1 / (1 + Math.exp(-z));
 /** Played to the end, at a regular event: what every model learns from */
 const counted = (m: ModelMatch) => m.played && m.outcome === "completed" && !exhibitions.has(m.event);
@@ -219,12 +227,24 @@ function solve(A: number[][], b: number[]) {
   return M.map((row, i) => (row[i] ? row[n] / row[i] : 0));
 }
 
-/** Logistic regression by Newton's method: the coefficients that make y most likely given X */
+/** The standard errors from a coefficient covariance matrix's inverse: the square roots of its diagonal */
+function standardErrors(information: number[][], scale = 1) {
+  return information.map((_, j) => {
+    const unit = information.map((__, i) => (i === j ? 1 : 0));
+    return Math.sqrt(Math.max(0, solve(information, unit)[j] * scale));
+  });
+}
+
+/**
+ * Logistic regression by Newton's method: the coefficients that make y most likely given X, and their
+ * standard errors (from the information matrix at the answer)
+ */
 function logistic(X: number[][], y: number[]) {
   const k = X[0]?.length ?? 0;
   let beta = new Array<number>(k).fill(0);
+  let H: number[][] = [];
   for (let iter = 0; iter < 25; iter++) {
-    const H = Array.from({ length: k }, () => new Array<number>(k).fill(0));
+    H = Array.from({ length: k }, () => new Array<number>(k).fill(0));
     const g = new Array<number>(k).fill(0);
     for (let i = 0; i < X.length; i++) {
       const x = X[i];
@@ -241,10 +261,10 @@ function logistic(X: number[][], y: number[]) {
     beta = beta.map((v, j) => v + step[j]);
     if (Math.max(...step.map(Math.abs)) < 1e-9) break;
   }
-  return beta;
+  return { beta, se: standardErrors(H) };
 }
 
-/** Least squares: the coefficients, and R² */
+/** Least squares: the coefficients, their standard errors, and R² */
 function ols(X: number[][], y: number[]) {
   const k = X[0]?.length ?? 0;
   const A = Array.from({ length: k }, () => new Array<number>(k).fill(0));
@@ -262,7 +282,7 @@ function ols(X: number[][], y: number[]) {
     ssr += e * e;
     sst += (y[i] - mean) ** 2;
   });
-  return { beta, r2: sst ? 1 - ssr / sst : 0 };
+  return { beta, se: standardErrors(A, ssr / Math.max(1, y.length - k)), r2: sst ? 1 - ssr / sst : 0 };
 }
 
 /** The lowest and highest of many numbers (spreading 100,000 into Math.min overflows the stack) */
@@ -445,11 +465,21 @@ function buildUpsets(games: ModelMatch[]): UpsetModel {
   // Best of five gets its own term only where a tour plays enough of it (the WTA hardly does)
   const fiveSets = X.filter((x) => x[1]).length > 1000;
   const fitted = logistic(fiveSets ? X : X.map(([g, , c, gr]) => [g, c, gr]), y);
-  const [slope, bo5, clay, grass] = fiveSets ? fitted : [fitted[0], 0, fitted[1], fitted[2]];
+  const spread = (v: number[]) => (fiveSets ? v : [v[0], 0, v[1], v[2]]);
+  const [slope, bo5, clay, grass] = spread(fitted.beta);
   const coef = { slope: round3(slope), bo5: round3(bo5), clay: round3(clay), grass: round3(grass) };
+  const [seSlope, seBo5, seClay, seGrass] = spread(fitted.se);
+  const se = { slope: round4(seSlope), bo5: round4(seBo5), clay: round4(seClay), grass: round4(seGrass) };
   const calibration = emptyCalibration();
-  X.forEach((x, i) => calibrate(calibration, sigmoid(x[0] * coef.slope + x[1] * coef.bo5 + x[2] * coef.clay + x[3] * coef.grass), y[i] === 1));
-  return { n: X.length, coef, bo5: fiveSets, cells, calibration, accuracy: favWins / X.length };
+  let brier = 0;
+  let logLoss = 0;
+  X.forEach((x, i) => {
+    const p = sigmoid(x[0] * coef.slope + x[1] * coef.bo5 + x[2] * coef.clay + x[3] * coef.grass);
+    calibrate(calibration, p, y[i] === 1);
+    brier += (y[i] - p) ** 2;
+    logLoss -= Math.log(y[i] ? p : 1 - p);
+  });
+  return { n: X.length, coef, se, bo5: fiveSets, cells, calibration, accuracy: favWins / X.length, brier: round4(brier / X.length), logLoss: round4(logLoss / X.length) };
 }
 
 function buildElo(input: ModelsInput, all: ModelMatch[], games: ModelMatch[], from: number, idx: (k: string) => number) {
@@ -471,6 +501,8 @@ function buildElo(input: ModelsInput, all: ModelMatch[], games: ModelMatch[], fr
   const calibration = emptyCalibration();
   let rated = 0;
   let right = 0;
+  let brier = 0;
+  let logLoss = 0;
   let ranked = 0;
   let rankRight = 0;
 
@@ -519,6 +551,8 @@ function buildElo(input: ModelsInput, all: ModelMatch[], games: ModelMatch[], fr
       let p = court ? eloChance(blend(a.elo, a.court[court]), blend(b.elo, b.court[court])) : eloChance(a.elo, b.elo);
       if (m.bestOf === 5) p = p >= 0.5 ? bestOfFive(p) : 1 - bestOfFive(1 - p);
       calibrate(calibration, p, true);
+      brier += (1 - p) ** 2;
+      logLoss -= Math.log(p);
       rated++;
       if (p > 0.5) right++;
       if (m.wr && m.lr && m.wr !== m.lr) {
@@ -637,6 +671,8 @@ function buildElo(input: ModelsInput, all: ModelMatch[], games: ModelMatch[], fr
     calibration,
     accuracy: right / rated,
     rankAccuracy: rankRight / ranked,
+    brier: round4(brier / rated),
+    logLoss: round4(logLoss / rated),
   };
   return { elo, draws, skipped };
 }
@@ -662,15 +698,16 @@ function buildServe(games: ModelMatch[], idx: (k: string) => number): ServeModel
   const bins = {} as ServeModel["bins"];
   for (const c of courtsOrAll) {
     const set = c === "all" ? lines : lines.filter((l) => l.court === c);
-    const coef = logistic(
+    const { beta: coef, se } = logistic(
       set.map((l) => [1, l.in1, l.won1, l.won2]),
       set.map((l) => (l.won ? 1 : 0)),
     );
     const named = { a: round3(coef[0]), in1: round3(coef[1]), won1: round3(coef[2]), won2: round3(coef[3]) };
+    const errors = { a: round4(se[0]), in1: round4(se[1]), won1: round4(se[2]), won2: round4(se[3]) };
     let right = 0;
     for (const l of set) if (serveChance(named, l) > 0.5 === l.won) right++;
     const mean = (s: ServeStat) => round1(set.reduce((t, l) => t + l[s], 0) / set.length);
-    fits[c] = { n: set.length, coef: named, mean: { in1: mean("in1"), won1: mean("won1"), won2: mean("won2") }, accuracy: right / set.length };
+    fits[c] = { n: set.length, coef: named, se: errors, mean: { in1: mean("in1"), won1: mean("won1"), won2: mean("won2") }, accuracy: right / set.length };
     bins[c] = {} as Record<ServeStat, { n: number; won: number }[]>;
     for (const s of serveStats) {
       const [lo, hi] = serveRange[s];
@@ -734,7 +771,9 @@ function buildAges(games: ModelMatch[], idx: (k: string) => number): AgeModel {
   const eras = {} as AgeModel["eras"];
   for (const era of ageEras) {
     const [lo, hi] = era.seasons;
-    const sum = new Map<number, { diff: number; matches: number; players: number }>();
+    // Per age: Σ w·d, Σ w·d², Σ w² over players (w their matches at that age, d their difference), for a
+    // weighted mean and its standard error
+    const sum = new Map<number, { diff: number; sq: number; w2: number; matches: number; players: number }>();
     let players = 0;
     for (const [, ages] of byPlayer) {
       const inEra = [...ages].map(([a, list]) => [a, list.filter((x) => x.season >= lo && x.season <= hi)] as const).filter(([, list]) => list.length);
@@ -744,8 +783,11 @@ function buildAges(games: ModelMatch[], idx: (k: string) => number): AgeModel {
       const career = inEra.reduce((t, [, list]) => t + list.reduce((s, x) => s + x.w, 0), 0) / n;
       for (const [a, list] of inEra) {
         const w = list.reduce((s, x) => s + x.w, 0);
-        const s = sum.get(a) ?? { diff: 0, matches: 0, players: 0 };
-        s.diff += (w / list.length - career) * list.length;
+        const s = sum.get(a) ?? { diff: 0, sq: 0, w2: 0, matches: 0, players: 0 };
+        const d = w / list.length - career;
+        s.diff += d * list.length;
+        s.sq += d * d * list.length;
+        s.w2 += list.length ** 2;
         s.matches += list.length;
         s.players++;
         sum.set(a, s);
@@ -754,7 +796,12 @@ function buildAges(games: ModelMatch[], idx: (k: string) => number): AgeModel {
     const ages = [...sum]
       .filter(([, s]) => s.players >= 10)
       .sort((x, y) => x[0] - y[0])
-      .map(([age, s]) => ({ age, diff: round1((s.diff / s.matches) * 100), players: s.players, matches: s.matches }));
+      .map(([age, s]) => {
+        const mean = s.diff / s.matches;
+        const variance = Math.max(0, s.sq / s.matches - mean * mean);
+        const effective = (s.matches * s.matches) / s.w2; // how many equally weighted players it's worth
+        return { age, diff: round1(mean * 100), se: round1(Math.sqrt(variance / effective) * 100), players: s.players, matches: s.matches };
+      });
     // A curve through it: diff = a + b·age + c·age², weighted by matches
     const X: number[][] = [];
     const y: number[] = [];
@@ -795,11 +842,12 @@ function buildLength(games: ModelMatch[], idx: (k: string) => number): LengthMod
       return withSets ? [...x, ...sets.slice(1).map((s) => (n === s ? 1 : 0))] : x;
     };
     const y = set.map(({ m }) => m.minutes!);
-    const { beta, r2 } = ols(
+    const { beta, se, r2 } = ols(
       set.map((g) => row(g, true)),
       y,
     );
     const coef = { a: round1(beta[0]), clay: round1(beta[1]), grass: round1(beta[2]), gap: round1(beta[3]), year: round3(beta[4]), perSet: [0, ...beta.slice(5).map(round1)] };
+    const errors = { a: round3(se[0]), clay: round3(se[1]), grass: round3(se[2]), gap: round3(se[3]), year: round4(se[4]), perSet: [0, ...se.slice(5).map(round3)] };
     const share = {} as LengthFit["share"];
     const hist = {} as LengthFit["hist"];
     for (const c of courtsOrAll) {
@@ -812,7 +860,7 @@ function buildLength(games: ModelMatch[], idx: (k: string) => number): LengthMod
         return bins;
       });
     }
-    const fit: LengthFit = { n: set.length, sets, coef, r2: round3(r2), r2Before: 0, spread: [0, 0], share, hist, longest: [], years: extent(set.map(({ m }) => m.season)) };
+    const fit: LengthFit = { n: set.length, sets, coef, se: errors, r2: round3(r2), r2Before: 0, spread: [0, 0], share, hist, longest: [], years: extent(set.map(({ m }) => m.season)) };
     const known = set.map(({ m, n }) => lengthPrediction(fit, courtOf(m.surface)!, Math.min(m.wr!, m.lr!), Math.max(m.wr!, m.lr!), m.season, n));
     const before = set.map(({ m }) => lengthPrediction(fit, courtOf(m.surface)!, Math.min(m.wr!, m.lr!), Math.max(m.wr!, m.lr!), m.season, null));
     const mean = y.reduce((t, v) => t + v, 0) / y.length;
