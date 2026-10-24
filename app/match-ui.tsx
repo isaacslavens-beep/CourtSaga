@@ -38,6 +38,14 @@ const mastersFlags: [string, string][] = [
 ];
 export const mastersFlag = (event: string) => mastersFlags.find(([prefix]) => event.startsWith(prefix))?.[1] ?? null;
 
+// Each Slam's own colour for its tile, as on the Slams' courts elsewhere on the site
+export const slamColours: Record<"Australian Open" | "Roland Garros" | "Wimbledon" | "US Open", string> = {
+  "Australian Open": "#1b84c9",
+  "Roland Garros": "#c8501c",
+  Wimbledon: "#54237f",
+  "US Open": "#002f87",
+};
+
 /** The Slam's logo on a small white tile, a Masters 1000's flag, or null for any other event. */
 export function SlamLogo({ event, size = "h-7 w-7" }: { event: string; size?: string }) {
   const logo = slamLogos.find(([prefix]) => event.startsWith(prefix))?.[1];

@@ -32,7 +32,7 @@ export function SignUpForm() {
   }
 
   return (
-    <form onSubmit={submit} className="space-y-4">
+    <form method="post" onSubmit={submit} className="space-y-4">
       <Field label="Your name" name="name" autoComplete="given-name" required maxLength={60} placeholder="A first name is fine" />
       <Field label="Email" name="email" type="email" autoComplete="email" required />
       <Field label="Password" hint="at least 8 characters" name="password" type="password" autoComplete="new-password" required minLength={8} maxLength={128} />
@@ -70,7 +70,7 @@ export function LogInForm() {
   }
 
   return (
-    <form onSubmit={submit} className="space-y-4">
+    <form method="post" onSubmit={submit} className="space-y-4">
       <Field label="Email" name="email" type="email" autoComplete="email" required />
       <Field label="Password" name="password" type="password" autoComplete="current-password" required />
       {error && <Message tone="error">{error}</Message>}

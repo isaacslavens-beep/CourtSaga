@@ -27,7 +27,7 @@ export function ChangePasswordForm() {
   }
 
   return (
-    <form onSubmit={submit} className="space-y-4">
+    <form method="post" onSubmit={submit} className="space-y-4">
       <Field label="Current password" name="current" type="password" autoComplete="current-password" required />
       <Field label="New password" hint="at least 8 characters" name="password" type="password" autoComplete="new-password" required minLength={8} maxLength={128} />
       <Field label="New password, once more" name="again" type="password" autoComplete="new-password" required minLength={8} maxLength={128} />
@@ -60,7 +60,7 @@ export function DeleteAccountForm() {
   }
 
   return (
-    <form onSubmit={submit} className="space-y-4">
+    <form method="post" onSubmit={submit} className="space-y-4">
       <Field label="Your password, to be sure it's you" name="password" type="password" autoComplete="current-password" required />
       {error && <Message tone="error">{error}</Message>}
       <SubmitButton pending={pending} danger>

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore, useTransition, type ReactNode } from "react";
 import { glideTo } from "../glide";
-import { HighlightsLink, SlamLogo, TournamentLabel } from "../match-ui";
+import { HighlightsLink, SlamLogo, TournamentLabel, slamColours } from "../match-ui";
 import { Avatar, BallRating, BallScore, CourtArt, chartStyles } from "./fun";
 import { bigEventOf, bigEvents, diaryPages, roundName, scoreText, toMatches, watched, watchedHow, type Match, type MatchRow, type Round, type WatchMode } from "./library";
 import { highlightVideos } from "./media";
@@ -965,8 +965,6 @@ function MatchCard({ row, why, page, onOpen, names }: { row: MatchRow; why?: str
 type StartData = { finals: MatchRow[]; classics: { row: MatchRow; why: string }[]; diary: MatchRow[] };
 
 const slamTiles = ["Australian Open", "Roland Garros", "Wimbledon", "US Open"] as const;
-// Each Slam's own colour for its tile, as on the Slams' courts elsewhere on the site
-const slamColours: Record<(typeof slamTiles)[number], string> = { "Australian Open": "#1b84c9", "Roland Garros": "#c8501c", Wimbledon: "#54237f", "US Open": "#002f87" };
 
 /** One final in a Slam's list: the year, then who beat whom */
 const roundTags: Partial<Record<Round, string>> = { F: "Final", SF: "Semi", BR: "Bronze" };
