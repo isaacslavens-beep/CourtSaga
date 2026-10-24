@@ -3,7 +3,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { Avatar, TennisBall } from "../../diary/fun";
-import { StepHeading } from "../../step-heading";
+import { PageTitle } from "../../page-title";
 
 /* The top of the saga page, drawn like Explore's and Statistics': a band in the saga's ink, with the
    heading, what's in the saga, a way to share it, and the players who turn up in it most. Before the saga has enough matches, it counts the way there instead. */
@@ -21,7 +21,6 @@ function PlayerCard({ name, count, className = "" }: { name: string; count: numb
 
 export function SagaHero({
   title,
-  body,
   lines,
   players,
   share,
@@ -29,7 +28,6 @@ export function SagaHero({
   need,
 }: {
   title: string;
-  body: string;
   lines: string[];
   players: { name: string; count: number }[]; // the players in most of your matches, most first
   share: ReactNode;
@@ -40,7 +38,9 @@ export function SagaHero({
     <div className="bg-[var(--header)] text-white">
       <div className="mx-auto grid max-w-6xl items-center gap-x-12 gap-y-8 px-4 py-8 sm:px-8 sm:py-10 lg:grid-cols-[minmax(0,1fr)_auto]">
         <div className="min-w-0">
-          <StepHeading as="h1" onCourt compact n={3} verb="Read back" title={title} body={body} />
+          <PageTitle n={3} onDark>
+            {title}
+          </PageTitle>
           {lines.length > 0 && (
             <p className="mt-4 flex flex-wrap gap-2">
               {lines.map((line) => (

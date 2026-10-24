@@ -22,6 +22,8 @@ const nextConfig: NextConfig = {
       // Interact was renamed Advanced
       { source: "/interact", destination: "/advanced", permanent: true },
       { source: "/interact/women", destination: "/advanced/women", permanent: true },
+      // The account page went: who's signed in, and logging out, are at the foot of every page
+      { source: "/account", destination: "/explore", permanent: false },
     ];
   },
   turbopack: {

@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { DataCredit } from "../credits";
-import { AccountLink, AppNav, CourtHeader } from "./nav";
+import { AppNav, CourtHeader } from "./nav";
+import { SignedIn } from "./signed-in";
 
-/* A signed-in fan's pages: the log, exploring and the saga, the landing page's three steps, and the
-   account. Each is drawn on a Slam's court, and the header sits on its surround. Each page checks the
+/* A signed-in fan's pages: the log, exploring and the saga, the landing page's three steps, and Advanced,
+   with who's signed in at the foot. Each is drawn on a Slam's court, and the header sits on its surround. Each page checks the
    session itself. */
 export default function DiaryLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -17,14 +18,14 @@ export default function DiaryLayout({ children }: { children: React.ReactNode })
             <span className="font-display text-xl font-bold tracking-tight">CourtSaga</span>
           </Link>
           <AppNav />
-          <AccountLink />
         </div>
       </CourtHeader>
       <main className="flex flex-1 flex-col">{children}</main>
       <footer className="border-t border-line">
-        <p className="mx-auto max-w-6xl px-4 py-6 text-xs leading-relaxed text-muted sm:px-8">
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-x-6 gap-y-3 px-4 py-6 text-xs leading-relaxed text-muted sm:px-8">
           <DataCredit />
-        </p>
+          <SignedIn />
+        </div>
       </footer>
     </div>
   );

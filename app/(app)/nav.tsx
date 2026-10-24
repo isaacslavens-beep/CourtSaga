@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { pageCourts } from "./courts";
 
-// The site's parts, numbered as on the landing page (Advanced comes after it), then the account
+// The site's parts, numbered as on the landing page (Advanced comes after it)
 const steps = [
   { href: "/explore", n: 1, label: "Explore" },
   { href: "/statistics", n: 2, label: "Statistics" },
@@ -44,14 +44,5 @@ export function CourtHeader({ children }: { children: ReactNode }) {
     <header className={`court-${court} bg-[var(--header)] text-white`}>
       {children}
     </header>
-  );
-}
-
-export function AccountLink() {
-  const path = usePathname();
-  return (
-    <Link href="/account" aria-current={path === "/account" ? "page" : undefined} className={`${pill(path === "/account")} order-2 ml-auto px-3 py-1.5 sm:order-3 sm:ml-0`}>
-      Account
-    </Link>
   );
 }

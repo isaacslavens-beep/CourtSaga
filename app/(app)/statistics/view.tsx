@@ -2,8 +2,7 @@ import { Suspense } from "react";
 import { recordBooks } from "@/lib/records";
 import type { Tour } from "../../diary/library";
 import { RecordsView } from "../../diary/records-ui";
-import { CourtBand } from "../../court-band";
-import { StepHeading } from "../../step-heading";
+import { PageTitle } from "../../page-title";
 import { OpeningDiary } from "../loading-page";
 
 /* Statistics, for one tour: the record books (app/diary/records.ts) on Explore's court. Nothing here
@@ -14,19 +13,11 @@ export const statisticsDescription = "Records from every tour-level singles matc
 export function StatisticsPage({ tour }: { tour: Tour }) {
   return (
     <div className="court-uso flex flex-1 flex-col">
-      <CourtBand compact>
-        <StepHeading
-          as="h1"
-          onCourt
-          compact
-          n={2}
-          verb="Look up"
-          title="Statistics"
-          body="Rivalries, title runs, streaks and seasons from every match since 2003. Pick a list or find a player, then open any match in Explore."
-        />
-      </CourtBand>
       <section className="court-page flex-1 pb-16 pt-6 sm:pt-8">
         <div className="mx-auto w-full max-w-6xl px-4 sm:px-8">
+          <div className="mb-6">
+            <PageTitle n={2}>Statistics</PageTitle>
+          </div>
           <Suspense fallback={<OpeningDiary />}>
             <Books tour={tour} />
           </Suspense>

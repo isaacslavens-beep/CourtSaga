@@ -15,15 +15,13 @@ import { ShareSaga } from "./share";
 
 export const metadata: Metadata = { title: "Your saga · CourtSaga" };
 
-const body = "Your matches, turned into a story. Automatically built from the matches you star: look through your tennis Saga anytime or share it with friends.";
-
 export default function SagaPage({ searchParams }: PageProps<"/saga">) {
   return (
     <div className="court-saga saga-room flex flex-1 flex-col">
       <Suspense
         fallback={
           <>
-            <SagaHero title="Your saga" body={body} lines={[]} players={[]} share={null} have={SAGA_MIN_MATCHES} need={SAGA_MIN_MATCHES} />
+            <SagaHero title="Your saga" lines={[]} players={[]} share={null} have={SAGA_MIN_MATCHES} need={SAGA_MIN_MATCHES} />
             <OpeningDiary />
           </>
         }
@@ -50,7 +48,6 @@ async function Saga({ searchParams }: Pick<PageProps<"/saga">, "searchParams">) 
     <>
       <SagaHero
         title="Your saga"
-        body={body}
         lines={lines}
         players={players}
         share={<ShareSaga slug={slug} origin={origin} />}

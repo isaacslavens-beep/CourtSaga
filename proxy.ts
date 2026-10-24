@@ -33,7 +33,7 @@ export const config = {
     {
       // Explore opens signed out too, so a shared match's link works for anyone (the page lets a guest
       // see only that match)
-      source: "/(saga|account)",
+      source: "/saga",
       missing: [
         { type: "header", key: "next-router-prefetch" },
         { type: "header", key: "purpose", value: "prefetch" },

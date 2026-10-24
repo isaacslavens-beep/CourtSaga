@@ -7,6 +7,7 @@ import ratingsPhoto from "@/public/photos/nadal-federer-ao-2009-final.jpg";
 import servePhoto from "@/public/photos/sinner-wimbledon-2025.jpg";
 import pressurePhoto from "@/public/photos/djokovic-wimbledon-centre-court.jpg";
 import agesPhoto from "@/public/photos/federer-roland-garros.jpg";
+import { PageTitle } from "../page-title";
 import { Avatar, chartStyles } from "./fun";
 import {
   ageEras,
@@ -2078,10 +2079,7 @@ export function AdvancedView({ books }: { books: AdvancedBooks }) {
     <div className="space-y-8">
       <div className="space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h1 className="flex items-center gap-3 font-display text-2xl font-bold tracking-tight sm:text-3xl">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-ball font-sans text-base text-[#0b0d12] ring-1 ring-black/10">4</span>
-            Advanced Analytics
-          </h1>
+          <PageTitle n={4}>Advanced Analytics</PageTitle>
           <div className="flex rounded-full bg-surface p-1 shadow-sm ring-1 ring-line" role="group" aria-label="Tour">
             {tours.map((t) => (
               <Link
