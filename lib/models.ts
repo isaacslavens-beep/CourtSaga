@@ -3,15 +3,15 @@ import { and, eq, inArray, max, sql } from "drizzle-orm";
 import { cacheLife, cacheTag } from "next/cache";
 import { getDb } from "@/db";
 import { matches, players } from "@/db/schema";
-import { buildModels, type InteractBooks, type ModelMatch } from "@/app/diary/models";
+import { buildModels, type AdvancedBooks, type ModelMatch } from "@/app/diary/models";
 import type { Outcome, Player, Round, Surface, Tier, Tour } from "@/app/diary/library";
 
-// Interact's models (app/diary/models.ts), from the match data: every row a tour has, read once and
+// Advanced's models (app/diary/models.ts), from the match data: every row a tour has, read once and
 // fitted. Like the record books they only change when matches are imported, so they're cached for days
 // and the page is built ahead of time.
 
 /** Every model for one tour, or null if the match data can't be read. */
-export async function interactModels(tour: Tour): Promise<InteractBooks | null> {
+export async function advancedModels(tour: Tour): Promise<AdvancedBooks | null> {
   "use cache";
   cacheLife("days");
   cacheTag("matches");

@@ -19,6 +19,9 @@ const nextConfig: NextConfig = {
       // …then starring moved into Explore, which is home
       { source: "/log", destination: "/explore", permanent: true },
       { source: "/star", destination: "/explore", permanent: true },
+      // Interact was renamed Advanced
+      { source: "/interact", destination: "/advanced", permanent: true },
+      { source: "/interact/women", destination: "/advanced/women", permanent: true },
     ];
   },
   turbopack: {

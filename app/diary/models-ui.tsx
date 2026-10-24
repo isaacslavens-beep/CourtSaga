@@ -30,13 +30,13 @@ import {
   type AgeEra,
   type Calibration,
   type CourtOrAll,
-  type InteractBooks,
+  type AdvancedBooks,
   type PressureMeasure,
   type SeasonRow,
   type ServeStat,
 } from "./models";
 
-/* Interact on screen: pick a model, move its numbers, and read the answer beside what it was built from.
+/* Advanced on screen: pick a model, move its numbers, and read the answer beside what it was built from.
    The models themselves come from models.ts; everything here runs in the browser, so every change shows
    at once. Every chart is drawn with one kit (Plot, Figure, Callout), so they read as one set of figures. */
 
@@ -80,8 +80,8 @@ const panels: { id: PanelId; title: string; blurb: string; photo: StaticImageDat
 ];
 
 const tours = [
-  { tour: "atp", label: "Men", href: "/interact" },
-  { tour: "wta", label: "Women", href: "/interact/women" },
+  { tour: "atp", label: "Men", href: "/advanced" },
+  { tour: "wta", label: "Women", href: "/advanced/women" },
 ] as const;
 
 // The open panel lives in the address (#draws), as Statistics' chapters do
@@ -262,7 +262,7 @@ function PlayerPicker({
 }: {
   label: string;
   keys: string[];
-  books: Pick<InteractBooks, "names" | "full">;
+  books: Pick<AdvancedBooks, "names" | "full">;
   value: string | null;
   onChange: (k: string | null) => void;
   placeholder: string;
@@ -714,7 +714,7 @@ function rampColor(t: number) {
 
 /* ---------- Upsets ---------- */
 
-function UpsetsPanel({ books }: { books: InteractBooks }) {
+function UpsetsPanel({ books }: { books: AdvancedBooks }) {
   const m = books.upsets;
   const [fav, setFav] = useState(5);
   const [dog, setDog] = useState(60);
@@ -950,7 +950,7 @@ function UpsetsPanel({ books }: { books: InteractBooks }) {
 }
 
 /** Every pairing of ranking bands at once: how often the lower-ranked player won */
-function UpsetGrid({ books, court, boKey, fav, dog, onPick }: { books: InteractBooks; court: CourtOrAll; boKey: 3 | 5 | "any"; fav: number; dog: number; onPick: (f: number, d: number) => void }) {
+function UpsetGrid({ books, court, boKey, fav, dog, onPick }: { books: AdvancedBooks; court: CourtOrAll; boKey: 3 | 5 | "any"; fav: number; dog: number; onPick: (f: number, d: number) => void }) {
   const m = books.upsets;
   const [ref, width] = useWidth();
   const [hover, setHover] = useState<[number, number] | null>(null);
@@ -1063,7 +1063,7 @@ function UpsetGrid({ books, court, boKey, fav, dog, onPick }: { books: InteractB
 
 type Choice = { key: string; season: number };
 
-function RatingsPanel({ books }: { books: InteractBooks }) {
+function RatingsPanel({ books }: { books: AdvancedBooks }) {
   const e = books.elo;
   const byPlayer = useMemo(() => {
     const map = new Map<string, SeasonRow[]>();
@@ -1355,7 +1355,7 @@ const SLOTS = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300",
 const ownSlot: Record<string, number> = { Alcaraz: 0, Sinner: 1, Djokovic: 2, Rybakina: 3 };
 const OTHERS = "#9aa5b4";
 
-function TopTen({ books }: { books: InteractBooks }) {
+function TopTen({ books }: { books: AdvancedBooks }) {
   const e = books.elo;
   const [month, setMonth] = useState(e.months.length - 1);
   const [moved, setMoved] = useState(false);
@@ -1589,7 +1589,7 @@ function TopTen({ books }: { books: InteractBooks }) {
 const serveLabels: Record<ServeStat, string> = { in1: "First serves in", won1: "Points won on first serve", won2: "Points won on second serve" };
 const serveShort: Record<ServeStat, string> = { in1: "first serves in", won1: "first-serve points won", won2: "second-serve points won" };
 
-function ServePanel({ books }: { books: InteractBooks }) {
+function ServePanel({ books }: { books: AdvancedBooks }) {
   const m = books.serve;
   const [court, setCourt] = useState<CourtOrAll>("all");
   const [line, setLine] = useState<Record<ServeStat, number>>(() => ({ ...m.fits.all.mean }));
@@ -1749,7 +1749,7 @@ function ServeFigure({
   n: string;
   stat: ServeStat;
   line: Record<ServeStat, number>;
-  coef: InteractBooks["serve"]["fits"]["all"]["coef"];
+  coef: AdvancedBooks["serve"]["fits"]["all"]["coef"];
   onChange: (v: number) => void;
   bins: { n: number; won: number }[];
   mean: number;
@@ -1839,7 +1839,7 @@ const pressureWords: Record<PressureMeasure, { label: string; chances: string; w
 /** How much an edge in one half of a career says about the other, in words */
 const lasting = (r: number) => (r < 0.15 ? "almost nothing" : r < 0.35 ? "a little" : r < 0.6 ? "a fair amount" : "a lot");
 
-function PressurePanel({ books }: { books: InteractBooks }) {
+function PressurePanel({ books }: { books: AdvancedBooks }) {
   const [measure, setMeasure] = useState<PressureMeasure>("saved");
   const fit = books.pressure[measure];
   const words = pressureWords[measure];
@@ -2229,7 +2229,7 @@ function PressurePanel({ books }: { books: InteractBooks }) {
 
 /* ---------- Ages ---------- */
 
-function AgesPanel({ books }: { books: InteractBooks }) {
+function AgesPanel({ books }: { books: AdvancedBooks }) {
   const m = books.ages;
   const [era, setEra] = useState<AgeEra>("all");
   const keys = useMemo(() => Object.keys(m.players).map((p) => books.people[Number(p)]), [m.players, books.people]);
@@ -2462,7 +2462,7 @@ function AgesPanel({ books }: { books: InteractBooks }) {
 
 /* ---------- The page ---------- */
 
-export function InteractView({ books }: { books: InteractBooks }) {
+export function AdvancedView({ books }: { books: AdvancedBooks }) {
   const hash = useSyncExternalStore(subscribeHash, () => location.hash, () => "");
   const panel = panels.find((p) => `#${p.id}` === hash)?.id ?? "upsets";
   const current = panels.find((p) => p.id === panel)!;

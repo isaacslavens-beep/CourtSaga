@@ -1,4 +1,4 @@
-// The models behind Interact: small statistical models fitted to every match in the data, one tour at a
+// The models behind Advanced: small statistical models fitted to every match in the data, one tour at a
 // time, for a fan to play with. Like the record books (records.ts), everything comes from fixed rules over
 // the data, so the same data always gives the same models. Each model also says what it was fitted on and
 // how well it does, because the page shows that next to every answer.
@@ -157,7 +157,7 @@ export type PressureModel = Record<PressureMeasure, PressureFit>;
 /** A player row's columns */
 export const P = { n: 0, won: 1, exp: 2, base: 3, nEven: 4, wonEven: 5, expEven: 6, nOdd: 7, wonOdd: 8, expOdd: 9 } as const;
 
-export type InteractBooks = {
+export type AdvancedBooks = {
   tour: Tour;
   from: number;
   last: string;
@@ -321,7 +321,7 @@ export function serveChance(c: ServeModel["fits"]["all"]["coef"], line: Record<S
 const kFactor = (n: number) => 250 / (n + 5) ** 0.4;
 const START = 1500;
 
-export function buildModels(input: ModelsInput): InteractBooks {
+export function buildModels(input: ModelsInput): AdvancedBooks {
   const all = [...input.matches].sort(chron);
   const games = all.filter(counted);
   const from = extent(all.map((m) => m.season))[0];
