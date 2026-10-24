@@ -1282,52 +1282,7 @@ function RatingsPanel({ books }: { books: InteractBooks }) {
             <strong>Elo ratings</strong> from {num(e.n)} completed matches since {books.from}. Everyone starts at 1,500. After each match the winner takes points from the loser: more for an upset, fewer
             for a win that was expected. On the same matches, the better-ranked player won {pct1(e.rankAccuracy)}.
           </p>
-          <Formula
-            where={
-              <>
-                <i>E</i> is A&apos;s expected chance against B; <i>S</i> is 1 for a win, 0 for a loss; <i>n</i> is how many matches A has played, so a newcomer&apos;s rating moves fast and a veteran&apos;s
-                settles.
-              </>
-            }
-          >
-            <Eq>
-              <V>E</V>
-              <Sub>A</Sub>
-              <Op>=</Op>
-              <Frac
-                n="1"
-                d={
-                  <>
-                    1 + 10
-                    <Sup>
-                      (<i>R</i>
-                      <sub>B</sub> − <i>R</i>
-                      <sub>A</sub>)/400
-                    </Sup>
-                  </>
-                }
-              />
-            </Eq>
-            <Eq>
-              <V>R</V>
-              <Sub>A</Sub>′<Op>=</Op>
-              <V>R</V>
-              <Sub>A</Sub>
-              <Op>+</Op>
-              <Frac
-                n="250"
-                d={
-                  <>
-                    (<i>n</i> + 5)<Sup>0.4</Sup>
-                  </>
-                }
-              />
-              (<V>S</V>
-              <Op>−</Op>
-              <V>E</V>
-              <Sub>A</Sub>)
-            </Eq>
-          </Formula>
+          <EloFormula />
           <p>
             <strong>Each surface has its own rating</strong>, from matches on it alone (carpet counts as hard). The chance uses a mix of the two; the slider sets it. {books.from} is a warm-up, because
             everyone starts level however good, so seasons from <strong>{e.from}</strong> are shown. A season&apos;s rating is where it stood after the player&apos;s last match of it. Players need 30
@@ -1343,6 +1298,58 @@ function RatingsPanel({ books }: { books: InteractBooks }) {
 }
 
 /** The page's opening: the top 10 by rating at any month, a timeline of the range they spanned, and the list itself */
+/** The Elo update, set as mathematics: shared by Across eras and the top 10 */
+function EloFormula() {
+  return (
+    <Formula
+      where={
+        <>
+          <i>E</i> is A&apos;s expected chance against B; <i>S</i> is 1 for a win, 0 for a loss; <i>n</i> is how many matches A has played, so a newcomer&apos;s rating moves fast and a veteran&apos;s
+          settles.
+        </>
+      }
+    >
+      <Eq>
+        <V>E</V>
+        <Sub>A</Sub>
+        <Op>=</Op>
+        <Frac
+          n="1"
+          d={
+            <>
+              1 + 10
+              <Sup>
+                (<i>R</i>
+                <sub>B</sub> − <i>R</i>
+                <sub>A</sub>)/400
+              </Sup>
+            </>
+          }
+        />
+      </Eq>
+      <Eq>
+        <V>R</V>
+        <Sub>A</Sub>′<Op>=</Op>
+        <V>R</V>
+        <Sub>A</Sub>
+        <Op>+</Op>
+        <Frac
+          n="250"
+          d={
+            <>
+              (<i>n</i> + 5)<Sup>0.4</Sup>
+            </>
+          }
+        />
+        (<V>S</V>
+        <Op>−</Op>
+        <V>E</V>
+        <Sub>A</Sub>)
+      </Eq>
+    </Formula>
+  );
+}
+
 // The validated categorical palette in slot order; the first four are the players' own colours
 const SLOTS = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300", "#6250d6", "#e34948"];
 const ownSlot: Record<string, number> = { Alcaraz: 0, Sinner: 1, Djokovic: 2, Rybakina: 3 };
@@ -1417,8 +1424,28 @@ function TopTen({ books }: { books: InteractBooks }) {
         <div>
           <h2 className="font-display text-2xl font-bold tracking-tight sm:text-3xl">The top 10 at any moment</h2>
           <p className="text-sm text-muted">
-            Every month since {e.months[0]?.slice(0, 4)}, by Elo rating at the month&apos;s end (see Across eras below), for anyone with a match in the year before and 20 matches in all (10 on the surface).
+            Every month since {e.months[0]?.slice(0, 4)}, by Elo rating at the month&apos;s end, for anyone with a match in the year before and 20 matches in all (10 on the surface).
           </p>
+          <details className="group mt-3 max-w-3xl">
+            <summary className="inline-flex cursor-pointer list-none items-center gap-1.5 rounded-full text-sm font-semibold text-court underline-offset-4 hover:underline [&::-webkit-details-marker]:hidden">
+              <span aria-hidden className="inline-block transition-transform group-open:rotate-90">
+                ›
+              </span>
+              How Elo is calculated
+            </summary>
+            <div className="mt-3 space-y-3 rounded-2xl bg-background px-4 py-4 text-sm leading-relaxed text-muted [&_strong]:font-semibold [&_strong]:text-foreground">
+              <p>
+                <strong>Elo</strong> is a rating built from results alone, one match at a time, in the order they were played. Everyone starts at <strong>1,500</strong>. After each completed match the
+                winner takes points from the loser: a lot for beating someone rated far higher, a little for beating someone rated far lower. Walkovers don&apos;t count. Neither does the score: a
+                win is a win.
+              </p>
+              <EloFormula />
+              <p>
+                The ratings start in {books.from}, which is a warm-up season: everyone begins level, however good, so the chart starts in {e.months[0]?.slice(0, 4)}. The hard, clay and grass ratings
+                work the same way, counting only matches on that surface. A rating gap of 100 points means the higher-rated player wins about 64% of the time, and 200 points about 76%.
+              </p>
+            </div>
+          </details>
         </div>
         <Chips label="Rating" options={(["all", "hard", "clay", "grass"] as CourtOrAll[]).map((c) => ({ id: c, label: c === "all" ? "Overall" : courtWords[c] }))} value={topCourt} onChange={setTopCourt} />
       </div>
