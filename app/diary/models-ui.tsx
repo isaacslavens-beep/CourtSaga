@@ -1465,9 +1465,15 @@ function PressurePanel({ books }: { books: AdvancedBooks }) {
   const keys = useMemo(() => [...new Set(pressureMeasures.flatMap((m) => Object.keys(books.pressure[m].players).map((i) => books.people[Number(i)])))], [books]);
   const topTen = useMemo(() => new Set(books.topTen.map((i) => books.people[i])), [books]);
   // One player at a time: until someone is picked, the top-10 player whose edge on this measure is surest to be high
-  // (the highest low end of the 95% interval, so a big edge on few chances doesn't win)
+  // (the highest low end of the 95% interval), among those with at least the typical top-10 player's number of chances,
+  // so a short career's lucky streak doesn't win
   const [chosen, setChosen] = useState<string | null | undefined>(undefined);
-  const best = useMemo(() => rows.filter((x) => topTen.has(x.k)).sort((a, b) => b.edge - b.half - (a.edge - a.half))[0]?.k, [rows, topTen]);
+  const best = useMemo(() => {
+    const pool = rows.filter((x) => topTen.has(x.k));
+    const counts = pool.map((x) => x.r[P.n]).sort((a, b) => a - b);
+    const typical = counts[Math.floor(counts.length / 2)] ?? 0;
+    return pool.filter((x) => x.r[P.n] >= typical).sort((a, b) => b.edge - b.half - (a.edge - a.half))[0]?.k;
+  }, [rows, topTen]);
   const picked = chosen === undefined ? (best ? [best] : []) : chosen ? [chosen] : [];
   const setPicked = (ks: string[]) => setChosen(ks[0] ?? null);
   const styles = chartStyles(picked.map((k) => books.names[k]));
