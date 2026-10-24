@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from "react";
 import { TournamentLabel } from "../match-ui";
 import { Avatar } from "./fun";
 import { diaryPages, eventLabel, scoreText, toMatches, type MatchRow } from "./library";
@@ -12,6 +12,14 @@ import { useLog } from "./store";
 type Results = { results: MatchRow[]; total: number; page: number; pages: number; size: number; query: string; corrected: string | null };
 
 const examples = ["alcaraz sinner", "wimbledon 2008 final", "sabalenka ao 2023"];
+
+// Phones get a placeholder short enough to fit the bar
+const narrow = "(max-width: 639px)";
+const subscribeNarrow = (on: () => void) => {
+  const q = matchMedia(narrow);
+  q.addEventListener("change", on);
+  return () => q.removeEventListener("change", on);
+};
 
 /** A search for a season after the last one in the data */
 const notInYet = (query: string, last: number) => (query.match(/\b(19|20)\d{2}\b/g) ?? []).some((y) => Number(y) > last);
@@ -27,6 +35,7 @@ export function MatchFinder({ seasons, onPick, inside }: { seasons: [number, num
   const [failed, setFailed] = useState(false);
   const [loading, setLoading] = useState(false);
   const typed = query.trim();
+  const isNarrow = useSyncExternalStore(subscribeNarrow, () => matchMedia(narrow).matches, () => false);
 
   // Search once typing pauses; a newer search cancels an older one
   useEffect(() => {
@@ -86,14 +95,15 @@ export function MatchFinder({ seasons, onPick, inside }: { seasons: [number, num
             type="search"
             value={query}
             onChange={(e) => search(e.target.value)}
-            placeholder={`Try "${examples[0]}" or "${examples[1]}"`}
+            placeholder={isNarrow ? `Try "${examples[0]}"` : `Try "${examples[0]}" or "${examples[1]}"`}
             autoComplete="off"
             spellCheck={false}
-            className={`w-full rounded-full border-2 border-line bg-background py-3 pl-12 text-lg font-medium placeholder:text-muted/70 focus:border-court focus:outline-none focus:ring-4 focus:ring-court/15 ${inside ? "pr-40 sm:pr-48" : "pr-4"}`}
+            className={`w-full rounded-full border-2 border-line bg-background py-3 pl-12 text-lg font-medium placeholder:text-muted/70 focus:border-court focus:outline-none focus:ring-4 focus:ring-court/15 ${inside ? "pr-4 sm:pr-48" : "pr-4"}`}
           />
-          {/* Something to press at the bar's right end: Surprise me */}
-          {inside && <span className="absolute right-1.5 top-1/2 -translate-y-1/2">{inside}</span>}
+          {/* Something to press at the bar's right end: Surprise me (under it on phones, where the bar is narrow) */}
+          {inside && <span className="absolute right-1.5 top-1/2 hidden -translate-y-1/2 sm:inline">{inside}</span>}
         </div>
+        {inside && <div className="mt-3 sm:hidden">{inside}</div>}
       </div>
 
       {!typed && (

@@ -1463,9 +1463,10 @@ function PressurePanel({ books }: { books: AdvancedBooks }) {
   );
   const byKey = useMemo(() => new Map(rows.map((x) => [x.k, x])), [rows]);
   const keys = useMemo(() => [...new Set(pressureMeasures.flatMap((m) => Object.keys(books.pressure[m].players).map((i) => books.people[Number(i)])))], [books]);
+  // One player at a time
   const [picked, setPicked] = useState<string[]>(() => {
-    const want = books.tour === "atp" ? ["Rafael Nadal", "Roger Federer", "Novak Djokovic"] : ["Iga Swiatek", "Serena Williams", "Aryna Sabalenka"];
-    return want.map((n) => keys.find((k) => books.full[k] === n)).filter(Boolean) as string[];
+    const want = books.tour === "atp" ? "Novak Djokovic" : "Iga Swiatek";
+    return keys.filter((k) => books.full[k] === want).slice(0, 1);
   });
   const styles = chartStyles(picked.map((k) => books.names[k]));
   const colorOf = (k: string) => styles.get(books.names[k])?.color ?? "var(--muted)";
@@ -1522,23 +1523,16 @@ function PressurePanel({ books }: { books: AdvancedBooks }) {
             setHover(null);
           }}
         />
-        <div className="mt-4 grid gap-3 sm:grid-cols-3">
-          {[0, 1, 2].map((slot) => (
-            <PlayerPicker
-              key={`${slot}-${picked[slot] ?? ""}`}
-              label={slot === 0 ? "Compare a player" : "And another"}
-              keys={keys}
-              books={books}
-              value={picked[slot] ?? null}
-              color={picked[slot] ? colorOf(picked[slot]) : undefined}
-              onChange={(k) => {
-                const next = picked.filter((_, i) => i !== slot);
-                if (k && !next.includes(k)) next.splice(Math.min(slot, next.length), 0, k);
-                setPicked(next);
-              }}
-              placeholder="Find a player"
-            />
-          ))}
+        <div className="mt-4 max-w-md">
+          <PlayerPicker
+            label="Pick a player"
+            keys={keys}
+            books={books}
+            value={picked[0] ?? null}
+            color={picked[0] ? colorOf(picked[0]) : undefined}
+            onChange={(k) => setPicked(k ? [k] : [])}
+            placeholder="Find a player"
+          />
         </div>
 
         <div className="mt-6">
@@ -1554,30 +1548,6 @@ function PressurePanel({ books }: { books: AdvancedBooks }) {
                   </>
                 }
               />
-              {picked.filter((k) => k !== lead).length > 0 && (
-                <ul className="mt-3 space-y-1 text-sm text-muted">
-                  {picked
-                    .filter((k) => k !== lead)
-                    .map((k) => {
-                      const x = byKey.get(k);
-                      return (
-                        <li key={k} className="flex items-center gap-2">
-                          <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: colorOf(k) }} />
-                          <span>
-                            <strong className="text-foreground">{books.full[k]}</strong>:{" "}
-                            {x ? (
-                              <>
-                                <span className="font-mono tabular-nums">{signed(x.edge, 1)}</span> ({num(x.r[P.won])} of {num(x.r[P.n])}, expected {pct1(x.expected)})
-                              </>
-                            ) : (
-                              <>fewer than {fit.min} {words.chances}</>
-                            )}
-                          </span>
-                        </li>
-                      );
-                    })}
-                </ul>
-              )}
             </>
           ) : (
             <p className="text-muted">
@@ -1602,7 +1572,7 @@ function PressurePanel({ books }: { books: AdvancedBooks }) {
           <Figure
             n="3.1"
             title={`${words.label}: won against expected`}
-            sub={`Everyone with ${fit.min}+ ${words.chances}, ${fit.years[0]}–${fit.years[1]}. Hover a dot to see who; click to compare.`}
+            sub={`Everyone with ${fit.min}+ ${words.chances}, ${fit.years[0]}–${fit.years[1]}. Hover a dot to see who; click to pick that player.`}
             legend={
               <Legend
                 items={[
@@ -1637,7 +1607,7 @@ function PressurePanel({ books }: { books: AdvancedBooks }) {
                     const cx = s.x(clamp(x.expected * 100, x0, x1));
                     const cy = s.y(clamp(x.share * 100, y0, y1));
                     return (
-                      <g key={x.k} onPointerEnter={() => setHover(x.k)} onClick={() => setPicked([x.k, ...picked.filter((k) => k !== x.k)].slice(0, 3))} className="cursor-pointer">
+                      <g key={x.k} onPointerEnter={() => setHover(x.k)} onClick={() => setPicked([x.k])} className="cursor-pointer">
                         <circle cx={cx} cy={cy} r={8} fill="transparent" />
                         <circle cx={cx} cy={cy} r={hover === x.k ? 5 : 3} fill={hover === x.k ? INK : "var(--muted)"} fillOpacity={hover === x.k ? 1 : 0.4} />
                       </g>
@@ -1705,7 +1675,7 @@ function PressurePanel({ books }: { books: AdvancedBooks }) {
                 <li key={x.k} className="grid grid-cols-[minmax(0,7rem)_minmax(0,1fr)_4.5rem] items-center gap-3 py-1.5 text-sm sm:grid-cols-[minmax(0,10rem)_4rem_minmax(0,1fr)_4.5rem]">
                   <button
                     type="button"
-                    onClick={() => setPicked([x.k, ...picked.filter((k) => k !== x.k)].slice(0, 3))}
+                    onClick={() => setPicked([x.k])}
                     className="cursor-pointer truncate text-left font-semibold text-foreground transition hover:text-court"
                     title={`${books.full[x.k]}: ${num(x.r[P.won])} of ${num(x.r[P.n])}, expected ${pct1(x.expected)}`}
                   >
@@ -1752,7 +1722,7 @@ function PressurePanel({ books }: { books: AdvancedBooks }) {
                   {[...halves.filter((h) => !picked.includes(h.k)), ...halves.filter((h) => picked.includes(h.k))].map((h) => {
                     const on = picked.includes(h.k) || hover === h.k;
                     return (
-                      <g key={h.k} onPointerEnter={() => setHover(h.k)} onClick={() => setPicked([h.k, ...picked.filter((k) => k !== h.k)].slice(0, 3))} className="cursor-pointer">
+                      <g key={h.k} onPointerEnter={() => setHover(h.k)} onClick={() => setPicked([h.k])} className="cursor-pointer">
                         <circle cx={s.x(clamp(h.even, -hMax, hMax))} cy={s.y(clamp(h.odd, -hMax, hMax))} r={8} fill="transparent" />
                         <circle
                           cx={s.x(clamp(h.even, -hMax, hMax))}
