@@ -2077,7 +2077,11 @@ export function AdvancedView({ books }: { books: AdvancedBooks }) {
   return (
     <div className="space-y-8">
       <div className="space-y-3">
-        <div className="flex justify-end">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h1 className="flex items-center gap-3 font-display text-2xl font-bold tracking-tight sm:text-3xl">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-ball font-sans text-base text-[#0b0d12] ring-1 ring-black/10">4</span>
+            Advanced Analytics
+          </h1>
           <div className="flex rounded-full bg-surface p-1 shadow-sm ring-1 ring-line" role="group" aria-label="Tour">
             {tours.map((t) => (
               <Link

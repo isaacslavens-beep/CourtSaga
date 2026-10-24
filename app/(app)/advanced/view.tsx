@@ -3,12 +3,11 @@ import { Suspense } from "react";
 import { advancedModels } from "@/lib/models";
 import type { Tour } from "../../diary/library";
 import { AdvancedView } from "../../diary/models-ui";
-import { CourtBand } from "../../court-band";
-import { StepHeading } from "../../step-heading";
 import { OpeningDiary } from "../loading-page";
 
-/* Advanced, for one tour: the models (app/diary/models.ts) on Roland Garros's clay. Nothing here depends
-   on who's looking, so the page is built ahead of time and rebuilt as the data changes. */
+/* Advanced, for one tour: the models (app/diary/models.ts) on Roland Garros's clay, under a plain heading, as
+   the content speaks for itself. Nothing here depends on who's looking, so the page is built ahead of time and
+   rebuilt as the data changes. */
 
 // The models' formulas are set in a maths face, loaded only here
 const mathFace = STIX_Two_Text({ subsets: ["latin"], style: ["normal", "italic"], variable: "--font-math", preload: false });
@@ -18,17 +17,6 @@ export const advancedDescription = "Play with models fitted to every tour-level 
 export function AdvancedPage({ tour }: { tour: Tour }) {
   return (
     <div className={`court-rg flex flex-1 flex-col ${mathFace.variable}`}>
-      <CourtBand compact>
-        <StepHeading
-          as="h1"
-          onCourt
-          compact
-          n={4}
-          verb="Play with"
-          title="Advanced"
-          body="Move the numbers and watch the answer change. Every model says what it was built from and how often it's right."
-        />
-      </CourtBand>
       <section className="court-page flex-1 pb-16 pt-6 sm:pt-8">
         <div className="mx-auto w-full max-w-6xl px-4 sm:px-8">
           <Suspense fallback={<OpeningDiary />}>
