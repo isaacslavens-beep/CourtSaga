@@ -21,10 +21,10 @@ models of the numbers in Interact. Live at [courtsaga.com](https://www.courtsaga
 | `app/diary/` | The log, ranking and saga, used by both the demos and real diaries. `library.ts` holds the shared types and rules, `books.ts` the saga's rules, `store.tsx` the state and saving, and `finder.tsx` match search. |
 | `app/(app)/` | The app's pages (`/explore`, `/saga`, `/statistics`, `/interact`, `/account`) and the server actions that keep a diary. Explore opens signed out only for a shared match, with nowhere to go from it. |
 | `app/diary/records.ts`, `lib/records.ts` | Statistics: every board's rules, and the loader that reads a tour's matches and builds them. The pages are prerendered and rebuilt daily. |
-| `app/diary/models.ts`, `lib/models.ts` | Interact: six models fitted to a tour's matches (upset odds, Elo ratings across eras, serving, draw replays, ages, match length), and the loader that fits them. Built ahead of time and rebuilt daily, like Statistics; the draws load on their own from `GET /api/draws/[tour]`. |
+| `app/diary/models.ts`, `lib/models.ts` | Interact: six models fitted to a tour's matches (upset odds, Elo ratings across eras, serving, big points under pressure, ages, match length), and the loader that fits them. Built ahead of time and rebuilt daily, like Statistics. |
 | `app/(auth)/` | Sign up and log in. |
 | `app/s/[slug]/` | A shared saga: read-only, kept out of search engines. |
-| `app/api/` | Better Auth's endpoints, `GET /api/search`, and `GET /api/draws/[tour]` for Interact. |
+| `app/api/` | Better Auth's endpoints and `GET /api/search`. |
 | `lib/` | Accounts (`auth.ts`), diary and search queries (`diary.ts`). |
 | `db/`, `drizzle/` | The schema and database client, and the migrations generated from them. |
 | `scripts/` | `migrate.ts` and `import-matches.ts`. |

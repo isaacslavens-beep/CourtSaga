@@ -6,7 +6,7 @@ import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type Pointe
 import upsetsPhoto from "@/public/photos/rybakina-uso-2026.jpg";
 import ratingsPhoto from "@/public/photos/nadal-federer-ao-2009-final.jpg";
 import servePhoto from "@/public/photos/sinner-wimbledon-2025.jpg";
-import drawsPhoto from "@/public/photos/djokovic-wimbledon-centre-court.jpg";
+import pressurePhoto from "@/public/photos/djokovic-wimbledon-centre-court.jpg";
 import agesPhoto from "@/public/photos/federer-roland-garros.jpg";
 import lengthPhoto from "@/public/photos/nadal-ao-2022-final.jpg";
 import { Avatar, chartStyles } from "./fun";
@@ -18,25 +18,22 @@ import {
   bestOfFive,
   blend,
   cellIndex,
-  championOf,
   courtMatches,
   courtRating,
-  drawOdds,
   eloChance,
   lengthPrediction,
-  realWins,
+  P,
+  pressureMeasures,
   S,
   serveChance,
   serveRange,
   serveStats,
   upsetModelChance,
   type AgeEra,
-  type Bracket,
   type Calibration,
   type CourtOrAll,
-  type DrawBook,
-  type DrawEvent,
   type InteractBooks,
+  type PressureMeasure,
   type SeasonRow,
   type ServeStat,
 } from "./models";
@@ -50,13 +47,6 @@ const exploreHref = (id: string) => `/explore?m=${encodeURIComponent(id)}`;
 const pct = (x: number) => (x > 0 && x < 0.005 ? "<1%" : x < 1 && x > 0.995 ? ">99%" : `${Math.round(x * 100)}%`);
 const pct1 = (x: number) => `${(Math.round(x * 1000) / 10).toLocaleString("en-GB")}%`;
 const num = (n: number) => n.toLocaleString("en-GB");
-/** A small chance as odds: "1 in 2,500" */
-const odds = (x: number) => {
-  if (x >= 0.01) return pct(x);
-  const n = 1 / x;
-  const step = 10 ** Math.max(0, Math.floor(Math.log10(n)) - 1); // two significant figures
-  return `1 in ${num(Math.round(n / step) * step)}`;
-};
 /** A signed number with a true minus sign: +45, −12, ±0 */
 const signed = (n: number, digits = 0) => {
   const s = Math.abs(n).toFixed(digits);
@@ -83,12 +73,12 @@ function wilson(won: number, n: number, z = 1.96): [number, number] {
 
 /* ---------- The panels, and which is open ---------- */
 
-type PanelId = "upsets" | "ratings" | "serve" | "draws" | "ages" | "length";
+type PanelId = "upsets" | "ratings" | "serve" | "pressure" | "ages" | "length";
 const panels: { id: PanelId; title: string; blurb: string; photo: StaticImageData; alt: string; position: string }[] = [
   { id: "upsets", title: "Upsets", blurb: "Set two rankings and a surface, and see how often the lower-ranked player wins.", photo: upsetsPhoto, alt: "Rybakina at the US Open", position: "object-[45%_25%]" },
   { id: "ratings", title: "Across eras", blurb: "Put any two players, each in any season, against each other, and see who led when.", photo: ratingsPhoto, alt: "Nadal and Federer after the 2009 Australian Open final", position: "object-[50%_30%]" },
   { id: "serve", title: "Serving", blurb: "Set a serving line, or load a player's, and see what it's worth.", photo: servePhoto, alt: "Sinner stretching for a forehand at Wimbledon", position: "object-[55%_35%]" },
-  { id: "draws", title: "Draws", blurb: "Replay a Slam or a 1000 from its real draw, take players out, and see how likely the champion was.", photo: drawsPhoto, alt: "Djokovic lunging on Centre Court at Wimbledon", position: "object-center" },
+  { id: "pressure", title: "Under pressure", blurb: "Break points, tiebreaks and deciding sets: who wins more of the big points than the rest of their play says they should, and whether that lasts.", photo: pressurePhoto, alt: "Djokovic lunging on Centre Court at Wimbledon", position: "object-center" },
   { id: "ages", title: "Ages", blurb: "When players do their best tennis, and how any player's career compares.", photo: agesPhoto, alt: "Federer raising a finger at Roland Garros", position: "object-[50%_20%]" },
   { id: "length", title: "Match length", blurb: "How long a match should take, and the ones that ran furthest past it.", photo: lengthPhoto, alt: "Nadal roaring after the 2022 Australian Open final", position: "object-[55%_30%]" },
 ];
@@ -1125,7 +1115,6 @@ function RatingsPanel({ books }: { books: InteractBooks }) {
   const lastSeason = seasonsShown[seasonsShown.length - 1];
   const yValues = [a, b].flatMap((p) => (p ? byPlayer.get(p.key)!.map(ratingOf) : []));
   const yTicks = niceTicks(Math.max(2000, ...yValues) + 90, 5, Math.min(1500, ...yValues) - 20);
-  const gapMax = Math.max(400, Math.ceil((Math.abs(gap) + 60) / 100) * 100);
 
   const side = (p: Choice | null, set: (p: Choice | null) => void, label: string) => {
     const row = rowOf(p);
@@ -1202,23 +1191,10 @@ function RatingsPanel({ books }: { books: InteractBooks }) {
             </div>
           )}
 
-          {a && b && ra && rb && (
-            <div className="mt-8">
-              <Figure
-                n="2.1"
-                title="The matchup on the Elo curve"
-                sub="Every rating gap has one chance of winning. Drag along the chart to try another gap."
-                legend={<Legend items={[{ label: five ? "Best of five" : "Best of three", color: BLUE }, ...(five ? [{ label: "Best of three, for comparison", color: "var(--muted)", kind: "dash" as const }] : [])]} />}
-              >
-                <EloCurve gap={gap} gapMax={gapMax} chanceAt={chanceAt} five={five} name={books.names[a.key]} />
-              </Figure>
-            </div>
-          )}
-
           {a && b && (
             <div className="mt-8">
               <Figure
-                n="2.2"
+                n="2.1"
                 title={`Season by season${court === "all" ? "" : `, ${mix}% ${court}`}`}
                 sub="Click a season on either line to pick it."
                 legend={<Legend items={[a, b].map((p) => ({ label: books.names[p.key], color: colorOf(p.key) }))} />}
@@ -1361,60 +1337,13 @@ function RatingsPanel({ books }: { books: InteractBooks }) {
             matches, and a season 5.
           </p>
           {bo5 && <p>Best of five turns the best-of-three chance into a chance per set and plays to three sets won. Ratings learn from both lengths, so this is an estimate.</p>}
-          <CalibrationChart calibration={e.calibration} n="2.4" />
+          <CalibrationChart calibration={e.calibration} n="2.3" />
           <p>Ratings don&apos;t fade with time off, and they aren&apos;t the official rankings.</p>
         </Behind>
       </div>
 
       <TopTen books={books} />
     </div>
-  );
-}
-
-/** The logistic curve Elo rests on, with the matchup's gap marked; a drag tries other gaps */
-function EloCurve({ gap, gapMax, chanceAt, five, name }: { gap: number; gapMax: number; chanceAt: (g: number) => number; five: boolean; name: string }) {
-  const [probe, setProbe] = useState<number | null>(null);
-  const shown = probe ?? gap;
-  const steps = Array.from({ length: 121 }, (_, i) => -gapMax + (2 * gapMax * i) / 120);
-  const ticks = niceTicks(gapMax, 2)
-    .flatMap((t) => (t ? [-t, t] : [0]))
-    .sort((x, y) => x - y);
-  return (
-    <>
-      <Plot
-        height={250}
-        label="Chance of winning against the rating gap"
-        x={{ min: -gapMax, max: gapMax, ticks, minor: niceTicks(gapMax, 8).flatMap((t) => (t ? [-t, t] : [])), format: (v) => (v ? signed(v) : "0"), title: `${name}'s rating gap` }}
-        y={{ min: 0, max: 100, ticks: [0, 25, 50, 75, 100], format: (v) => `${v}%`, title: `${name}'s chance` }}
-        xGrid
-        onPick={(g) => setProbe(clamp(Math.round(g / 5) * 5, -gapMax, gapMax))}
-        tip={(at) => ({
-          at,
-          marks: [{ y: chanceAt(at) * 100, color: BLUE }],
-          body: (
-            <>
-              Gap <span className="n">{signed(Math.round(at))}</span>: <strong className="n">{pct1(chanceAt(at))}</strong>
-            </>
-          ),
-        })}
-      >
-        {(s) => (
-          <>
-            {five && <path d={linePath(steps.map((g) => [s.x(g), s.y(eloChance(g, 0) * 100)]))} fill="none" stroke="var(--muted)" strokeWidth={1.5} strokeDasharray="5 4" />}
-            <path d={linePath(steps.map((g) => [s.x(g), s.y(chanceAt(g) * 100)]))} fill="none" stroke={BLUE} strokeWidth={2.5} strokeLinecap="round" />
-            {probe !== null && <circle cx={s.x(gap)} cy={s.y(chanceAt(gap) * 100)} r={4} fill={BLUE} stroke="var(--surface)" strokeWidth={2} />}
-            <Guides x={s.x(shown)} y={s.y(chanceAt(shown) * 100)} s={s} />
-            <circle cx={s.x(shown)} cy={s.y(chanceAt(shown) * 100)} r={6.5} fill={probe === null ? BLUE : "var(--surface)"} stroke={BLUE} strokeWidth={2.5} />
-            <Callout x={s.x(shown)} y={s.y(chanceAt(shown) * 100)} text={`${signed(Math.round(shown))} → ${pct1(chanceAt(shown))}`} s={s} />
-          </>
-        )}
-      </Plot>
-      {probe !== null && (
-        <button type="button" onClick={() => setProbe(null)} className="mt-1 cursor-pointer text-sm font-semibold text-court underline-offset-4 hover:underline">
-          Back to the matchup&apos;s gap
-        </button>
-      )}
-    </>
   );
 }
 
@@ -1450,7 +1379,7 @@ function TopTen({ books }: { books: InteractBooks }) {
       </div>
       <div className="mt-5">
         <Figure
-          n="2.3"
+          n="2.2"
           title="The top of the game, month by month"
           sub="Drag across the timeline to travel."
           legend={<Legend items={[{ label: "No. 1", color: INK }, { label: "No. 1 to No. 10", color: BLUE, kind: "band" }]} />}
@@ -1792,446 +1721,404 @@ function ServeFigure({
   );
 }
 
-/* ---------- Draws ---------- */
+/* ---------- Under pressure ---------- */
 
-const drawCache = new Map<string, Promise<DrawBook>>();
-const loadDraws = (tour: string) => {
-  if (!drawCache.has(tour))
-    drawCache.set(
-      tour,
-      fetch(`/api/draws/${tour}`).then((r) => {
-        if (!r.ok) throw new Error("No draws");
-        return r.json() as Promise<DrawBook>;
+const pressureWords: Record<PressureMeasure, { label: string; chances: string; won: string; base: string }> = {
+  saved: { label: "Break points saved", chances: "break points faced", won: "saved", base: "serve points won" },
+  converted: { label: "Break points won", chances: "break points earned", won: "won", base: "return points won" },
+  tiebreaks: { label: "Tiebreaks", chances: "tiebreaks", won: "won", base: "points won" },
+  deciders: { label: "Deciding sets", chances: "deciding sets", won: "won", base: "points won" },
+};
+/** How much an edge in one half of a career says about the other, in words */
+const lasting = (r: number) => (r < 0.15 ? "almost nothing" : r < 0.35 ? "a little" : r < 0.6 ? "a fair amount" : "a lot");
+
+function PressurePanel({ books }: { books: InteractBooks }) {
+  const [measure, setMeasure] = useState<PressureMeasure>("saved");
+  const fit = books.pressure[measure];
+  const words = pressureWords[measure];
+  // Each listed player: their edge in points (won minus expected, per 100 chances) and its 95% interval
+  const rows = useMemo(
+    () =>
+      Object.entries(fit.players).map(([i, r]) => {
+        const share = r[P.won] / r[P.n];
+        const expected = r[P.exp] / r[P.n];
+        return { k: books.people[Number(i)], r, share, expected, edge: (share - expected) * 100, half: 196 * Math.sqrt((expected * (1 - expected)) / r[P.n]) };
       }),
-    );
-  return drawCache.get(tour)!;
-};
+    [fit, books.people],
+  );
+  const byKey = useMemo(() => new Map(rows.map((x) => [x.k, x])), [rows]);
+  const keys = useMemo(() => [...new Set(pressureMeasures.flatMap((m) => Object.keys(books.pressure[m].players).map((i) => books.people[Number(i)])))], [books]);
+  const [picked, setPicked] = useState<string[]>(() => {
+    const want = books.tour === "atp" ? ["Rafael Nadal", "Roger Federer", "Novak Djokovic"] : ["Iga Swiatek", "Serena Williams", "Aryna Sabalenka"];
+    return want.map((n) => keys.find((k) => books.full[k] === n)).filter(Boolean) as string[];
+  });
+  const styles = chartStyles(picked.map((k) => books.names[k]));
+  const colorOf = (k: string) => styles.get(books.names[k])?.color ?? "var(--muted)";
+  const [hover, setHover] = useState<string | null>(null);
+  const lead = picked.find((k) => byKey.has(k));
+  const leader = lead ? byKey.get(lead)! : null;
 
-/** What a round is called, by how many matches from the final it is (0 is the final) */
-const roundFromEnd = (k: number) => (k === 0 ? "Final" : k === 1 ? "Semifinal" : k === 2 ? "Quarterfinal" : `Round of ${2 ** (k + 1)}`);
-/** A round's short name by how many matches are left to win: 1 is the final, 0 the title */
-const roundShort = (left: number) => (left === 0 ? "Won" : left === 1 ? "F" : left === 2 ? "SF" : left === 3 ? "QF" : `R${2 ** left}`);
-
-function DrawsPanel({ books }: { books: InteractBooks }) {
-  const [book, setBook] = useState<DrawBook | null>(null);
-  const [failed, setFailed] = useState(false);
-  useEffect(() => {
-    let live = true;
-    loadDraws(books.tour)
-      .then((b) => live && setBook(b))
-      .catch(() => live && setFailed(true));
-    return () => {
-      live = false;
-    };
-  }, [books.tour]);
-  if (failed) return <p className="rounded-2xl bg-fault/10 px-4 py-3 font-medium text-fault">The draws aren&apos;t available right now. Try again in a little while.</p>;
-  if (!book) return <p className="py-10 text-center font-medium text-muted" role="status">Loading the draws…</p>;
-  return <DrawsLoaded book={book} books={books} />;
-}
-
-const chanceFor = (ev: DrawEvent) => (a: number, b: number) => {
-  const p = eloChance(ev.ratings[a], ev.ratings[b]);
-  return ev.bestOf === 5 ? (p >= 0.5 ? bestOfFive(p) : 1 - bestOfFive(1 - p)) : p;
-};
-
-function playOnce(bracket: Bracket, chance: (a: number, b: number) => number, out: Set<number>): { champion: number | null; finalist: number | null } {
-  const walk = (node: Bracket): number | null => {
-    if (typeof node === "number") return out.has(node) ? null : node;
-    const x = walk(node[0]);
-    const y = walk(node[1]);
-    if (x === null || y === null) return x ?? y;
-    return Math.random() < chance(x, y) ? x : y;
+  // The scatter's frame: every player fits
+  // Both axes share one frame, so the diagonal (won exactly as expected) runs corner to corner
+  const sortedX = rows.flatMap((x) => [x.expected * 100, x.share * 100]).sort((a, b) => a - b);
+  const q = (xs: number[], p: number) => xs[Math.min(xs.length - 1, Math.max(0, Math.round(p * (xs.length - 1))))] ?? 50;
+  const span = (xs: number[]) => {
+    const lo = xs[0] ?? 40;
+    const hi = xs[xs.length - 1] ?? 60;
+    const step = hi - lo > 30 ? 10 : 5;
+    return [Math.floor((lo - 1) / step) * step, Math.ceil((hi + 1) / step) * step, step] as const;
   };
-  if (typeof bracket === "number") return { champion: walk(bracket), finalist: null };
-  const x = walk(bracket[0]);
-  const y = walk(bracket[1]);
-  if (x === null || y === null) return { champion: x ?? y, finalist: null };
-  return Math.random() < chance(x, y) ? { champion: x, finalist: y } : { champion: y, finalist: x };
-}
+  const [x0, x1, xs] = span(sortedX);
+  const [y0, y1, ys] = [x0, x1, xs];
+  const ticks = (lo: number, hi: number, step: number) => Array.from({ length: Math.round((hi - lo) / step) + 1 }, (_, i) => lo + i * step);
 
-function DrawsLoaded({ book, books }: { book: DrawBook; books: InteractBooks }) {
-  const slams = book.events.filter((e) => e.tier === "slam");
-  const [eventId, setEventId] = useState(slams[0]?.id ?? book.events[0]?.id);
-  const [query, setQuery] = useState("");
-  const [out, setOut] = useState<Set<number>>(new Set());
+  // Even seasons against odd: does an edge last?
+  const halves = rows
+    .filter((x) => x.r[P.nEven] >= fit.min / 3 && x.r[P.nOdd] >= fit.min / 3)
+    .map((x) => ({ k: x.k, even: ((x.r[P.wonEven] - x.r[P.expEven]) / x.r[P.nEven]) * 100, odd: ((x.r[P.wonOdd] - x.r[P.expOdd]) / x.r[P.nOdd]) * 100 }));
+  const hMax = Math.max(10, Math.ceil(q(halves.map((h) => Math.max(Math.abs(h.even), Math.abs(h.odd))).sort((a, b) => a - b), 0.98) / 5) * 5);
+  const mean = (v: number[]) => v.reduce((t, x) => t + x, 0) / (v.length || 1);
+  const me = mean(halves.map((h) => h.even));
+  const mo = mean(halves.map((h) => h.odd));
+  const sd = (v: number[], m: number) => Math.sqrt(mean(v.map((x) => (x - m) ** 2)));
+  const slope = fit.halves.r * (sd(halves.map((h) => h.odd), mo) / (sd(halves.map((h) => h.even), me) || 1));
+
+  // The ranked list: above or below expectation, searchable
+  const [side, setSide] = useState<"above" | "below">("above");
   const [find, setFind] = useState("");
-  const [showAll, setShowAll] = useState(false);
-  const [tally, setTally] = useState<Map<number, number>>(new Map());
-  const [lastPlay, setLastPlay] = useState<{ champion: number | null; finalist: number | null } | null>(null);
-  const ev = book.events.find((e) => e.id === eventId) ?? book.events[0];
-  const nameOf = (i: number) => book.names[book.people[ev.entrants[i]]] ?? "?";
-  const fullOf = (i: number) => books.full[book.people[ev.entrants[i]]] ?? nameOf(i);
-
-  const pick = (id: string) => {
-    setEventId(id);
-    setOut(new Set());
-    setTally(new Map());
-    setLastPlay(null);
-    setFind("");
-    setShowAll(false);
-    setQuery("");
-  };
-
-  const chances = useMemo(() => drawOdds(ev.bracket, chanceFor(ev), out), [ev, out]);
-  const real = useMemo(() => realWins(ev.bracket), [ev]);
-  const champ = championOf(ev.bracket);
-  const fresh = useMemo(() => drawOdds(ev.bracket, chanceFor(ev)), [ev]);
-  const title = (r: number[] | undefined) => r?.at(-1) ?? 0;
-  const rows = [...chances]
-    .map(([i, r]) => ({ i, title: title(r), final: r.length >= 2 ? r.at(-2)! : title(r), path: r.length, won: real.get(i) ?? 0 }))
-    .sort((x, y) => y.title - x.title || ev.ratings[y.i] - ev.ratings[x.i]);
-  const favourite = [...fresh].reduce((best, [i, r]) => (title(r) > title(fresh.get(best)) ? i : best), champ);
-  const topTitle = Math.max(0.0001, ...rows.map((r) => r.title));
-
-  // Across every draw: how likely each champion was, and how often the favourite won
-  const surprises = useMemo(() => {
-    let favWon = 0;
-    const list = book.events.map((e) => {
-      const o = drawOdds(e.bracket, chanceFor(e));
-      const c = championOf(e.bracket);
-      const fav = [...o].reduce((best, [i, r]) => ((r.at(-1) ?? 0) > (o.get(best)?.at(-1) ?? 0) ? i : best), c);
-      if (fav === c) favWon++;
-      return { e, champion: c, chance: o.get(c)?.at(-1) ?? 0 };
-    });
-    return { favWon, list: list.sort((x, y) => x.chance - y.chance).slice(0, 5) };
-  }, [book]);
-
-  const found = query.trim() ? book.events.filter((e) => fold(`${e.event} ${e.season}`).includes(fold(query.trim()))).slice(0, 10) : [];
+  const [all, setAll] = useState(false);
   const typed = fold(find.trim());
-  const listed = typed ? rows.filter((r) => fold(fullOf(r.i)).includes(typed) || fold(nameOf(r.i)).includes(typed)) : showAll ? rows : rows.slice(0, 16);
-  const resultOf = (r: (typeof rows)[number]) => (r.i === champ ? "Champion" : roundFromEnd(r.path - r.won - 1));
-  const replays = [...tally.values()].reduce((t, v) => t + v, 0);
+  const ranked = [...rows].sort((a, b) => (side === "above" ? b.edge - a.edge : a.edge - b.edge));
+  const listed = typed ? ranked.filter((x) => fold(`${books.full[x.k]} ${books.names[x.k]}`).includes(typed)) : all ? ranked : ranked.slice(0, 10);
+  const scale = Math.max(5, Math.ceil(Math.max(...listed.map((x) => Math.abs(x.edge) + x.half), 0) / 5) * 5);
+  const at = (v: number) => `${((clamp(v, -scale, scale) + scale) / (2 * scale)) * 100}%`;
 
-  // The survival chart: the four favourites as the draw stands, and the real champion in ink
-  const depth = Math.max(1, ...rows.map((r) => r.path));
-  const floor = (vals: number[]) => clamp(10 ** Math.floor(Math.log10(Math.min(1, ...vals.filter((v) => v > 0)))), 0.001, 0.1);
-  const leaders = rows.filter((r) => !out.has(r.i)).slice(0, 4).map((r) => r.i);
-  const traced = leaders.includes(champ) || out.has(champ) ? leaders : [...leaders, champ];
-  const leaderStyles = chartStyles(leaders.map(nameOf));
-  const colorOf = (i: number) => (leaders.includes(i) ? leaderStyles.get(nameOf(i))?.color ?? BLUE : INK);
-  /** A player's chance of still being in at each column: column c has depth − c matches left to win */
-  const survival = (i: number) => {
-    const r = chances.get(i) ?? [];
-    const L = r.length;
-    return Array.from({ length: depth + 1 }, (_, c) => {
-      const left = depth - c;
-      if (left > L) return null; // a bye: not in the draw yet
-      if (left === L) return out.has(i) ? 0 : 1;
-      return r[L - left - 1];
-    });
-  };
-
-  const yFloor = floor(traced.flatMap((i) => survival(i).filter((v): v is number => v !== null)));
-  const play = (times: number) => {
-    const chance = chanceFor(ev);
-    const next = new Map(tally);
-    let last = null;
-    for (let t = 0; t < times; t++) {
-      last = playOnce(ev.bracket, chance, out);
-      if (last.champion !== null) next.set(last.champion, (next.get(last.champion) ?? 0) + 1);
-    }
-    setTally(next);
-    setLastPlay(last);
-  };
-  // For the replays figure: whoever won most often, beside their exact chance
-  const replayRows = [...new Set([...[...tally].sort((x, y) => y[1] - x[1]).map(([i]) => i), ...rows.map((r) => r.i)])]
-    .slice(0, 6)
-    .map((i) => ({ i, share: (tally.get(i) ?? 0) / Math.max(1, replays), exact: title(chances.get(i)) }));
-  const replayMax = Math.max(0.01, ...replayRows.map((r) => Math.max(r.share, r.exact)));
+  const shown = hover ? byKey.get(hover) : null;
 
   return (
     <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)]">
       <Card>
-        <label className="block">
-          <span className="font-display text-lg font-bold">Pick a draw</span>
-          <span className="relative mt-2 block">
-            <SearchIcon />
-            <input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder={`Try "Wimbledon 2008" or "Madrid"`} autoComplete="off" spellCheck={false} className={searchInput} />
-          </span>
-        </label>
-        <div className="mt-2 flex flex-wrap gap-2 text-sm">
-          {(query.trim() ? found : slams.slice(0, 4)).map((e) => (
-            <button key={e.id} type="button" onClick={() => pick(e.id)} className={chip(e.id === ev.id)}>
-              {e.event} {e.season}
-            </button>
+        <Chips
+          label="Big points"
+          options={pressureMeasures.map((m) => ({ id: m, label: pressureWords[m].label }))}
+          value={measure}
+          onChange={(m) => {
+            setMeasure(m);
+            setHover(null);
+          }}
+        />
+        <div className="mt-4 grid gap-3 sm:grid-cols-3">
+          {[0, 1, 2].map((slot) => (
+            <PlayerPicker
+              key={`${slot}-${picked[slot] ?? ""}`}
+              label={slot === 0 ? "Compare a player" : "And another"}
+              keys={keys}
+              books={books}
+              value={picked[slot] ?? null}
+              color={picked[slot] ? colorOf(picked[slot]) : undefined}
+              onChange={(k) => {
+                const next = picked.filter((_, i) => i !== slot);
+                if (k && !next.includes(k)) next.splice(Math.min(slot, next.length), 0, k);
+                setPicked(next);
+              }}
+              placeholder="Find a player"
+            />
           ))}
-          {query.trim() && !found.length && <span className="text-muted">No Slam or 1000 called &ldquo;{query.trim()}&rdquo;.</span>}
         </div>
 
-        <div className="mt-6" aria-live="polite">
-          <h3 className="font-display text-2xl font-bold tracking-tight">
-            {ev.event} {ev.season}
-          </h3>
-          <p className="text-sm text-muted">
-            {ev.entrants.length} players · {courtWords[ev.surface].toLowerCase()} · best of {ev.bestOf}
-            {ev.final && (
-              <>
-                {" · "}
-                <Link href={exploreHref(ev.final)} prefetch={false} className="font-semibold text-court underline-offset-4 hover:underline">
-                  Open the final in Explore →
-                </Link>
-              </>
-            )}
-          </p>
-          <div className="mt-4">
-            <Answer
-              value={odds(title(fresh.get(champ)))}
-              label={`${fullOf(champ)}'s chance of the title`}
-              sub={favourite === champ ? <>The favourite won it.</> : <>as the draw began. The favourite was {fullOf(favourite)} at {pct(title(fresh.get(favourite)))}.</>}
-            />
-          </div>
+        <div className="mt-6">
+          {leader && lead ? (
+            <>
+              <Answer
+                value={signed(leader.edge, 1)}
+                label={`points ${leader.edge >= 0 ? "above" : "below"} expectation`}
+                sub={
+                  <>
+                    {books.full[lead]} {words.won} {num(leader.r[P.won])} of {num(leader.r[P.n])} {words.chances} ({pct1(leader.share)}). A player with the same {words.base} in those matches would
+                    have {words.won} {pct1(leader.expected)}. 95% interval: {signed(leader.edge - leader.half, 1)} to {signed(leader.edge + leader.half, 1)}.
+                  </>
+                }
+              />
+              {picked.filter((k) => k !== lead).length > 0 && (
+                <ul className="mt-3 space-y-1 text-sm text-muted">
+                  {picked
+                    .filter((k) => k !== lead)
+                    .map((k) => {
+                      const x = byKey.get(k);
+                      return (
+                        <li key={k} className="flex items-center gap-2">
+                          <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: colorOf(k) }} />
+                          <span>
+                            <strong className="text-foreground">{books.full[k]}</strong>:{" "}
+                            {x ? (
+                              <>
+                                <span className="font-mono tabular-nums">{signed(x.edge, 1)}</span> ({num(x.r[P.won])} of {num(x.r[P.n])}, expected {pct1(x.expected)})
+                              </>
+                            ) : (
+                              <>fewer than {fit.min} {words.chances}</>
+                            )}
+                          </span>
+                        </li>
+                      );
+                    })}
+                </ul>
+              )}
+            </>
+          ) : (
+            <p className="text-muted">
+              Pick a player with {fit.min}+ {words.chances} to see how they did on them.
+            </p>
+          )}
         </div>
 
         <div className="mt-8">
           <Figure
             n="4.1"
-            title="Still in it, round by round"
-            sub={`The chance of still being in the draw at each round${out.size ? `, with ${out.size} taken out` : ""}.`}
-            legend={<Legend items={traced.map((i) => ({ label: `${nameOf(i)}${i === champ ? " (champion)" : ""}: ${odds(title(chances.get(i)))}`, color: colorOf(i) }))} />}
-            note="A log scale: each gridline down is ten times less likely, so a long shot's slide stays visible."
+            title={`${words.label}: won against expected`}
+            sub={`Everyone with ${fit.min}+ ${words.chances}, ${fit.years[0]}–${fit.years[1]}. Hover a dot to see who; click to compare.`}
+            legend={
+              <Legend
+                items={[
+                  { label: "A player", color: "var(--muted)", kind: "dot" },
+                  { label: "Won exactly as expected", color: "var(--muted)", kind: "dash" },
+                  ...picked.filter((k) => byKey.has(k)).map((k) => ({ label: books.names[k], color: colorOf(k), kind: "dot" as const })),
+                ]}
+              />
+            }
+            note={
+              shown && hover ? (
+                <>
+                  <strong className="text-foreground">{books.full[hover]}</strong>: {words.won} {num(shown.r[P.won])} of {num(shown.r[P.n])} ({pct1(shown.share)}), expected {pct1(shown.expected)},{" "}
+                  <span className="font-mono">{signed(shown.edge, 1)}</span> points
+                </>
+              ) : (
+                <>Above the diagonal: winning more of the {words.chances} than the rest of their play predicts. Below: fewer. The dotted line on a picked player is the edge.</>
+              )
+            }
           >
             <Plot
-              height={260}
-              label="Chance of reaching each round"
-              x={{ min: 0, max: depth, ticks: Array.from({ length: depth + 1 }, (_, c) => c), format: (c) => roundShort(depth - c), title: "Round" }}
-              y={{ min: yFloor, max: 1, log: true, ticks: [0.001, 0.01, 0.1, 1].filter((t) => t >= yFloor), minor: logMinor(yFloor, 1), format: (v) => (v >= 0.01 ? `${Math.round(v * 100)}%` : "0.1%"), title: "Chance of still being in" }}
-              xGrid
-              tip={(at) => {
-                const c = clamp(Math.round(at), 0, depth);
-                const marks: Tip["marks"] = [];
-                const lines = traced.map((i) => {
-                  const v = survival(i)[c];
-                  if (v === null || v === undefined) return null;
-                  if (v > 0) marks.push({ y: Math.max(yFloor, v), color: colorOf(i) });
-                  return (
-                    <span key={i} className="block">
-                      {nameOf(i)} <strong className="n">{odds(v)}</strong>
-                    </span>
-                  );
-                });
-                return {
-                  at: c,
-                  marks,
-                  body: (
-                    <>
-                      <span className="text-muted">{c === depth ? "Won the title" : `Into the ${roundFromEnd(depth - c - 1).toLowerCase()}`}</span>
-                      {lines}
-                    </>
-                  ),
-                };
-              }}
+              height={320}
+              label={`${words.label}: won against expected`}
+              x={{ min: x0, max: x1, ticks: ticks(x0, x1, xs), minor: ticks(x0, x1, xs / 5), format: (v) => `${v}%`, title: `Expected, from ${words.base} in those matches` }}
+              y={{ min: y0, max: y1, ticks: ticks(y0, y1, ys), format: (v) => `${v}%`, title: `${words.label}` }}
             >
-              {(s) =>
-                traced.map((i) => {
-                  const pts = survival(i)
-                    .map((v, c) => [c, v] as const)
-                    .filter(([, v]) => v !== null && v > 0)
-                    .map(([c, v]): [number, number] => [s.x(c), s.y(Math.max(yFloor, v!))]);
-                  return (
-                    <g key={i}>
-                      <path d={linePath(pts)} fill="none" stroke={colorOf(i)} strokeWidth={2} strokeDasharray={i === champ && !leaders.includes(i) ? "6 3" : undefined} strokeLinejoin="round" strokeLinecap="round" />
-                      {pts.map(([x, y], k) => (
-                        <circle key={k} cx={x} cy={y} r={3} fill={colorOf(i)} stroke="var(--surface)" strokeWidth={1.5} />
-                      ))}
-                    </g>
-                  );
-                })
-              }
+              {(s) => (
+                <g onPointerLeave={() => setHover(null)}>
+                  <line x1={s.x(x0)} y1={s.y(y0)} x2={s.x(x1)} y2={s.y(y1)} stroke="var(--muted)" strokeWidth={1.5} strokeDasharray="5 4" />
+                  {rows.map((x) => {
+                    if (picked.includes(x.k)) return null;
+                    const cx = s.x(clamp(x.expected * 100, x0, x1));
+                    const cy = s.y(clamp(x.share * 100, y0, y1));
+                    return (
+                      <g key={x.k} onPointerEnter={() => setHover(x.k)} onClick={() => setPicked([x.k, ...picked.filter((k) => k !== x.k)].slice(0, 3))} className="cursor-pointer">
+                        <circle cx={cx} cy={cy} r={8} fill="transparent" />
+                        <circle cx={cx} cy={cy} r={hover === x.k ? 5 : 3} fill={hover === x.k ? INK : "var(--muted)"} fillOpacity={hover === x.k ? 1 : 0.4} />
+                      </g>
+                    );
+                  })}
+                  {picked.map((k) => {
+                    const x = byKey.get(k);
+                    if (!x) return null;
+                    const cx = s.x(clamp(x.expected * 100, x0, x1));
+                    const cy = s.y(clamp(x.share * 100, y0, y1));
+                    const ey = s.y(clamp(x.expected * 100, y0, y1));
+                    return (
+                      <g key={k} onPointerEnter={() => setHover(k)}>
+                        <line x1={cx} x2={cx} y1={ey} y2={cy} stroke={colorOf(k)} strokeWidth={1.5} strokeDasharray="2 2" />
+                        <circle cx={cx} cy={cy} r={6} fill={colorOf(k)} stroke="var(--surface)" strokeWidth={2} />
+                      </g>
+                    );
+                  })}
+                  {shown && hover && (
+                    <Callout x={s.x(clamp(shown.expected * 100, x0, x1))} y={s.y(clamp(shown.share * 100, y0, y1))} text={`${books.names[hover]} ${signed(shown.edge, 1)}`} s={s} above={shown.edge >= 0} />
+                  )}
+                </g>
+              )}
             </Plot>
           </Figure>
         </div>
 
-        <div className="mt-6 flex flex-wrap items-center gap-2">
-          <button type="button" onClick={() => play(1)} className="cursor-pointer rounded-full bg-court px-4 py-2 font-semibold text-court-ink shadow-sm transition hover:opacity-90">
-            Replay it once
-          </button>
-          <button type="button" onClick={() => play(100)} className="cursor-pointer rounded-full border-2 border-court px-4 py-1.5 font-semibold text-court transition hover:bg-court/5">
-            100 times
-          </button>
-          <button type="button" onClick={() => play(1000)} className="cursor-pointer rounded-full border-2 border-court px-4 py-1.5 font-semibold text-court transition hover:bg-court/5">
-            1,000 times
-          </button>
-          {(replays > 0 || out.size > 0) && (
-            <button
-              type="button"
-              onClick={() => {
-                setTally(new Map());
-                setLastPlay(null);
-                setOut(new Set());
-              }}
-              className="cursor-pointer px-2 text-sm font-semibold text-court underline-offset-4 hover:underline"
-            >
-              Start again
-            </button>
-          )}
-        </div>
-        {lastPlay && (
-          <div className="mt-4 space-y-4" aria-live="polite">
-            {lastPlay.champion !== null && (
-              <p className="rounded-2xl bg-background px-4 py-3 text-sm text-muted">
-                Replay <span className="font-mono tabular-nums">{num(replays)}</span>: <strong className="text-foreground">{fullOf(lastPlay.champion)}</strong> won
-                {lastPlay.finalist !== null && <>, beating {fullOf(lastPlay.finalist)} in the final</>}.
-              </p>
-            )}
-            <Figure
-              n="4.2"
-              title={`Titles in ${num(replays)} ${replays === 1 ? "replay" : "replays"}, against the exact chances`}
-              legend={<Legend items={[{ label: "Share of replays won", color: BLUE, kind: "bar" }, { label: "Exact chance", color: INK }]} />}
-              note="The more replays, the closer each bar comes to its mark: the law of large numbers."
-            >
-              <ul className="space-y-1.5">
-                {replayRows.map((r) => (
-                  <li key={r.i} className="grid grid-cols-[minmax(0,6rem)_1fr_auto] items-center gap-3 text-sm sm:grid-cols-[minmax(0,8rem)_1fr_auto]">
-                    <span className="truncate font-semibold" title={fullOf(r.i)}>
-                      {nameOf(r.i)}
-                    </span>
-                    <span className="relative h-4 rounded-r-sm bg-line/40">
-                      <span className="absolute inset-y-0 left-0 rounded-r-sm transition-[width] duration-300" style={{ width: `${(r.share / replayMax) * 100}%`, background: BLUE }} />
-                      <span className="absolute -inset-y-1 w-0.5 -translate-x-1/2 rounded-full bg-foreground" style={{ left: `${(r.exact / replayMax) * 100}%` }} />
-                    </span>
-                    <span className="w-28 text-right font-mono text-xs tabular-nums">
-                      {pct1(r.share)} <span className="text-muted">v {pct1(r.exact)}</span>
-                    </span>
-                  </li>
+        <div className="mt-8">
+          <Figure
+            n="4.2"
+            title={`Furthest ${side} expectation`}
+            sub={`In points per 100 ${words.chances}, with the 95% interval`}
+            legend={<Legend items={[{ label: "Edge", color: BLUE, kind: "dot" }, { label: "95% interval", color: BLUE }]} />}
+            note="The ends of any list like this are crowded with players who had few chances: their intervals are the widest. An interval that crosses zero could be luck."
+          >
+            <div className="flex flex-wrap items-center gap-3">
+              <Chips
+                label="Show"
+                options={[
+                  { id: "above", label: "Above" },
+                  { id: "below", label: "Below" },
+                ]}
+                value={side}
+                onChange={(v) => setSide(v as "above" | "below")}
+              />
+              <div className="relative min-w-0 flex-1 basis-56 self-end">
+                <SearchIcon />
+                <input type="search" value={find} onChange={(e) => setFind(e.target.value)} placeholder="Find a player" autoComplete="off" spellCheck={false} className={searchInput} aria-label="Find a player in the list" />
+              </div>
+            </div>
+            <div className="mt-3 grid grid-cols-[minmax(0,7rem)_minmax(0,1fr)_4.5rem] items-end gap-3 border-b-2 border-foreground/20 pb-1 text-[10.5px] font-semibold uppercase tracking-wider text-muted sm:grid-cols-[minmax(0,10rem)_4rem_minmax(0,1fr)_4.5rem]">
+              <span>Player</span>
+              <span className="hidden text-right sm:block">Chances</span>
+              <span className="relative h-4 font-mono font-normal normal-case tracking-normal">
+                {[-scale, 0, scale].map((t) => (
+                  <span key={t} className={`absolute ${t === -scale ? "" : t === scale ? "-translate-x-full" : "-translate-x-1/2"}`} style={{ left: at(t) }}>
+                    {t ? signed(t) : "0"}
+                  </span>
                 ))}
-              </ul>
-            </Figure>
-          </div>
-        )}
+              </span>
+              <span className="text-right">Edge</span>
+            </div>
+            <ol className="divide-y divide-line">
+              {listed.map((x) => (
+                <li key={x.k} className="grid grid-cols-[minmax(0,7rem)_minmax(0,1fr)_4.5rem] items-center gap-3 py-1.5 text-sm sm:grid-cols-[minmax(0,10rem)_4rem_minmax(0,1fr)_4.5rem]">
+                  <button
+                    type="button"
+                    onClick={() => setPicked([x.k, ...picked.filter((k) => k !== x.k)].slice(0, 3))}
+                    className="cursor-pointer truncate text-left font-semibold text-foreground transition hover:text-court"
+                    title={`${books.full[x.k]}: ${num(x.r[P.won])} of ${num(x.r[P.n])}, expected ${pct1(x.expected)}`}
+                  >
+                    {books.names[x.k]}
+                  </button>
+                  <span className="hidden text-right font-mono text-xs tabular-nums text-muted sm:block">{num(x.r[P.n])}</span>
+                  <span className="relative h-5">
+                    <span className="absolute inset-y-0 w-px bg-foreground/50" style={{ left: at(0) }} />
+                    <span className="absolute top-1/2 h-0.5 -translate-y-1/2 rounded-full" style={{ left: at(x.edge - x.half), width: `calc(${at(x.edge + x.half)} - ${at(x.edge - x.half)})`, background: BLUE, opacity: 0.55 }} />
+                    <span className="absolute top-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full ring-2 ring-surface" style={{ left: at(x.edge), background: picked.includes(x.k) ? colorOf(x.k) : BLUE }} />
+                  </span>
+                  <span className="text-right font-mono text-sm font-semibold tabular-nums">{signed(x.edge, 1)}</span>
+                </li>
+              ))}
+            </ol>
+            {!typed && ranked.length > 10 && (
+              <button type="button" onClick={() => setAll(!all)} className="mt-2 cursor-pointer text-sm font-semibold text-court underline-offset-4 hover:underline">
+                {all ? "Show the top 10" : `Show all ${ranked.length}`}
+              </button>
+            )}
+            {typed && !listed.length && <p className="mt-2 text-sm text-muted">No one called &ldquo;{find.trim()}&rdquo; has {fit.min}+ {words.chances}.</p>}
+          </Figure>
+        </div>
 
         <div className="mt-8">
-          <div className="flex flex-wrap items-baseline justify-between gap-2">
-            <p className="text-sm font-semibold">Every player&apos;s chances as the draw began</p>
-            <p className="text-xs text-muted">Take a player out and every chance adjusts.</p>
-          </div>
-          <div className="relative mt-2 max-w-sm">
-            <SearchIcon />
-            <input type="search" value={find} onChange={(e) => setFind(e.target.value)} placeholder="Find a player in this draw" autoComplete="off" spellCheck={false} className={searchInput} aria-label="Find a player in this draw" />
-          </div>
-          <div className="mt-3 overflow-x-auto">
-            <table className="w-full min-w-[32rem] text-sm">
-              <thead>
-                <tr className="border-b-2 border-foreground/20 text-left text-[10.5px] font-semibold uppercase tracking-wider text-muted">
-                  <th className="py-2 pr-2 font-semibold">Player</th>
-                  <th className="px-2 text-right font-semibold">Rating</th>
-                  <th className="px-2 text-right font-semibold">Final</th>
-                  <th className="px-2 font-semibold">Title</th>
-                  <th className="px-2 font-semibold">Really</th>
-                  <th className="pl-2" />
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-line">
-                {listed.map((r) => {
-                  const isOut = out.has(r.i);
-                  return (
-                    <tr key={r.i} className={isOut ? "opacity-45" : ""}>
-                      <td className="py-1.5 pr-2">
-                        <span className="flex min-w-0 items-center gap-2">
-                          <Avatar name={nameOf(r.i)} size="h-7 w-7 text-[10px]" />
-                          <span className="truncate font-semibold" title={fullOf(r.i)}>
-                            {nameOf(r.i)}
-                          </span>
-                        </span>
-                      </td>
-                      <td className="px-2 text-right font-mono tabular-nums text-muted">{num(ev.ratings[r.i])}</td>
-                      <td className="px-2 text-right font-mono tabular-nums">{isOut ? "–" : pct(r.final)}</td>
-                      <td className="px-2">
-                        <span className="flex items-center gap-2">
-                          <span className="h-2 w-16 rounded-r-sm bg-line/50">
-                            <span className="block h-2 rounded-r-sm" style={{ width: `${isOut ? 0 : (r.title / topTitle) * 100}%`, background: BLUE }} />
-                          </span>
-                          <span className="w-10 font-mono font-semibold tabular-nums">{isOut ? "–" : pct(r.title)}</span>
-                        </span>
-                      </td>
-                      <td className={`px-2 ${r.i === champ ? "font-semibold" : "text-muted"}`}>{resultOf(r)}</td>
-                      <td className="pl-2 text-right">
-                        <button
-                          type="button"
-                          aria-pressed={isOut}
-                          onClick={() => {
-                            const next = new Set(out);
-                            if (isOut) next.delete(r.i);
-                            else next.add(r.i);
-                            setOut(next);
-                            setTally(new Map());
-                            setLastPlay(null);
-                          }}
-                          className="cursor-pointer whitespace-nowrap text-xs font-semibold text-court underline-offset-4 hover:underline"
-                        >
-                          {isOut ? "Put back" : "Take out"}
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-          {!typed && rows.length > 16 && (
-            <button type="button" onClick={() => setShowAll(!showAll)} className="mt-2 cursor-pointer text-sm font-semibold text-court underline-offset-4 hover:underline">
-              {showAll ? "Show the top 16" : `Show all ${rows.length}`}
-            </button>
-          )}
-          {typed && !listed.length && <p className="mt-2 text-sm text-muted">No one called &ldquo;{find.trim()}&rdquo; in this draw.</p>}
-        </div>
-
-        <div className="mt-8 rounded-2xl bg-background px-4 py-3 text-sm">
-          <p className="font-semibold">The unlikeliest champions</p>
-          <ol className="mt-1 space-y-1">
-            {surprises.list.map((s) => (
-              <li key={s.e.id}>
-                <button type="button" onClick={() => pick(s.e.id)} className="cursor-pointer text-left text-muted transition hover:text-court">
-                  <strong className="text-foreground">{book.names[book.people[s.e.entrants[s.champion]]]}</strong>, {s.e.event} {s.e.season}: <span className="font-mono tabular-nums">{odds(s.chance)}</span>
-                </button>
-              </li>
-            ))}
-          </ol>
+          <Figure
+            n="4.3"
+            title="Does the edge last?"
+            sub={`Each player's edge in even seasons against odd seasons, for the ${num(halves.length)} with enough of both`}
+            legend={<Legend items={[{ label: "A player", color: BLUE, kind: "dot" }, { label: "Best straight line", color: ORANGE }]} />}
+            note={
+              <>
+                <span className="font-mono">r = {fixed(fit.halves.r, 2)}</span> (95% interval {fixed(fit.halves.lo, 2)} to {fixed(fit.halves.hi, 2)}): one half of a career says {lasting(fit.halves.r)} about the
+                other. For comparison, {words.base} itself gives <span className="font-mono">r = {fit.halves.baseR.toFixed(2)}</span>. A real skill makes a tilted cloud; luck makes a round one.
+              </>
+            }
+          >
+            <Plot
+              height={300}
+              label="Edge in even seasons against odd seasons"
+              x={{ min: -hMax, max: hMax, ticks: ticks(-hMax, hMax, hMax / 2), minor: ticks(-hMax, hMax, hMax / 10), format: (v) => (v ? signed(v) : "0"), title: "Edge in even seasons" }}
+              y={{ min: -hMax, max: hMax, ticks: ticks(-hMax, hMax, hMax / 2), format: (v) => (v ? signed(v) : "0"), title: "Edge in odd seasons" }}
+              xGrid
+            >
+              {(s) => (
+                <g onPointerLeave={() => setHover(null)}>
+                  <line x1={s.x(0)} x2={s.x(0)} y1={s.top} y2={s.bottom} stroke={INK} strokeOpacity={0.4} />
+                  <line x1={s.left} x2={s.right} y1={s.y(0)} y2={s.y(0)} stroke={INK} strokeOpacity={0.4} />
+                  {[...halves.filter((h) => !picked.includes(h.k)), ...halves.filter((h) => picked.includes(h.k))].map((h) => {
+                    const on = picked.includes(h.k) || hover === h.k;
+                    return (
+                      <g key={h.k} onPointerEnter={() => setHover(h.k)} onClick={() => setPicked([h.k, ...picked.filter((k) => k !== h.k)].slice(0, 3))} className="cursor-pointer">
+                        <circle cx={s.x(clamp(h.even, -hMax, hMax))} cy={s.y(clamp(h.odd, -hMax, hMax))} r={8} fill="transparent" />
+                        <circle
+                          cx={s.x(clamp(h.even, -hMax, hMax))}
+                          cy={s.y(clamp(h.odd, -hMax, hMax))}
+                          r={on ? 5.5 : 3}
+                          fill={picked.includes(h.k) ? colorOf(h.k) : hover === h.k ? INK : BLUE}
+                          fillOpacity={on ? 1 : 0.35}
+                          stroke={on ? "var(--surface)" : "none"}
+                          strokeWidth={2}
+                        />
+                      </g>
+                    );
+                  })}
+                  <line x1={s.x(-hMax)} x2={s.x(hMax)} y1={s.y(clamp(mo + slope * (-hMax - me), -hMax, hMax))} y2={s.y(clamp(mo + slope * (hMax - me), -hMax, hMax))} stroke={ORANGE} strokeWidth={2} />
+                  {hover &&
+                    (() => {
+                      const h = halves.find((x) => x.k === hover);
+                      return h ? <Callout x={s.x(clamp(h.even, -hMax, hMax))} y={s.y(clamp(h.odd, -hMax, hMax))} text={`${books.names[h.k]} ${signed(h.even, 1)} / ${signed(h.odd, 1)}`} s={s} /> : null;
+                    })()}
+                </g>
+              )}
+            </Plot>
+          </Figure>
         </div>
       </Card>
       <Behind>
         <Stats
           items={[
-            { label: "Draws", value: num(book.events.length) },
-            { label: "Favourite won", value: pct1(surprises.favWon / book.events.length), hint: `${surprises.favWon} of ${num(book.events.length)}` },
-            { label: "Seasons", value: `${book.events[book.events.length - 1]?.season}–${book.events[0]?.season}` },
-            { label: "This draw", value: `${ev.entrants.length} players` },
+            { label: words.chances, value: num(fit.n) },
+            { label: "Players listed", value: num(rows.length), hint: `With ${fit.min}+ ${words.chances}` },
+            { label: measure === "converted" ? "Returner won" : measure === "saved" ? "Server saved" : "Seasons", value: measure === "saved" || measure === "converted" ? pct1(fit.rate) : `${fit.years[0]}–${fit.years[1]}` },
+            { label: "Even v odd, r", value: fixed(fit.halves.r, 2), hint: "How well a player's edge in even seasons matches the edge in odd seasons: 0 is none, 1 is perfect" },
           ]}
         />
         <p>
-          <strong>{num(book.events.length)} Slam and 1000 draws</strong>, rebuilt from their matches: the final, the two matches its players came from, and so on down. Walkovers count as matches here,
-          because they move players through a draw.
-          {book.skipped ? <> {book.skipped} draws whose matches don&apos;t join up are left out.</> : null}
+          Built from <strong>{num(fit.n)} {words.chances}</strong> in completed matches with full stats for both players, {fit.years[0]} to {fit.years[1]}
+          {fit.years[0] > books.from ? <> (the data has no stats for this tour before {fit.years[0]})</> : null}.{" "}
+          {measure === "saved" || measure === "converted" ? (
+            <>Break points come from each match&apos;s stats line.</>
+          ) : measure === "tiebreaks" ? (
+            <>Tiebreaks come from the score: any set won 7–6, or by a game at 12–12 or later.</>
+          ) : (
+            <>A deciding set is the third of a best of three or the fifth of a best of five.</>
+          )}
         </p>
         <p>
-          <strong>Each player&apos;s rating</strong> is where it stood as the event began: half overall, half surface, from Across eras. Each match&apos;s chance comes from the same formula
-          {books.tour === "atp" ? ", turned into best of five at the Slams" : ""}.
+          <strong>Expected</strong> isn&apos;t a forecast made before the match. It asks: given how a player actually played in that match ({words.base}), how many of its {words.chances} would the
+          typical player have won? A logistic regression across the whole tour answers that, one curve for everyone.
         </p>
         <Formula
           where={
             <>
-              <strong>The chances are exact.</strong> To come out of a part of the draw, <i>i</i> must come out of their own half of it, then beat whoever comes out of the other half, added up over
-              everyone <i>j</i> who could. Worked from the first round up, that gives every chance with no simulation. &ldquo;Replay it&rdquo; rolls the dice with those chances.
+              <i>q</i> is the expected share of {words.chances} won; <i>s</i> is the player&apos;s {words.base} in that match. A player&apos;s edge is what they won minus the sum of <i>q</i> over every
+              chance, per 100. Fitted by maximum likelihood{measure === "tiebreaks" || measure === "deciders" ? ", one side of each" : ""}.
             </>
           }
         >
           <Eq>
-            <V>P</V>(<V>i</V>)<Op>=</Op>
-            <V>P</V>
-            <Sub>half</Sub>(<V>i</V>)<Op>·</Op>
-            <Sigma />
-            <Sub>
-              <i>j</i>
-            </Sub>
-            <V>P</V>
-            <Sub>other</Sub>(<V>j</V>) <V>p</V>
-            <Sub>
-              <i>ij</i>
-            </Sub>
+            logit <V>q</V>
+            <Op>=</Op>
+            <V>α</V>
+            <Op>+</Op>
+            <V>β</V>
+            <Op>·</Op>logit <V>s</V>
+          </Eq>
+          <Eq>
+            edge<Op>=</Op>
+            100
+            <Frac n={<>won − Σ<V>q</V></>} d="chances" />
           </Eq>
         </Formula>
-        <p>Taking a player out gives each would-be opponent a walkover. Qualifiers come in with their ratings; qualifying itself isn&apos;t included.</p>
+        <Coefficients
+          n="4.4"
+          title="The fitted curve"
+          unit="on the log-odds scale"
+          rows={[
+            { label: "α intercept", value: fit.coef.a, se: fit.se.a },
+            { label: "β slope", value: fit.coef.b, se: fit.se.b },
+          ]}
+        />
         <p>
-          The pre-draw favourite won <strong>{surprises.favWon}</strong> of {num(book.events.length)}. A rating can&apos;t see injuries, form inside a week or how a draw opens up.
+          <strong>Does it last?</strong> If winning big points were a skill of its own, a player&apos;s edge in even-numbered seasons would predict the edge in odd ones. Across {num(fit.halves.players)}{" "}
+          players, the correlation is <strong>{fixed(fit.halves.r, 2)}</strong>, against {fit.halves.baseR.toFixed(2)} for {words.base} itself. Players need {Math.ceil(fit.min / 3)}+ {words.chances} in each
+          half.
+        </p>
+        <p>
+          The baseline counts the big points themselves ({measure === "saved" || measure === "converted" ? "a break point is also a serve point" : "a tiebreak's or a decider's points are among the match's points"}), which
+          pulls the expectation a little towards what happened, the same for everyone. Edges are shown raw, not shrunk, so small samples swing widest.
         </p>
       </Behind>
     </div>
@@ -2795,7 +2682,7 @@ export function InteractView({ books }: { books: InteractBooks }) {
         {panel === "upsets" && <UpsetsPanel books={books} />}
         {panel === "ratings" && <RatingsPanel books={books} />}
         {panel === "serve" && <ServePanel books={books} />}
-        {panel === "draws" && <DrawsPanel books={books} />}
+        {panel === "pressure" && <PressurePanel books={books} />}
         {panel === "ages" && <AgesPanel books={books} />}
         {panel === "length" && <LengthPanel books={books} />}
       </section>

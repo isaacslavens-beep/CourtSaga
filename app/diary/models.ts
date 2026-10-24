@@ -7,7 +7,8 @@
 //            record of every pairing of ranking bands
 //   elo      an Elo rating for every player, overall and per surface, season by season
 //   serve    a logistic regression of winning on how a player served
-//   draws    each Slam and 1000's real draw, with every entrant's rating going in (see DrawBook)
+//   pressure how players do on the big points (break points, tiebreaks, deciding sets) against what their
+//            play in those same matches would lead you to expect, and whether that edge lasts
 //   ages     a typical career: how players do at each age against their own career average
 //   length   a linear regression of a match's minutes on what was known before it started
 
@@ -15,7 +16,7 @@ import { parseScore, type Outcome, type Player, type Round, type Surface, type T
 
 /* ---------- What the engine reads ---------- */
 
-/** A match as the models read it: every row, walkovers too (a draw needs them). Players are keys ("atp:D643"). */
+/** A match as the models read it: every row, walkovers too. Players are keys ("atp:D643"). */
 export type ModelMatch = {
   id: string;
   tourneyId: string;
@@ -153,6 +154,26 @@ export type LengthFit = {
 };
 export type LengthModel = Partial<Record<3 | 5, LengthFit>>;
 
+/** The big points: the chances, what decides how many a player should win, and the tour's own curve between them */
+export type PressureMeasure = "saved" | "converted" | "tiebreaks" | "deciders";
+export const pressureMeasures: PressureMeasure[] = ["saved", "converted", "tiebreaks", "deciders"];
+export type PressureFit = {
+  n: number; // chances in all: break points, tiebreaks or deciding sets
+  rate: number; // the share of them won, tour-wide (for converted, saved and the rest: by whoever had the chance)
+  base: number; // the tour-wide baseline: serve points won, return points won, or points won, in %
+  // expected share = sigmoid(a + b·logit(baseline)): the tour's curve from how a player played to the big points
+  coef: { a: number; b: number };
+  se: { a: number; b: number };
+  min: number; // the chances a player needs to be listed
+  // per player: [chances, won, expected won, baseline %, chances in even seasons, won, expected, the same in odd seasons]
+  players: Record<number, number[]>;
+  halves: { r: number; lo: number; hi: number; players: number; baseR: number }; // even v odd seasons: over-performance, then the baseline itself
+  years: [number, number];
+};
+export type PressureModel = Record<PressureMeasure, PressureFit>;
+/** A player row's columns */
+export const P = { n: 0, won: 1, exp: 2, base: 3, nEven: 4, wonEven: 5, expEven: 6, nOdd: 7, wonOdd: 8, expOdd: 9 } as const;
+
 export type InteractBooks = {
   tour: Tour;
   from: number;
@@ -165,34 +186,16 @@ export type InteractBooks = {
   serve: ServeModel;
   ages: AgeModel;
   length: LengthModel;
-  draws: number; // how many draws the draw book has
+  pressure: PressureModel;
 };
-
-/** One draw as it was played: a bracket of entrants, each match's real winner first */
-export type Bracket = number | [Bracket, Bracket];
-export type DrawEvent = {
-  id: string; // tourneyId
-  event: string;
-  season: number;
-  start: string; // the first day, "YYYY-MM-DD"
-  tier: Tier;
-  surface: Court;
-  bestOf: 3 | 5;
-  entrants: number[]; // people indices
-  ratings: number[]; // each entrant's rating going in: half overall, half surface
-  bracket: Bracket; // entrant indices
-  final: string | null; // the final's match id, to open in Explore
-};
-export type DrawBook = { tour: Tour; people: string[]; names: Record<string, string>; events: DrawEvent[]; skipped: number };
 
 /* ---------- Small helpers ---------- */
 
 // Exhibitions and events played to other rules don't count, as in the record books
 const exhibitions = new Set(["Laver Cup", "Next Gen Finals"]);
 // Where each serve stat sits in a side's array (see the schema)
-const STAT = { ace: 0, df: 1, svpt: 2, in1: 3, won1: 4, won2: 5 } as const;
+const STAT = { ace: 0, df: 1, svpt: 2, in1: 3, won1: 4, won2: 5, svGms: 6, bpSaved: 7, bpFaced: 8 } as const;
 const ladder: Round[] = ["RR", "R128", "R64", "R32", "R16", "QF", "SF", "BR", "3P", "F"];
-const knockout: Round[] = ["R128", "R64", "R32", "R16", "QF", "SF", "F"];
 const chron = (x: ModelMatch, y: ModelMatch) =>
   x.start.localeCompare(y.start) || ladder.indexOf(x.round) - ladder.indexOf(y.round) || (x.num ?? 0) - (y.num ?? 0) || x.id.localeCompare(y.id);
 const courtOf = (s: Surface): Court | null => (s === "clay" ? "clay" : s === "grass" ? "grass" : s === "hard" || s === "carpet" ? "hard" : null);
@@ -239,7 +242,7 @@ function standardErrors(information: number[][], scale = 1) {
  * Logistic regression by Newton's method: the coefficients that make y most likely given X, and their
  * standard errors (from the information matrix at the answer)
  */
-function logistic(X: number[][], y: number[]) {
+function logistic(X: number[][], y: number[], weights?: number[]) {
   const k = X[0]?.length ?? 0;
   let beta = new Array<number>(k).fill(0);
   let H: number[][] = [];
@@ -249,9 +252,10 @@ function logistic(X: number[][], y: number[]) {
     for (let i = 0; i < X.length; i++) {
       const x = X[i];
       const p = sigmoid(x.reduce((s, v, j) => s + v * beta[j], 0));
-      const w = p * (1 - p);
+      const n = weights?.[i] ?? 1; // y can be a share of n tries
+      const w = n * p * (1 - p);
       for (let a = 0; a < k; a++) {
-        g[a] += (y[i] - p) * x[a];
+        g[a] += n * (y[i] - p) * x[a];
         for (let b = 0; b < k; b++) H[a][b] += w * x[a] * x[b];
       }
     }
@@ -289,7 +293,7 @@ function ols(X: number[][], y: number[]) {
 const extent = (xs: number[]): [number, number] => xs.reduce<[number, number]>(([lo, hi], x) => [Math.min(lo, x), Math.max(hi, x)], [Infinity, -Infinity]);
 const quantile = (sorted: number[], q: number) => sorted[Math.min(sorted.length - 1, Math.max(0, Math.round(q * (sorted.length - 1))))] ?? 0;
 
-/* ---------- Win chances: the rules the page and the draws share ---------- */
+/* ---------- Win chances: the rules the page and the models share ---------- */
 
 /** The chance a player rated `a` beats one rated `b`, best of three */
 export const eloChance = (a: number, b: number) => 1 / (1 + 10 ** ((b - a) / 400));
@@ -338,70 +342,13 @@ export function lengthPrediction(fit: LengthFit, court: CourtOrAll, favRank: num
   return base + share.reduce((t, v, i) => t + (v / total) * c.perSet[i], 0);
 }
 
-/**
- * Every entrant's chance of reaching each round of a draw and winning it, played out exactly rather than
- * by simulation. `chance(a, b)` is a's chance of beating b; `out` takes players out (their opponent goes
- * through). Gives, per entrant, the chance of winning each of their matches in turn: [won 1, won 2, …].
- */
-export function drawOdds(bracket: Bracket, chance: (a: number, b: number) => number, out: Set<number> = new Set()) {
-  const reach = new Map<number, number[]>();
-  // The chance each entrant comes out of a part of the draw, and whether anyone can
-  function walk(node: Bracket): Map<number, number> {
-    if (typeof node === "number") {
-      reach.set(node, []);
-      return out.has(node) ? new Map() : new Map([[node, 1]]);
-    }
-    const left = walk(node[0]);
-    const right = walk(node[1]);
-    if (!left.size || !right.size) {
-      // A walkover: whoever comes out of the other half goes through
-      const through = left.size ? left : right;
-      for (const [p, v] of through) reach.get(p)!.push(v);
-      return through;
-    }
-    const next = new Map<number, number>();
-    for (const [a, pa] of left) {
-      let win = 0;
-      for (const [b, pb] of right) win += pb * chance(a, b);
-      next.set(a, pa * win);
-    }
-    for (const [b, pb] of right) {
-      let win = 0;
-      for (const [a, pa] of left) win += pa * chance(b, a);
-      next.set(b, pb * win);
-    }
-    for (const [p, v] of next) reach.get(p)!.push(v);
-    return next;
-  }
-  walk(bracket);
-  return reach;
-}
-
-/** The real champion: each match's winner comes first */
-export const championOf = (b: Bracket): number => (typeof b === "number" ? b : championOf(b[0]));
-/** How many matches an entrant really won */
-export function realWins(b: Bracket): Map<number, number> {
-  const wins = new Map<number, number>();
-  (function walk(node: Bracket): number {
-    if (typeof node === "number") {
-      wins.set(node, 0);
-      return node;
-    }
-    const a = walk(node[0]);
-    walk(node[1]);
-    wins.set(a, wins.get(a)! + 1);
-    return a;
-  })(b);
-  return wins;
-}
-
 /* ---------- Building the models ---------- */
 
 /** A rating's step: big while a player has few matches, settling as they play more (as FiveThirtyEight's) */
 const kFactor = (n: number) => 250 / (n + 5) ** 0.4;
 const START = 1500;
 
-export function buildModels(input: ModelsInput): { books: InteractBooks; draws: DrawBook } {
+export function buildModels(input: ModelsInput): InteractBooks {
   const all = [...input.matches].sort(chron);
   const games = all.filter(counted);
   const from = extent(all.map((m) => m.season))[0];
@@ -415,10 +362,11 @@ export function buildModels(input: ModelsInput): { books: InteractBooks; draws: 
   };
 
   const upsets = buildUpsets(games);
-  const { elo, draws, skipped } = buildElo(input, all, games, from, idx);
+  const elo = buildElo(input, all, games, from, idx);
   const serve = buildServe(games, idx);
   const ages = buildAges(games, idx);
   const length = buildLength(games, idx);
+  const pressure = buildPressure(games, idx, input);
 
   // Name everyone the page shows: a surname, or a full name where two clash
   const named = people.map((k) => input.players[k]).filter(Boolean);
@@ -431,8 +379,7 @@ export function buildModels(input: ModelsInput): { books: InteractBooks; draws: 
     full[p.key] = p.name;
   }
 
-  const books: InteractBooks = { tour: input.tour, from, last: input.last, people, names, full, upsets, elo, serve, ages, length, draws: draws.length };
-  return { books, draws: { tour: input.tour, people, names, events: draws, skipped } };
+  return { tour: input.tour, from, last: input.last, people, names, full, upsets, elo, serve, ages, length, pressure };
 }
 
 function buildUpsets(games: ModelMatch[]): UpsetModel {
@@ -506,10 +453,6 @@ function buildElo(input: ModelsInput, all: ModelMatch[], games: ModelMatch[], fr
   let ranked = 0;
   let rankRight = 0;
 
-  // Draws: each event's knockout matches, and its entrants' ratings as it began
-  const drawEvents = new Map<string, { matches: ModelMatch[]; pre: Map<string, number> }>();
-  const isDraw = (m: ModelMatch) => (m.tier === "slam" || m.tier === "1000") && knockout.includes(m.round);
-
   const snapshotMonth = (month: string) => {
     // Active players only: a match in the last year, and enough matches for a settled rating
     const cutoff = `${String(Number(month.slice(0, 4)) - 1)}${month.slice(4)}`;
@@ -535,14 +478,8 @@ function buildElo(input: ModelsInput, all: ModelMatch[], games: ModelMatch[], fr
       if (month && Number(month.slice(0, 4)) >= shownFrom) snapshotMonth(month);
       month = at;
     }
-    const court = courtOf(m.surface);
-    if (isDraw(m) && court) {
-      let d = drawEvents.get(m.tourneyId);
-      if (!d) drawEvents.set(m.tourneyId, (d = { matches: [], pre: new Map() }));
-      d.matches.push(m);
-      for (const k of [m.w, m.l]) if (!d.pre.has(k)) d.pre.set(k, Math.round(blend(get(k).elo, get(k).court[court])));
-    }
     if (!gameIds.has(m.id)) continue;
+    const court = courtOf(m.surface);
 
     const a = get(m.w);
     const b = get(m.l);
@@ -609,57 +546,6 @@ function buildElo(input: ModelsInput, all: ModelMatch[], games: ModelMatch[], fr
   }
   kept.sort((x, y) => x[S.p] - y[S.p] || x[S.season] - y[S.season]);
 
-  // Each draw as a bracket: the final, and under each match the matches its two players came from
-  const draws: DrawEvent[] = [];
-  let skipped = 0;
-  for (const [tourneyId, d] of drawEvents) {
-    const final = d.matches.find((m) => m.round === "F");
-    // The warm-up season's ratings say nothing yet, so its draws wait too
-    if (final && final.season < shownFrom) continue;
-    if (!final) {
-      skipped++;
-      continue;
-    }
-    const byRound = new Map<string, ModelMatch>();
-    for (const m of d.matches) for (const k of [m.w, m.l]) byRound.set(`${k}|${m.round}`, m);
-    const entrants = [...d.pre.keys()];
-    const local = new Map(entrants.map((k, i) => [k, i]));
-    const used = new Set<string>();
-    const build = (m: ModelMatch, r: number): Bracket => {
-      const below = (k: string): Bracket => {
-        const prev = r > 0 ? byRound.get(`${k}|${knockout[r - 1]}`) : undefined;
-        // A player with no match the round before came in here: a bye, or a seeded start
-        if (!prev || prev.w !== k) {
-          used.add(k);
-          return local.get(k)!;
-        }
-        return build(prev, r - 1);
-      };
-      return [below(m.w), below(m.l)];
-    };
-    const bracket = build(final, knockout.indexOf("F"));
-    // A draw whose matches don't join up into one bracket is left out
-    if (used.size !== entrants.length) {
-      skipped++;
-      continue;
-    }
-    const court = courtOf(final.surface)!;
-    draws.push({
-      id: tourneyId,
-      event: final.event,
-      season: final.season,
-      start: final.start,
-      tier: final.tier,
-      surface: court,
-      bestOf: final.bestOf,
-      entrants: entrants.map((k) => idx(k)),
-      ratings: entrants.map((k) => d.pre.get(k)!),
-      bracket,
-      final: final.played ? final.id : null,
-    });
-  }
-  draws.sort((x, y) => y.start.localeCompare(x.start)); // the latest first
-
   const elo: EloModel = {
     n: games.length,
     from: shownFrom,
@@ -674,7 +560,7 @@ function buildElo(input: ModelsInput, all: ModelMatch[], games: ModelMatch[], fr
     brier: round4(brier / rated),
     logLoss: round4(logLoss / rated),
   };
-  return { elo, draws, skipped };
+  return elo;
 }
 
 function buildServe(games: ModelMatch[], idx: (k: string) => number): ServeModel {
@@ -876,4 +762,145 @@ function buildLength(games: ModelMatch[], idx: (k: string) => number): LengthMod
     out[bo] = fit;
   }
   return out;
+}
+
+/**
+ * The big points. For every chance (a break point faced or held, a tiebreak, a deciding set) the baseline
+ * is how the player played in that same match: serve points won for break points faced, return points won
+ * for break points held, all points won for tiebreaks and deciding sets. A logistic regression across the
+ * tour turns a baseline into the share of chances a player like that wins; a player's edge is what they won
+ * against what that curve expects. Splitting seasons into even and odd asks whether the edge lasts.
+ */
+function buildPressure(games: ModelMatch[], idx: (k: string) => number, input: ModelsInput): PressureModel {
+  // One chance, or a run of them in a match: whose, how many, how many won, and the baseline (a share)
+  type Chance = { k: string; season: number; n: number; won: number; base: number; fit: boolean };
+  const chances: Record<PressureMeasure, Chance[]> = { saved: [], converted: [], tiebreaks: [], deciders: [] };
+  const sound = (st: number[] | null): st is number[] =>
+    !!st && st.length > STAT.bpFaced && st[STAT.svpt] >= 30 && st[STAT.won1] <= st[STAT.in1] && st[STAT.won2] <= st[STAT.svpt] - st[STAT.in1] && st[STAT.bpSaved] <= st[STAT.bpFaced];
+  const servedWon = (st: number[]) => (st[STAT.won1] + st[STAT.won2]) / st[STAT.svpt];
+  const years: [number, number] = [Infinity, -Infinity];
+  for (const m of games) {
+    if (!sound(m.wst) || !sound(m.lst)) continue;
+    years[0] = Math.min(years[0], m.season);
+    years[1] = Math.max(years[1], m.season);
+    const sides = [
+      { k: m.w, me: m.wst, them: m.lst, won: true },
+      { k: m.l, me: m.lst, them: m.wst, won: false },
+    ];
+    const total = m.wst[STAT.svpt] + m.lst[STAT.svpt];
+    // Tiebreaks and deciding sets are one event seen from two sides: the regression takes one side of each
+    // (whoever's key sorts first), so a tiebreak isn't counted twice; the players' tallies take both
+    const first = m.w < m.l ? m.w : m.l;
+    const sets = parseScore(m.score).sets.filter((x) => !x.super);
+    for (const side of sides) {
+      const spw = servedWon(side.me);
+      const rpw = 1 - servedWon(side.them);
+      const points = (side.me[STAT.won1] + side.me[STAT.won2] + side.them[STAT.svpt] - side.them[STAT.won1] - side.them[STAT.won2]) / total;
+      const faced = side.me[STAT.bpFaced];
+      if (faced) chances.saved.push({ k: side.k, season: m.season, n: faced, won: side.me[STAT.bpSaved], base: spw, fit: true });
+      const had = side.them[STAT.bpFaced];
+      if (had) chances.converted.push({ k: side.k, season: m.season, n: had, won: had - side.them[STAT.bpSaved], base: rpw, fit: true });
+      const fit = side.k === first;
+      for (const x of sets)
+        if (x.tb !== null || (Math.abs(x.w - x.l) === 1 && Math.max(x.w, x.l) >= 7))
+          chances.tiebreaks.push({ k: side.k, season: m.season, n: 1, won: x.w > x.l === side.won ? 1 : 0, base: points, fit });
+      if (sets.length === m.bestOf) chances.deciders.push({ k: side.k, season: m.season, n: 1, won: side.won ? 1 : 0, base: points, fit });
+    }
+  }
+
+  const logit = (x: number) => {
+    const c = Math.min(0.98, Math.max(0.02, x));
+    return Math.log(c / (1 - c));
+  };
+  const mins: Record<PressureMeasure, number> = { saved: 300, converted: 300, tiebreaks: 60, deciders: 50 };
+  const pearson = (pairs: [number, number][]) => {
+    const n = pairs.length;
+    const mx = pairs.reduce((t, [x]) => t + x, 0) / n;
+    const my = pairs.reduce((t, [, y]) => t + y, 0) / n;
+    let sxy = 0;
+    let sxx = 0;
+    let syy = 0;
+    for (const [x, y] of pairs) {
+      sxy += (x - mx) * (y - my);
+      sxx += (x - mx) ** 2;
+      syy += (y - my) ** 2;
+    }
+    return sxx && syy ? sxy / Math.sqrt(sxx * syy) : 0;
+  };
+
+  const model = {} as PressureModel;
+  for (const measure of pressureMeasures) {
+    const list = chances[measure];
+    const fitted = list.filter((c) => c.fit);
+    const { beta, se } = logistic(
+      fitted.map((c) => [1, logit(c.base)]),
+      fitted.map((c) => c.won / c.n),
+      fitted.map((c) => c.n),
+    );
+    const coef = { a: round4(beta[0]), b: round4(beta[1]) };
+    const expect = (c: Chance) => c.n * sigmoid(coef.a + coef.b * logit(c.base));
+
+    // Each player's tallies, in all and by even and odd seasons
+    const tally = new Map<string, number[]>();
+    let n = 0;
+    let won = 0;
+    let base = 0;
+    for (const c of list) {
+      if (c.fit) {
+        n += c.n;
+        won += c.won;
+        base += c.base * c.n;
+      }
+      let t = tally.get(c.k);
+      if (!t) tally.set(c.k, (t = new Array<number>(10).fill(0)));
+      const e = expect(c);
+      t[P.n] += c.n;
+      t[P.won] += c.won;
+      t[P.exp] += e;
+      t[P.base] += c.base * c.n;
+      const h = c.season % 2 === 0 ? P.nEven : P.nOdd;
+      t[h] += c.n;
+      t[h + 1] += c.won;
+      t[h + 2] += e;
+    }
+    const players: Record<number, number[]> = {};
+    const halves: [number, number][] = [];
+    const baseHalves: [number, number][] = [];
+    for (const [k, t] of tally) {
+      if (t[P.n] < mins[measure] || !input.players[k]) continue;
+      players[idx(k)] = [t[P.n], t[P.won], round1(t[P.exp]), round1((t[P.base] / t[P.n]) * 100), t[P.nEven], t[P.wonEven], round1(t[P.expEven]), t[P.nOdd], t[P.wonOdd], round1(t[P.expOdd])];
+      // Enough in both halves to compare them
+      if (t[P.nEven] >= mins[measure] / 3 && t[P.nOdd] >= mins[measure] / 3) {
+        halves.push([(t[P.wonEven] - t[P.expEven]) / t[P.nEven], (t[P.wonOdd] - t[P.expOdd]) / t[P.nOdd]]);
+      }
+    }
+    // The baseline's own halves, for comparison: how steady a real skill looks
+    const baseByHalf = new Map<string, [number, number, number, number]>();
+    for (const c of list) {
+      let b = baseByHalf.get(c.k);
+      if (!b) baseByHalf.set(c.k, (b = [0, 0, 0, 0]));
+      const h = c.season % 2 === 0 ? 0 : 2;
+      b[h] += c.base * c.n;
+      b[h + 1] += c.n;
+    }
+    for (const [k, b] of baseByHalf) {
+      const t = tally.get(k)!;
+      if (t[P.n] >= mins[measure] && t[P.nEven] >= mins[measure] / 3 && t[P.nOdd] >= mins[measure] / 3) baseHalves.push([b[0] / b[1], b[2] / b[3]]);
+    }
+    const r = pearson(halves);
+    const z = Math.atanh(Math.max(-0.999, Math.min(0.999, r)));
+    const width = 1.96 / Math.sqrt(Math.max(1, halves.length - 3));
+    model[measure] = {
+      n,
+      rate: round4(won / n),
+      base: round1((base / n) * 100),
+      coef,
+      se: { a: round4(se[0]), b: round4(se[1]) },
+      min: mins[measure],
+      players,
+      halves: { r: round3(r), lo: round3(Math.tanh(z - width)), hi: round3(Math.tanh(z + width)), players: halves.length, baseR: round3(pearson(baseHalves)) },
+      years,
+    };
+  }
+  return model;
 }

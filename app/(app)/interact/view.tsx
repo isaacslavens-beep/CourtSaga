@@ -13,7 +13,7 @@ import { OpeningDiary } from "../loading-page";
 // The models' formulas are set in a maths face, loaded only here
 const mathFace = STIX_Two_Text({ subsets: ["latin"], style: ["normal", "italic"], variable: "--font-math", preload: false });
 
-export const interactDescription = "Play with models fitted to every tour-level singles match since 2003: upset odds, ratings across eras, serving, draws, ages and match lengths.";
+export const interactDescription = "Play with models fitted to every tour-level singles match since 2003: upset odds, ratings across eras, serving, play under pressure, ages and match lengths.";
 
 export function InteractPage({ tour }: { tour: Tour }) {
   return (
@@ -44,5 +44,5 @@ async function Models({ tour }: { tour: Tour }) {
   // A build without the database still builds: the page says the models aren't available
   const models = await interactModels(tour).catch(() => null);
   if (!models) return <p className="rounded-2xl bg-fault/10 px-4 py-3 font-medium text-fault">The models aren&apos;t available right now. Try again in a little while.</p>;
-  return <InteractView books={models.books} />;
+  return <InteractView books={models} />;
 }
