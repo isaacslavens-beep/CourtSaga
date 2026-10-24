@@ -169,6 +169,7 @@ export type InteractBooks = {
   serve: ServeModel;
   ages: AgeModel;
   pressure: PressureModel;
+  topTen: number[]; // people the models name who were ranked in the top 10 at some point
 };
 
 /* ---------- Small helpers ---------- */
@@ -338,6 +339,9 @@ export function buildModels(input: ModelsInput): InteractBooks {
   const serve = buildServe(games, idx);
   const ages = buildAges(games, idx);
   const pressure = buildPressure(games, idx, input);
+  // Who has been ranked in the top 10, of the players already named
+  const ranked = new Set(all.flatMap((m) => [...(m.wr && m.wr <= 10 ? [m.w] : []), ...(m.lr && m.lr <= 10 ? [m.l] : [])]));
+  const topTen = [...ranked].filter((k) => index.has(k)).map((k) => index.get(k)!);
 
   // Name everyone the page shows: a surname, or a full name where two clash
   const named = people.map((k) => input.players[k]).filter(Boolean);
@@ -350,7 +354,7 @@ export function buildModels(input: ModelsInput): InteractBooks {
     full[p.key] = p.name;
   }
 
-  return { tour: input.tour, from, last: input.last, people, names, full, upsets, elo, serve, ages, pressure };
+  return { tour: input.tour, from, last: input.last, people, names, full, upsets, elo, serve, ages, pressure, topTen };
 }
 
 function buildUpsets(games: ModelMatch[]): UpsetModel {

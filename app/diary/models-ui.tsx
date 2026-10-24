@@ -1777,13 +1777,13 @@ function PressurePanel({ books }: { books: InteractBooks }) {
   const sd = (v: number[], m: number) => Math.sqrt(mean(v.map((x) => (x - m) ** 2)));
   const slope = fit.halves.r * (sd(halves.map((h) => h.odd), mo) / (sd(halves.map((h) => h.even), me) || 1));
 
-  // The ranked list: above or below expectation, searchable
+  // The ranked list: players who have been in the top 10, above or below expectation, searchable
   const [side, setSide] = useState<"above" | "below">("above");
   const [find, setFind] = useState("");
-  const [all, setAll] = useState(false);
   const typed = fold(find.trim());
-  const ranked = [...rows].sort((a, b) => (side === "above" ? b.edge - a.edge : a.edge - b.edge));
-  const listed = typed ? ranked.filter((x) => fold(`${books.full[x.k]} ${books.names[x.k]}`).includes(typed)) : all ? ranked : ranked.slice(0, 10);
+  const topTen = useMemo(() => new Set(books.topTen.map((i) => books.people[i])), [books]);
+  const ranked = rows.filter((x) => topTen.has(x.k)).sort((a, b) => (side === "above" ? b.edge - a.edge : a.edge - b.edge));
+  const listed = typed ? ranked.filter((x) => fold(`${books.full[x.k]} ${books.names[x.k]}`).includes(typed)) : ranked.slice(0, 10);
   const scale = Math.max(5, Math.ceil(Math.max(...listed.map((x) => Math.abs(x.edge) + x.half), 0) / 5) * 5);
   const at = (v: number) => `${((clamp(v, -scale, scale) + scale) / (2 * scale)) * 100}%`;
 
@@ -1936,9 +1936,9 @@ function PressurePanel({ books }: { books: InteractBooks }) {
           <Figure
             n="4.2"
             title={`Furthest ${side} expectation`}
-            sub={`In points per 100 ${words.chances}, with the 95% interval`}
+            sub={`Players who have been ranked in the top 10, in points per 100 ${words.chances}, with the 95% interval`}
             legend={<Legend items={[{ label: "Edge", color: BLUE, kind: "dot" }, { label: "95% interval", color: BLUE }]} />}
-            note="The ends of any list like this are crowded with players who had few chances: their intervals are the widest. An interval that crosses zero could be luck."
+            note="An interval that crosses zero could be luck. Search to find any top-10 player further down."
           >
             <div className="flex flex-wrap items-center gap-3">
               <Chips
@@ -1988,12 +1988,7 @@ function PressurePanel({ books }: { books: InteractBooks }) {
                 </li>
               ))}
             </ol>
-            {!typed && ranked.length > 10 && (
-              <button type="button" onClick={() => setAll(!all)} className="mt-2 cursor-pointer text-sm font-semibold text-court underline-offset-4 hover:underline">
-                {all ? "Show the top 10" : `Show all ${ranked.length}`}
-              </button>
-            )}
-            {typed && !listed.length && <p className="mt-2 text-sm text-muted">No one called &ldquo;{find.trim()}&rdquo; has {fit.min}+ {words.chances}.</p>}
+            {typed && !listed.length && <p className="mt-2 text-sm text-muted">No top-10 player called &ldquo;{find.trim()}&rdquo; has {fit.min}+ {words.chances}.</p>}
           </Figure>
         </div>
 
