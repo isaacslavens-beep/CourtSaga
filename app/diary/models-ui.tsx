@@ -1286,9 +1286,27 @@ function RatingsPanel({ books }: { books: AdvancedBooks }) {
           </p>
           <EloFormula />
           <p>
-            <strong>Bigger tournaments count for more.</strong> A result moves ratings {tierWeight.slam}× as far at a Slam, {tierWeight.finals}× at the season finals, {tierWeight["1000"]}× at a 1000
-            and the Olympics, 1× at a 500 and {tierWeight["250"]}× at a 250, in team events and everywhere else. Without this, a run of wins at small events earned as much as a run at a Slam. It
-            costs a little in prediction: these weights score slightly worse on the numbers above than counting every match the same.
+            <strong>Each tournament has a weight, <i>w</i>,</strong> that scales how far a result moves both ratings. It is a choice, not fitted to the data: bigger events are meant to count for
+            more, so a run of wins at small events can&apos;t earn as much as a run at a Slam.
+          </p>
+          <Stats
+            items={[
+              { label: "Olympics", value: `${tierWeight.olympics}×` },
+              { label: "Slams", value: `${tierWeight.slam}×` },
+              { label: "Tour finals", value: `${tierWeight.finals}×` },
+              { label: "1000s", value: `${tierWeight["1000"]}×` },
+              { label: "500s and 250s", value: `${tierWeight["500"]}×` },
+              { label: "Team events", value: `${tierWeight.team}×` },
+            ]}
+          />
+          <p>
+            The tour finals are {books.tour === "wta" ? "the WTA Finals, the WTA Elite Trophy and the Tournament of Champions" : "the ATP Finals"}. Team events are{" "}
+            {books.tour === "wta" ? "the Fed Cup, the Billie Jean King Cup and the United Cup" : "the Davis Cup, the ATP Cup, the United Cup and the World Team Championship"}. A weight of 0
+            leaves them out altogether: their matches don&apos;t move ratings, don&apos;t count towards <i>n</i>, and aren&apos;t among the matches scored above.
+          </p>
+          <p>
+            <strong>What the weights cost or gain.</strong> On the same matches, ratings that count every tournament the same (team events included) picked the winner{" "}
+            {pct1(e.unweighted.accuracy)} of the time, against {pct1(e.accuracy)} with the weights, with a log-loss of {e.unweighted.logLoss.toFixed(3)} against {e.logLoss.toFixed(3)}.
           </p>
           <p>
             <strong>Each surface has its own rating</strong>, from matches on it alone (carpet counts as hard). The chance uses a mix of the two; the slider sets it. {books.from} is a warm-up, because

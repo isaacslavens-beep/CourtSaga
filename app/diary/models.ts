@@ -104,6 +104,8 @@ export type EloModel = {
   rankAccuracy: number; // the better-ranked player, on the same matches with rankings
   brier: number;
   logLoss: number;
+  // The same matches, scored by ratings that count every tournament the same (weight 1)
+  unweighted: { accuracy: number; brier: number; logLoss: number };
 };
 
 export type ServeStat = "in1" | "won1" | "won2";
@@ -314,8 +316,8 @@ export function serveChance(c: ServeModel["fits"]["all"]["coef"], line: Record<S
 
 /** A rating's step: big while a player has few matches, settling as they play more (as FiveThirtyEight's) */
 const kFactor = (n: number) => 250 / (n + 5) ** 0.4;
-/** How much a match counts by its tournament: a Slam moves ratings most, a 250 least */
-export const tierWeight: Record<Tier, number> = { slam: 1.75, finals: 1.3, olympics: 1.2, "1000": 1.2, "500": 1, "250": 0.8, team: 0.8, other: 0.8 };
+/** How much a match counts by its tournament: the Olympics and Slams move ratings most, team events not at all */
+export const tierWeight: Record<Tier, number> = { olympics: 2.5, slam: 2, finals: 1.5, "1000": 1.5, "500": 1, "250": 1, team: 0, other: 0 };
 const START = 1500;
 
 export function buildModels(input: ModelsInput): AdvancedBooks {
@@ -332,7 +334,9 @@ export function buildModels(input: ModelsInput): AdvancedBooks {
   };
 
   const upsets = buildUpsets(games);
-  const elo = buildElo(input, all, games, from, idx);
+  const elo = buildElo(input, all, games, from, idx, tierWeight);
+  const flat = buildElo(input, all, games, from, () => 0, null, new Set(games.filter((m) => tierWeight[m.tier] > 0).map((m) => m.id)));
+  elo.unweighted = { accuracy: flat.accuracy, brier: flat.brier, logLoss: flat.logLoss };
   const serve = buildServe(games, idx);
   const ages = buildAges(games, idx);
   const pressure = buildPressure(games, idx, input);
@@ -401,7 +405,8 @@ function buildUpsets(games: ModelMatch[]): UpsetModel {
   return { n: X.length, coef, se, bo5: fiveSets, cells, calibration, accuracy: favWins / X.length, brier: round4(brier / X.length), logLoss: round4(logLoss / X.length) };
 }
 
-function buildElo(input: ModelsInput, all: ModelMatch[], games: ModelMatch[], from: number, idx: (k: string) => number) {
+/** Elo with `weights` by tournament, or every match counting the same (null), scored on `scored` matches (all it rates, if left out) */
+function buildElo(input: ModelsInput, all: ModelMatch[], games: ModelMatch[], from: number, idx: (k: string) => number, weights: Record<Tier, number> | null, scored?: Set<string>) {
   type R = { elo: number; n: number; court: Record<Court, number>; courtN: Record<Court, number>; last: string };
   const ratings = new Map<string, R>();
   const get = (k: string) => {
@@ -442,7 +447,9 @@ function buildElo(input: ModelsInput, all: ModelMatch[], games: ModelMatch[], fr
     }
   };
 
-  const gameIds = new Set(games.map((m) => m.id));
+  // Tournaments weighted 0 are left out altogether: they neither move ratings nor count as matches played
+  const weighted = weights ? games.filter((m) => weights[m.tier] > 0) : games;
+  const gameIds = new Set(weighted.map((m) => m.id));
   let month = "";
   for (const m of all) {
     const at = m.start.slice(0, 7);
@@ -456,7 +463,7 @@ function buildElo(input: ModelsInput, all: ModelMatch[], games: ModelMatch[], fr
     const a = get(m.w);
     const b = get(m.l);
     // How sure the model was, before it learns from this match
-    if (m.season >= shownFrom) {
+    if (m.season >= shownFrom && (!scored || scored.has(m.id))) {
       let p = court ? eloChance(blend(a.elo, a.court[court]), blend(b.elo, b.court[court])) : eloChance(a.elo, b.elo);
       if (m.bestOf === 5) p = p >= 0.5 ? bestOfFive(p) : 1 - bestOfFive(1 - p);
       calibrate(calibration, p, true);
@@ -470,7 +477,7 @@ function buildElo(input: ModelsInput, all: ModelMatch[], games: ModelMatch[], fr
       }
     }
     const e = eloChance(a.elo, b.elo);
-    const weight = tierWeight[m.tier] ?? 1;
+    const weight = weights ? weights[m.tier] : 1;
     const ka = weight * kFactor(a.n);
     const kb = weight * kFactor(b.n);
     a.elo += ka * (1 - e);
@@ -520,7 +527,7 @@ function buildElo(input: ModelsInput, all: ModelMatch[], games: ModelMatch[], fr
   kept.sort((x, y) => x[S.p] - y[S.p] || x[S.season] - y[S.season]);
 
   const elo: EloModel = {
-    n: games.length,
+    n: weighted.length,
     from: shownFrom,
     K: "the tournament's weight × 250 ÷ (matches played + 5)^0.4",
     seasons: kept,
@@ -532,6 +539,7 @@ function buildElo(input: ModelsInput, all: ModelMatch[], games: ModelMatch[], fr
     rankAccuracy: rankRight / ranked,
     brier: round4(brier / rated),
     logLoss: round4(logLoss / rated),
+    unweighted: { accuracy: 0, brier: 0, logLoss: 0 },
   };
   return elo;
 }
