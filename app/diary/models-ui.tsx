@@ -1463,11 +1463,12 @@ function PressurePanel({ books }: { books: AdvancedBooks }) {
   );
   const byKey = useMemo(() => new Map(rows.map((x) => [x.k, x])), [rows]);
   const keys = useMemo(() => [...new Set(pressureMeasures.flatMap((m) => Object.keys(books.pressure[m].players).map((i) => books.people[Number(i)])))], [books]);
-  // One player at a time
-  const [picked, setPicked] = useState<string[]>(() => {
-    const want = books.tour === "atp" ? "Novak Djokovic" : "Iga Swiatek";
-    return keys.filter((k) => books.full[k] === want).slice(0, 1);
-  });
+  const topTen = useMemo(() => new Set(books.topTen.map((i) => books.people[i])), [books]);
+  // One player at a time: until someone is picked, whoever of the top-10 players beats expectation most on this measure
+  const [chosen, setChosen] = useState<string | null | undefined>(undefined);
+  const best = useMemo(() => rows.filter((x) => topTen.has(x.k)).sort((a, b) => b.edge - a.edge)[0]?.k, [rows, topTen]);
+  const picked = chosen === undefined ? (best ? [best] : []) : chosen ? [chosen] : [];
+  const setPicked = (ks: string[]) => setChosen(ks[0] ?? null);
   const styles = chartStyles(picked.map((k) => books.names[k]));
   const colorOf = (k: string) => styles.get(books.names[k])?.color ?? "var(--muted)";
   const [hover, setHover] = useState<string | null>(null);
@@ -1503,7 +1504,6 @@ function PressurePanel({ books }: { books: AdvancedBooks }) {
   const [side, setSide] = useState<"above" | "below">("above");
   const [find, setFind] = useState("");
   const typed = fold(find.trim());
-  const topTen = useMemo(() => new Set(books.topTen.map((i) => books.people[i])), [books]);
   const ranked = rows.filter((x) => topTen.has(x.k)).sort((a, b) => (side === "above" ? b.edge - a.edge : a.edge - b.edge));
   const listed = typed ? ranked.filter((x) => fold(`${books.full[x.k]} ${books.names[x.k]}`).includes(typed)) : ranked.slice(0, 10);
   const scale = Math.max(5, Math.ceil(Math.max(...listed.map((x) => Math.abs(x.edge) + x.half), 0) / 5) * 5);
@@ -2100,7 +2100,7 @@ export function AdvancedView({ books }: { books: AdvancedBooks }) {
                 panel === p.id ? "-translate-y-1 shadow-md ring-4 ring-ball" : "ring-1 ring-black/10"
               }`}
             >
-              <Image src={p.photo} alt={p.alt} fill placeholder="blur" sizes="(min-width: 640px) 12rem, 33vw" className={`object-cover transition-transform duration-500 group-hover:scale-105 ${p.position}`} />
+              <Image src={p.photo} alt={p.alt} fill placeholder="blur" sizes="(min-width: 1152px) 17rem, (min-width: 640px) 25vw, 50vw" quality={90} className={`object-cover transition-transform duration-500 group-hover:scale-105 ${p.position}`} />
               <span aria-hidden className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/15 to-transparent" />
               <span className="relative px-2.5 pb-2 sm:px-3 sm:pb-2.5">
                 <span className="block font-mono text-[10px] font-semibold text-white/75">{i + 1}</span>
