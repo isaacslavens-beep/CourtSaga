@@ -3,10 +3,10 @@
 import Image, { type StaticImageData } from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
-import ratingsPhoto from "@/public/photos/nadal-federer-ao-2009-final.jpg";
-import servePhoto from "@/public/photos/sinner-wimbledon-2025.jpg";
+import ratingsPhoto from "@/public/photos/alcaraz-nadal-paris-2024.jpg";
+import servePhoto from "@/public/photos/djokovic-serve-roland-garros.jpg";
 import pressurePhoto from "@/public/photos/djokovic-wimbledon-centre-court.jpg";
-import agesPhoto from "@/public/photos/federer-roland-garros.jpg";
+import agesPhoto from "@/public/photos/venus-williams-us-open.jpg";
 import { PageTitle } from "../page-title";
 import { Avatar, chartStyles } from "./fun";
 import {
@@ -67,10 +67,10 @@ function wilson(won: number, n: number, z = 1.96): [number, number] {
 
 type PanelId = "ratings" | "serve" | "pressure" | "ages";
 const panels: { id: PanelId; title: string; blurb: string; photo: StaticImageData; alt: string; position: string }[] = [
-  { id: "ratings", title: "Across eras", blurb: "Put any two players, each in any season, against each other, and see who led when.", photo: ratingsPhoto, alt: "Nadal and Federer after the 2009 Australian Open final", position: "object-[50%_30%]" },
-  { id: "serve", title: "Serving", blurb: "Set a serving line and see what it's worth.", photo: servePhoto, alt: "Sinner stretching for a forehand at Wimbledon", position: "object-[55%_35%]" },
+  { id: "ratings", title: "Across eras", blurb: "Put any two players, each in any season, against each other, and see who led when.", photo: ratingsPhoto, alt: "Alcaraz and Nadal clenching their fists side by side at the Paris Olympics", position: "object-[55%_30%]" },
+  { id: "serve", title: "Serving", blurb: "Set a serving line and see what it's worth.", photo: servePhoto, alt: "Djokovic tossing the ball to serve on clay at Roland Garros", position: "object-[50%_45%]" },
   { id: "pressure", title: "Under pressure", blurb: "Break points, tiebreaks and deciding sets: who wins more of the big points than the rest of their play says they should, and whether that lasts.", photo: pressurePhoto, alt: "Djokovic lunging on Centre Court at Wimbledon", position: "object-center" },
-  { id: "ages", title: "Ages", blurb: "When players do their best tennis, and how any player's career compares.", photo: agesPhoto, alt: "Federer raising a finger at Roland Garros", position: "object-[50%_20%]" },
+  { id: "ages", title: "Ages", blurb: "When players do their best tennis, and how any player's career compares.", photo: agesPhoto, alt: "Venus Williams ready to return at the US Open", position: "object-[65%_35%]" },
 ];
 
 const tours = [
