@@ -39,7 +39,7 @@ const parts = [
     id: "advanced",
     verb: "Analyse",
     title: "Play with the numbers",
-    body: "Elo ratings for every player, month by month since 2004, beside models of serving, pressure and age. Each shows its formula, its sample and how often it's right. Drag along the chart to any month.",
+    body: "Models fitted to every match since 2003, each with its formula and its sample. Here's one: who wins more of the big points than the rest of their play says they should. Pick any player.",
     taste: (
       <Suspense>
         <AdvancedTaste />

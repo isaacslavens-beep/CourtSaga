@@ -19,7 +19,10 @@ const fold = (s: string) => s.normalize("NFKD").replace(/[̀-ͯ]/g, "").toLowerC
 const exploreHref = (id: string) => `/explore?m=${encodeURIComponent(id)}`;
 
 // Each chapter's tile photo, and the part of it to keep in frame
-const chapterPhotos: Record<ChapterId, { src: StaticImageData; alt: string; position: string }> = {
+/** A photo across a board's top: the picture, what it shows, and where to centre it */
+export type Cover = { src: StaticImageData; alt: string; position: string };
+
+const chapterPhotos: Record<ChapterId, Cover> = {
   rivalries: { src: rivalriesPhoto, alt: "Nadal and Federer side by side with their trophies", position: "object-[50%_30%]" },
   events: { src: eventsPhoto, alt: "Centre Court at Wimbledon from the stands", position: "object-center" },
   streaks: { src: streaksPhoto, alt: "Djokovic with the Australian Open trophy, fist clenched", position: "object-[45%_30%]" },
@@ -107,10 +110,11 @@ export function BoardCard({
   only?: Set<string>;
   top?: number;
   still?: boolean;
-  cover?: ChapterId; // a chapter's photo across the top, with the title over it
+  cover?: ChapterId | Cover; // a chapter's photo (or one of its own) across the top, with the title over it
   label?: string; // on the photo's corner, e.g. which tour
 }) {
   const chapter = chapters.find((c) => c.id === board.chapter)!;
+  const photo = typeof cover === "string" ? chapterPhotos[cover] : cover;
   const [viewId, setViewId] = useState(board.views[0].id);
   const [open, setOpen] = useState(false);
   const view = board.views.find((v) => v.id === viewId) ?? board.views[0];
@@ -121,9 +125,9 @@ export function BoardCard({
 
   return (
     <section aria-labelledby={`board-${board.id}`} className="min-w-0 overflow-hidden rounded-3xl border border-line bg-surface p-4 shadow-sm sm:p-6">
-      {cover && (
+      {photo && (
         <div className="relative -mx-4 -mt-4 mb-4 h-40 sm:-mx-6 sm:-mt-6 sm:h-44">
-          <Image src={chapterPhotos[cover].src} alt={chapterPhotos[cover].alt} fill placeholder="blur" sizes="(min-width: 1024px) 24rem, 100vw" className={`object-cover ${chapterPhotos[cover].position}`} />
+          <Image src={photo.src} alt={photo.alt} fill placeholder="blur" sizes="(min-width: 1024px) 24rem, 100vw" className={`object-cover ${photo.position}`} />
           <span aria-hidden className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/10 to-transparent" />
           {label && <span className="absolute left-4 top-3 rounded-full bg-white px-2.5 py-0.5 text-xs font-bold tracking-wide text-[#0b0d12] shadow sm:left-6">{label}</span>}
           <h3 id={`board-${board.id}`} className="absolute inset-x-4 bottom-3 font-display text-2xl font-bold tracking-tight text-white sm:inset-x-6">

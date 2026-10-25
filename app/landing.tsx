@@ -4,19 +4,22 @@ import { STIX_Two_Text } from "next/font/google";
 import { advancedModels } from "@/lib/models";
 import { recordBooks } from "@/lib/records";
 import { matchStory } from "@/lib/story";
+import nadalPhoto from "@/public/photos/landing/nadal-backhand-clay.jpg";
+import federerPhoto from "@/public/photos/landing/federer-australian-open-tears.jpg";
+import sabalenkaPhoto from "@/public/photos/landing/sabalenka-ready-to-serve.jpg";
 import { rivalryRecords } from "./demos/rivalry-records";
 import { sampleEntries, sampleMatches, sampleOrder } from "./demos/sample";
 import type { AdvancedBooks } from "./diary/models";
-import type { Board, ChapterId, RecordBooks } from "./diary/records";
-import { BoardCard } from "./diary/records-ui";
+import { PressurePanel, type PressureBooks } from "./diary/models-ui";
+import type { Board, RecordBooks } from "./diary/records";
+import { BoardCard, type Cover } from "./diary/records-ui";
 import { SagaSection } from "./diary/saga";
 import { LogProvider } from "./diary/store";
-import { LandingAdvanced, type LandingTop } from "./landing-advanced";
 import { LandingExplore } from "./landing-explore";
 
 /* The landing page's four parts, each complete on the page: three famous matches to explore, three
-   record lists, Advanced's top 10 at any moment, and three books from a sample saga. Nothing here leads into the site; only the yellow
-   buttons do, and they lead to signing up. */
+   record lists, Advanced's Under pressure, and three books from a sample saga. Nothing here leads into
+   the site; only the yellow buttons do, and they lead to signing up. */
 
 /** The yellow button at the foot of a part: sign up for the rest */
 export function SignUpLink({ children }: { children: ReactNode }) {
@@ -43,12 +46,12 @@ export async function ExploreTaste() {
 
 /* ---------- Statistics: three lists ---------- */
 
-// Lists people won't find elsewhere, each with its chapter's photo on the Statistics page: head-to-heads turned
-// around, sets won in a row, and the lowest-ranked players to beat the No. 1
-const lists: { tour: "atp" | "wta"; board: string; cover: ChapterId }[] = [
-  { tour: "atp", board: "turnarounds", cover: "rivalries" },
-  { tour: "atp", board: "set-streaks", cover: "streaks" },
-  { tour: "wta", board: "beat-no1", cover: "matches" },
+// Lists people won't find elsewhere, each with a photo of its own: head-to-heads turned around, sets won in a
+// row, and the lowest-ranked players to beat the No. 1
+const lists: { tour: "atp" | "wta"; board: string; cover: Cover }[] = [
+  { tour: "atp", board: "turnarounds", cover: { src: nadalPhoto, alt: "Nadal winding up a backhand on clay, his shadow long across the court", position: "object-[62%_22%]" } },
+  { tour: "atp", board: "set-streaks", cover: { src: federerPhoto, alt: "Federer in tears beside the Australian Open trophy", position: "object-[50%_30%]" } },
+  { tour: "wta", board: "beat-no1", cover: { src: sabalenkaPhoto, alt: "Sabalenka holding a ball, ready to serve", position: "object-[38%_18%]" } },
 ];
 
 /** One board and only the names it needs */
@@ -75,46 +78,30 @@ export async function StatisticsTaste() {
   );
 }
 
-/* ---------- Advanced: the top 10 at any moment, and Under pressure ---------- */
+/* ---------- Advanced: Under pressure ---------- */
 
-// The Elo formula is set in the same maths face as on Advanced
+// The formula is set in the same maths face as on Advanced
 const mathFace = STIX_Two_Text({ subsets: ["latin"], style: ["normal", "italic"], variable: "--font-math", preload: false });
 
-/** Only the monthly top 10s and Under pressure, with the people in them numbered afresh */
-function topOnly(b: AdvancedBooks): LandingTop {
-  const used = [
-    ...new Set([
-      ...Object.values(b.elo.top).flatMap((months) => months.flatMap((t) => t.map(([p]) => p))),
-      ...Object.values(b.pressure).flatMap((fit) => Object.keys(fit.players).map(Number)),
-      ...b.topTen,
-    ]),
-  ];
+/** Only what Under pressure needs, with the people in it numbered afresh */
+function pressureOnly(b: AdvancedBooks): PressureBooks {
+  const used = [...new Set([...Object.values(b.pressure).flatMap((fit) => Object.keys(fit.players).map(Number)), ...b.topTen])];
   const at = new Map(used.map((p, i) => [p, i]));
   const people = used.map((p) => b.people[p]);
   const keep = (names: Record<string, string>) => Object.fromEntries(people.map((k) => [k, names[k]]));
-  const top = Object.fromEntries(Object.entries(b.elo.top).map(([c, months]) => [c, months.map((t) => t.map(([p, r]): [number, number] => [at.get(p)!, r]))])) as AdvancedBooks["elo"]["top"];
   const pressure = Object.fromEntries(
     Object.entries(b.pressure).map(([m, fit]) => [m, { ...fit, players: Object.fromEntries(Object.entries(fit.players).map(([p, r]) => [at.get(Number(p))!, r])) }]),
   ) as AdvancedBooks["pressure"];
-  return {
-    tour: b.tour,
-    from: b.from,
-    people,
-    names: keep(b.names),
-    full: keep(b.full),
-    elo: { months: b.elo.months, top },
-    pressure,
-    topTen: b.topTen.map((p) => at.get(p)!),
-    fit: { n: b.elo.calibration.reduce((t, c) => t + c.n, 0), accuracy: b.elo.accuracy, rankAccuracy: b.elo.rankAccuracy },
-  };
+  return { tour: b.tour, from: b.from, people, names: keep(b.names), full: keep(b.full), pressure, topTen: b.topTen.map((p) => at.get(p)!) };
 }
 
 export async function AdvancedTaste() {
-  const [men, women] = await Promise.all(["atp", "wta"].map((t) => advancedModels(t as "atp" | "wta").then((b) => (b ? topOnly(b) : null)).catch(() => null)));
-  if (!men && !women) return <p className="text-muted">The models aren&apos;t available right now.</p>;
+  // The men's, which open on Shelton's break points
+  const men = await advancedModels("atp").catch(() => null);
+  if (!men) return <p className="text-muted">The models aren&apos;t available right now.</p>;
   return (
     <div className={mathFace.variable}>
-      <LandingAdvanced men={men} women={women} />
+      <PressurePanel books={pressureOnly(men)} brief />
     </div>
   );
 }
