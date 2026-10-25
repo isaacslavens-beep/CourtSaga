@@ -1454,7 +1454,11 @@ const pressureWords: Record<PressureMeasure, { label: string; chances: string; w
 /** How much an edge in one half of a career says about the other, in words */
 const lasting = (r: number) => (r < 0.15 ? "almost nothing" : r < 0.35 ? "a little" : r < 0.6 ? "a fair amount" : "a lot");
 
-function PressurePanel({ books }: { books: AdvancedBooks }) {
+/** What Under pressure needs (the landing page sends only this) */
+export type PressureBooks = Pick<AdvancedBooks, "tour" | "from" | "people" | "names" | "full" | "pressure" | "topTen">;
+
+/** Under pressure; `brief` keeps the answer, the scatter and the workings, and leaves out the long list and the even-v-odd figure */
+export function PressurePanel({ books, brief = false }: { books: PressureBooks; brief?: boolean }) {
   // The men open on break points won, where the example player, Shelton, stands out
   const [measure, setMeasure] = useState<PressureMeasure>(books.tour === "atp" ? "converted" : "saved");
   const fit = books.pressure[measure];
@@ -1652,7 +1656,7 @@ function PressurePanel({ books }: { books: AdvancedBooks }) {
           </Figure>
         </div>
 
-        <div className="mt-8">
+        <div className={brief ? "hidden" : "mt-8"}>
           <Figure
             n="3.2"
             title={`Furthest ${side} expectation`}
@@ -1712,7 +1716,7 @@ function PressurePanel({ books }: { books: AdvancedBooks }) {
           </Figure>
         </div>
 
-        <div className="mt-8">
+        <div className={brief ? "hidden" : "mt-8"}>
           <Figure
             n="3.3"
             title="Does the edge last?"

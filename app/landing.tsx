@@ -43,11 +43,12 @@ export async function ExploreTaste() {
 
 /* ---------- Statistics: three lists ---------- */
 
-// Each with the Statistics page's photo that fits it: the Big Three's rivalries, Djokovic's streak, Serena's seasons
+// Lists people won't find elsewhere, each with its chapter's photo on the Statistics page: head-to-heads turned
+// around, sets won in a row, and the lowest-ranked players to beat the No. 1
 const lists: { tour: "atp" | "wta"; board: string; cover: ChapterId }[] = [
-  { tour: "atp", board: "most-played", cover: "rivalries" },
-  { tour: "atp", board: "win-streaks", cover: "streaks" },
-  { tour: "wta", board: "season-pct", cover: "matches" },
+  { tour: "atp", board: "turnarounds", cover: "rivalries" },
+  { tour: "atp", board: "set-streaks", cover: "streaks" },
+  { tour: "wta", board: "beat-no1", cover: "matches" },
 ];
 
 /** One board and only the names it needs */
@@ -74,19 +75,38 @@ export async function StatisticsTaste() {
   );
 }
 
-/* ---------- Advanced: the top 10 at any moment ---------- */
+/* ---------- Advanced: the top 10 at any moment, and Under pressure ---------- */
 
 // The Elo formula is set in the same maths face as on Advanced
 const mathFace = STIX_Two_Text({ subsets: ["latin"], style: ["normal", "italic"], variable: "--font-math", preload: false });
 
-/** Only the monthly top 10s, with the people in them numbered afresh */
+/** Only the monthly top 10s and Under pressure, with the people in them numbered afresh */
 function topOnly(b: AdvancedBooks): LandingTop {
-  const used = [...new Set(Object.values(b.elo.top).flatMap((months) => months.flatMap((t) => t.map(([p]) => p))))];
+  const used = [
+    ...new Set([
+      ...Object.values(b.elo.top).flatMap((months) => months.flatMap((t) => t.map(([p]) => p))),
+      ...Object.values(b.pressure).flatMap((fit) => Object.keys(fit.players).map(Number)),
+      ...b.topTen,
+    ]),
+  ];
   const at = new Map(used.map((p, i) => [p, i]));
   const people = used.map((p) => b.people[p]);
   const keep = (names: Record<string, string>) => Object.fromEntries(people.map((k) => [k, names[k]]));
   const top = Object.fromEntries(Object.entries(b.elo.top).map(([c, months]) => [c, months.map((t) => t.map(([p, r]): [number, number] => [at.get(p)!, r]))])) as AdvancedBooks["elo"]["top"];
-  return { from: b.from, people, names: keep(b.names), full: keep(b.full), elo: { months: b.elo.months, top }, fit: { n: b.elo.calibration.reduce((t, c) => t + c.n, 0), accuracy: b.elo.accuracy, rankAccuracy: b.elo.rankAccuracy } };
+  const pressure = Object.fromEntries(
+    Object.entries(b.pressure).map(([m, fit]) => [m, { ...fit, players: Object.fromEntries(Object.entries(fit.players).map(([p, r]) => [at.get(Number(p))!, r])) }]),
+  ) as AdvancedBooks["pressure"];
+  return {
+    tour: b.tour,
+    from: b.from,
+    people,
+    names: keep(b.names),
+    full: keep(b.full),
+    elo: { months: b.elo.months, top },
+    pressure,
+    topTen: b.topTen.map((p) => at.get(p)!),
+    fit: { n: b.elo.calibration.reduce((t, c) => t + c.n, 0), accuracy: b.elo.accuracy, rankAccuracy: b.elo.rankAccuracy },
+  };
 }
 
 export async function AdvancedTaste() {

@@ -27,7 +27,7 @@ const parts = [
     id: "statistics",
     verb: "Look up",
     title: "Look up the records",
-    body: "Streaks, rivalries, title runs and seasons from every match since 2003, men's and women's.",
+    body: "Over 70 lists from every match since 2003, men's and women's, many found nowhere else: rivalries turned around, sets won in a row, the lowest-ranked players to beat the No. 1.",
     taste: (
       <Suspense>
         <StatisticsTaste />
