@@ -59,8 +59,8 @@ export function Hero() {
               Explore and track the story of tennis.
             </h1>
             <p className="mt-6 max-w-lg text-lg font-medium leading-relaxed text-white/90 sm:text-xl">
-              Explore the story behind any match, and star the ones you care about to build a saga of your
-              own to share.
+              Explore the story behind any match, look up the records, play with the models, and star the
+              matches you care about to build a saga of your own to share.
             </p>
             <div className="mt-8 flex flex-wrap items-center gap-x-5 gap-y-3">
               <a

@@ -1,17 +1,21 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { STIX_Two_Text } from "next/font/google";
+import { advancedModels } from "@/lib/models";
 import { recordBooks } from "@/lib/records";
 import { matchStory } from "@/lib/story";
 import { rivalryRecords } from "./demos/rivalry-records";
 import { sampleEntries, sampleMatches, sampleOrder } from "./demos/sample";
+import type { AdvancedBooks } from "./diary/models";
 import type { Board, ChapterId, RecordBooks } from "./diary/records";
 import { BoardCard } from "./diary/records-ui";
 import { SagaSection } from "./diary/saga";
 import { LogProvider } from "./diary/store";
+import { LandingAdvanced, type LandingTop } from "./landing-advanced";
 import { LandingExplore } from "./landing-explore";
 
-/* The landing page's three parts, each complete on the page: three famous matches to explore, three
-   record lists, and three books from a sample saga. Nothing here leads into the site; only the yellow
+/* The landing page's four parts, each complete on the page: three famous matches to explore, three
+   record lists, Advanced's top 10 at any moment, and three books from a sample saga. Nothing here leads into the site; only the yellow
    buttons do, and they lead to signing up. */
 
 /** The yellow button at the foot of a part: sign up for the rest */
@@ -66,6 +70,31 @@ export async function StatisticsTaste() {
       {shown.map(({ books, cover }) => (
         <BoardCard key={books.boards[0].id} board={books.boards[0]} books={books} top={3} still cover={cover} label={books.tour === "atp" ? "ATP" : "WTA"} />
       ))}
+    </div>
+  );
+}
+
+/* ---------- Advanced: the top 10 at any moment ---------- */
+
+// The Elo formula is set in the same maths face as on Advanced
+const mathFace = STIX_Two_Text({ subsets: ["latin"], style: ["normal", "italic"], variable: "--font-math", preload: false });
+
+/** Only the monthly top 10s, with the people in them numbered afresh */
+function topOnly(b: AdvancedBooks): LandingTop {
+  const used = [...new Set(Object.values(b.elo.top).flatMap((months) => months.flatMap((t) => t.map(([p]) => p))))];
+  const at = new Map(used.map((p, i) => [p, i]));
+  const people = used.map((p) => b.people[p]);
+  const keep = (names: Record<string, string>) => Object.fromEntries(people.map((k) => [k, names[k]]));
+  const top = Object.fromEntries(Object.entries(b.elo.top).map(([c, months]) => [c, months.map((t) => t.map(([p, r]): [number, number] => [at.get(p)!, r]))])) as AdvancedBooks["elo"]["top"];
+  return { from: b.from, people, names: keep(b.names), full: keep(b.full), elo: { months: b.elo.months, top }, fit: { n: b.elo.calibration.reduce((t, c) => t + c.n, 0), accuracy: b.elo.accuracy, rankAccuracy: b.elo.rankAccuracy } };
+}
+
+export async function AdvancedTaste() {
+  const [men, women] = await Promise.all(["atp", "wta"].map((t) => advancedModels(t as "atp" | "wta").then((b) => (b ? topOnly(b) : null)).catch(() => null)));
+  if (!men && !women) return <p className="text-muted">The models aren&apos;t available right now.</p>;
+  return (
+    <div className={mathFace.variable}>
+      <LandingAdvanced men={men} women={women} />
     </div>
   );
 }

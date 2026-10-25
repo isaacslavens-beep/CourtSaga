@@ -10,6 +10,7 @@ import { useEffect, useState } from "react";
 const lines: Record<string, [string, string]> = {
   explore: ["Sign up free to explore any tennis match", "Explore any match"],
   statistics: ["Sign up free to star the matches behind the records", "Star any match"],
+  advanced: ["Sign up free to play with every model", "Play with every model"],
   saga: ["Sign up free to build your own saga", "Build your own saga"],
 };
 const fallback: [string, string] = ["CourtSaga is free. Sign up to start your own", "It's free"];

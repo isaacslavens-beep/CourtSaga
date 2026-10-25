@@ -102,7 +102,7 @@ function Card({ children, className = "" }: { children: ReactNode; className?: s
 const chip = (on: boolean) =>
   `cursor-pointer rounded-full border-2 px-3 py-1 text-sm font-semibold transition ${on ? "border-court bg-court text-court-ink" : "border-line bg-surface text-court hover:border-court"}`;
 
-function Chips<T extends string | number>({ label, options, value, onChange }: { label: string; options: { id: T; label: string }[]; value: T; onChange: (v: T) => void }) {
+export function Chips<T extends string | number>({ label, options, value, onChange }: { label: string; options: { id: T; label: string }[]; value: T; onChange: (v: T) => void }) {
   return (
     <div>
       <p className="text-xs font-semibold uppercase tracking-wide text-muted">{label}</p>
@@ -999,7 +999,10 @@ const ownSlot: Record<string, number> = { Alcaraz: 0, Sinner: 1, Djokovic: 2, Ry
 const OTHERS = "#9aa5b4";
 
 /** The page's opening: the top 10 by rating at any month, a timeline of the range they spanned, and the list itself */
-function TopTen({ books }: { books: AdvancedBooks }) {
+/** What the top 10 needs: the monthly lists and the names in them (the landing page sends only this) */
+export type TopTenBooks = Pick<AdvancedBooks, "from" | "people" | "names" | "full"> & { elo: Pick<AdvancedBooks["elo"], "months" | "top"> };
+
+export function TopTen({ books, tours }: { books: TopTenBooks; tours?: ReactNode }) {
   const e = books.elo;
   const [month, setMonth] = useState(e.months.length - 1);
   const [moved, setMoved] = useState(false);
@@ -1091,7 +1094,10 @@ function TopTen({ books }: { books: AdvancedBooks }) {
             </div>
           </details>
         </div>
-        <Chips label="Rating" options={(["all", "hard", "clay", "grass"] as CourtOrAll[]).map((c) => ({ id: c, label: c === "all" ? "Overall" : courtWords[c] }))} value={topCourt} onChange={setTopCourt} />
+        <div className="flex flex-wrap items-end gap-4">
+          {tours}
+          <Chips label="Rating" options={(["all", "hard", "clay", "grass"] as CourtOrAll[]).map((c) => ({ id: c, label: c === "all" ? "Overall" : courtWords[c] }))} value={topCourt} onChange={setTopCourt} />
+        </div>
       </div>
       <div className="mt-5">
         <Figure

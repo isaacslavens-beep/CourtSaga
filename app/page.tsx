@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { DataCredit } from "./credits";
 import { Hero } from "./hero";
-import { ExploreTaste, SagaTaste, SignUpLink, StatisticsTaste } from "./landing";
+import { AdvancedTaste, ExploreTaste, SagaTaste, SignUpLink, StatisticsTaste } from "./landing";
 import { SmoothAnchors } from "./smooth-anchors";
 import { rivalryRecords } from "./demos/rivalry-records";
 import { sampleEntries, sampleMatches, sampleOrder } from "./demos/sample";
@@ -9,7 +9,7 @@ import { LogProvider } from "./diary/store";
 import { SignupBar } from "./signup-nudge";
 import { StepHeading } from "./step-heading";
 
-// The site's three parts, as on the nav: a quick taste of each, and a way into the real thing
+// The site's four parts, as on the nav: a quick taste of each, and a way into the real thing
 const parts = [
   {
     id: "explore",
@@ -34,6 +34,18 @@ const parts = [
       </Suspense>
     ),
     more: "Sign up for every list",
+  },
+  {
+    id: "advanced",
+    verb: "Analyse",
+    title: "Play with the numbers",
+    body: "Elo ratings for every player, month by month since 2004, beside models of serving, pressure and age. Each shows its formula, its sample and how often it's right. Drag along the chart to any month.",
+    taste: (
+      <Suspense>
+        <AdvancedTaste />
+      </Suspense>
+    ),
+    more: "Sign up for every model",
   },
   {
     id: "saga",
