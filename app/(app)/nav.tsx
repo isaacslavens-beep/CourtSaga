@@ -5,12 +5,12 @@ import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { pageCourts } from "./courts";
 
-// The site's parts, numbered as on the landing page (Advanced comes after it)
+// The site's parts, in order
 const steps = [
   { href: "/explore", n: 1, label: "Explore" },
   { href: "/statistics", n: 2, label: "Statistics" },
-  { href: "/saga", n: 3, label: "Saga" },
-  { href: "/advanced", n: 4, label: "Advanced" },
+  { href: "/advanced", n: 3, label: "Advanced" },
+  { href: "/saga", n: 4, label: "Saga" },
 ];
 
 const pill = (on: boolean) => `flex items-center gap-2 rounded-full font-semibold transition ${on ? "bg-white text-foreground shadow-md" : "text-white/90 hover:bg-white/10"}`;
@@ -21,7 +21,7 @@ export function AppNav() {
   const on = (href: string) => path === href || path.startsWith(`${href}/`);
   return (
     // Four steps fill a phone's width, so there they sit closer, and on the narrowest phones drop their numbers
-    <nav aria-label="Explore, statistics, saga and advanced" className="order-3 flex w-full items-center justify-between sm:order-2 sm:ml-auto sm:w-auto sm:justify-start sm:gap-1.5">
+    <nav aria-label="Explore, statistics, advanced and saga" className="order-3 flex w-full items-center justify-between sm:order-2 sm:ml-auto sm:w-auto sm:justify-start sm:gap-1.5">
       {steps.map((s) => (
         <Link
           key={s.href}

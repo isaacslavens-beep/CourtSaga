@@ -2079,7 +2079,7 @@ export function AdvancedView({ books }: { books: AdvancedBooks }) {
     <div className="space-y-8">
       <div className="space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <PageTitle n={4}>Advanced Analytics</PageTitle>
+          <PageTitle n={3}>Advanced Analytics</PageTitle>
           <div className="flex rounded-full bg-surface p-1 shadow-sm ring-1 ring-line" role="group" aria-label="Tour">
             {tours.map((t) => (
               <Link

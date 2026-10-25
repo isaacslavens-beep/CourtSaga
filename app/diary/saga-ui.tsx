@@ -1,6 +1,6 @@
 "use client";
 
-// Pieces of the saga in step 3: each book's look, its chapter numbers and its at-a-glance chart.
+// Pieces of the saga in step 4: each book's look, its chapter numbers and its at-a-glance chart.
 
 import { type StaticImageData } from "next/image";
 import { useRef, useState, type CSSProperties } from "react";

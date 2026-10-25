@@ -38,7 +38,7 @@ export function SagaHero({
     <div className="bg-[var(--header)] text-white">
       <div className="mx-auto grid max-w-6xl items-center gap-x-12 gap-y-8 px-4 py-8 sm:px-8 sm:py-10 lg:grid-cols-[minmax(0,1fr)_auto]">
         <div className="min-w-0">
-          <PageTitle n={3} onDark>
+          <PageTitle n={4} onDark>
             {title}
           </PageTitle>
           {lines.length > 0 && (
