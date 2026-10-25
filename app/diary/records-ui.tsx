@@ -32,7 +32,7 @@ const chapterPhotos: Record<ChapterId, { src: StaticImageData; alt: string; posi
 const TOP = 5;
 
 const tours = [
-  { tour: "atp", label: "Men", href: "/statistics", examples: ["Nadal", "Murray", "Alcaraz"] },
+  { tour: "atp", label: "Men", href: "/statistics", examples: ["Federer", "Nadal", "Alcaraz"] },
   { tour: "wta", label: "Women", href: "/statistics/women", examples: ["Serena", "Swiatek", "Sabalenka"] },
 ] as const;
 
@@ -256,7 +256,7 @@ export function RecordsView({ books }: { books: RecordBooks }) {
             type="search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder={`Try "${here.examples[0]}" or "${here.examples[1]}"`}
+            placeholder="Search a player"
             autoComplete="off"
             spellCheck={false}
             className="w-full rounded-full border-2 border-line bg-background py-3 pl-12 pr-4 text-lg font-medium placeholder:text-muted/70 focus:border-court focus:outline-none focus:ring-4 focus:ring-court/15"
