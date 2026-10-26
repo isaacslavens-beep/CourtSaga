@@ -14,6 +14,8 @@ export function proxy(request: NextRequest) {
   // Signed out, Explore opens only a match someone shared
   const m = request.nextUrl.searchParams.get("m");
   if (pathname === "/explore" && m && m !== "random") return NextResponse.next();
+  // and its card, which link previews fetch signed out
+  if (pathname.startsWith("/explore/opengraph-image")) return NextResponse.next();
   const login = new URL("/login", request.url);
   login.searchParams.set("next", pathname + search);
   return NextResponse.redirect(login);
