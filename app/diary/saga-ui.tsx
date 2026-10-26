@@ -137,7 +137,7 @@ function ChartTip({ tip }: { tip: Tip }) {
   return (
     <div
       aria-hidden
-      className="pointer-events-none absolute z-10 w-max max-w-[15rem] -translate-x-1/2 -translate-y-full rounded-xl bg-background px-3 py-2 text-sm shadow-xl ring-1 ring-foreground/15"
+      className="pointer-events-none absolute z-10 w-max max-w-[15rem] -translate-x-1/2 -translate-y-full rounded border border-line-strong bg-surface px-3 py-2 text-sm shadow-md"
       style={{ left: tip.x, top: tip.y - 8 }}
     >
       <span className="block font-semibold">{cut < 0 ? tip.item.title : tip.item.title.slice(0, cut)}</span>

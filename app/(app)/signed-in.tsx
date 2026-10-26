@@ -23,7 +23,7 @@ export function SignedIn() {
           router.replace("/");
           router.refresh();
         }}
-        className="shrink-0 cursor-pointer rounded-full border border-line px-2.5 py-0.5 font-semibold transition hover:border-court hover:text-court disabled:cursor-wait disabled:opacity-60"
+        className="btn btn-secondary btn-sm shrink-0"
       >
         {pending ? "Logging out…" : "Log out"}
       </button>

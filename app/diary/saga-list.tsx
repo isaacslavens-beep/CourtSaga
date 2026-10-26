@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { SlamLogo, TournamentLabel, slamColours } from "../match-ui";
+import { Chevron, SearchIcon, SectionHead, Segmented } from "../ui";
 import { Avatar, BallScore } from "./fun";
 import { eventLabel, monthLabel, roundOrder, scoreText, slams, watched, type Match } from "./library";
 import { useLog } from "./store";
@@ -42,15 +43,18 @@ export function AllMatches() {
 
   return (
     <section aria-labelledby="all-matches">
-      <h2 id="all-matches" className="font-display text-2xl font-bold tracking-tight">
-        All your matches
-      </h2>
-      <p className="text-muted">
-        {starred.length === 1 ? "The match you've starred" : `All ${starred.length} you've starred`}, men&apos;s and women&apos;s. Pick a Slam, search, or scroll; any match opens its story.
-      </p>
+      <SectionHead
+        id="all-matches"
+        title="All your matches"
+        body={
+          <>
+            {starred.length === 1 ? "The match you've starred" : `All ${starred.length} you've starred`}, men&apos;s and women&apos;s. Pick a Slam, search, or scroll; any match opens its story.
+          </>
+        }
+      />
 
       {/* The Slams, as on Explore: each with how many of your matches were played there */}
-      <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {slams.map((s) => {
           const n = perSlam[s];
           const on = slam === s;
@@ -61,32 +65,27 @@ export function AllMatches() {
               aria-pressed={on}
               disabled={!n}
               onClick={() => setSlam(on ? null : s)}
-              style={{ background: slamColours[s] }}
-              className={`group flex cursor-pointer items-center gap-3 rounded-2xl px-3 py-3 text-left font-semibold text-white shadow-md transition duration-200 hover:-translate-y-1 hover:shadow-xl disabled:cursor-default disabled:opacity-40 disabled:hover:translate-y-0 sm:px-4 ${
-                on ? "-translate-y-1 shadow-xl ring-4 ring-ball ring-offset-2 ring-offset-[var(--background)]" : slam ? "opacity-70 hover:opacity-100" : ""
+              style={{ borderTopColor: slamColours[s] }}
+              className={`flex cursor-pointer items-center gap-3 rounded-md border border-t-4 bg-surface px-3 py-3 text-left transition-colors disabled:cursor-default disabled:opacity-45 sm:px-4 ${
+                on ? "border-x-foreground border-b-foreground bg-sunk" : "border-x-line border-b-line enabled:hover:bg-sunk"
               }`}
             >
-              <span className="transition-transform duration-300 group-hover:-rotate-6 group-hover:scale-110">
-                <SlamLogo event={s} size="h-11 w-11 sm:h-12 sm:w-12" />
-              </span>
+              <SlamLogo event={s} size="h-10 w-10 sm:h-12 sm:w-12" />
               <span className="min-w-0 leading-tight">
-                <span className="block font-display text-base sm:text-lg">{s}</span>
-                <span className="block text-xs text-white/80">{n === 1 ? "1 match" : `${n} matches`}</span>
+                <span className="block font-display text-base font-bold sm:text-lg">{s}</span>
+                <span className="block text-sm tabular-nums text-muted">{n === 1 ? "1 match" : `${n} matches`}</span>
               </span>
             </button>
           );
         })}
       </div>
 
-      <div className="mt-4 rounded-3xl border border-line bg-surface shadow-sm">
-        <div className="border-b border-line px-4 py-4 sm:px-5">
+      <div className="panel mt-4">
+        <div className="border-b border-line px-4 py-3 sm:px-5">
           {/* Always here: search your own matches, or scroll through them below */}
           <div className="flex flex-wrap items-center gap-3">
             <div className="relative min-w-0 basis-full sm:basis-0 sm:flex-1">
-              <svg viewBox="0 0 20 20" aria-hidden className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 fill-none stroke-current stroke-2 text-muted" strokeLinecap="round">
-                <circle cx="8.5" cy="8.5" r="5.5" />
-                <path d="m13 13 4 4" />
-              </svg>
+              <SearchIcon />
               <input
                 type="search"
                 value={query}
@@ -95,24 +94,20 @@ export function AllMatches() {
                 aria-label="Search your matches"
                 autoComplete="off"
                 spellCheck={false}
-                className="w-full rounded-full border-2 border-line bg-background py-2.5 pl-12 pr-4 font-medium placeholder:text-muted/70 focus:border-court focus:outline-none focus:ring-4 focus:ring-court/15"
+                className="field py-2 pl-10"
               />
             </div>
-            <div className="flex rounded-full bg-background p-1 ring-1 ring-line" role="group" aria-label="Order">
-              {[true, false].map((newest) => (
-                <button
-                  key={String(newest)}
-                  type="button"
-                  aria-pressed={newestFirst === newest}
-                  onClick={() => setNewestFirst(newest)}
-                  className={`cursor-pointer rounded-full px-3 py-1 text-sm font-bold transition ${newestFirst === newest ? "bg-court text-court-ink shadow-sm" : "text-muted hover:text-foreground"}`}
-                >
-                  {newest ? "Newest" : "Oldest"}
-                </button>
-              ))}
-            </div>
+            <Segmented
+              label="Order"
+              options={[
+                { id: "newest", label: "Newest" },
+                { id: "oldest", label: "Oldest" },
+              ]}
+              value={newestFirst ? "newest" : "oldest"}
+              onChange={(v) => setNewestFirst(v === "newest")}
+            />
           </div>
-          <p className="mt-2 px-1 text-sm text-muted" aria-live="polite">
+          <p className="mt-2 text-sm text-muted" aria-live="polite">
             {query.trim() || slam
               ? total
                 ? `${total} of your ${starred.length} ${starred.length === 1 ? "match" : "matches"}${slam ? ` at ${slam === "US Open" || slam === "Australian Open" ? "the " : ""}${slam}` : ""}.`
@@ -128,12 +123,12 @@ export function AllMatches() {
             )}
           </p>
         </div>
-        <div className="max-h-[32rem] overflow-y-auto px-2 py-2 sm:px-3">
+        <div className="max-h-[32rem] overflow-y-auto">
           {years.map(([year, ms]) => (
             <div key={year}>
-              <p className="sticky top-0 z-10 flex items-baseline gap-2 bg-surface/95 px-3 pb-1 pt-3 backdrop-blur-sm">
-                <span className="font-display text-xl font-bold">{year}</span>
-                <span className="text-xs font-semibold text-muted">{ms.length === 1 ? "1 match" : `${ms.length} matches`}</span>
+              <p className="sticky top-0 z-10 flex items-baseline gap-2 border-y border-line bg-sunk px-4 py-1 sm:px-5">
+                <span className="stat text-lg">{year}</span>
+                <span className="text-xs font-semibold tabular-nums text-muted">{ms.length === 1 ? "1 match" : `${ms.length} matches`}</span>
               </p>
               <ul className="divide-y divide-line">
                 {ms.map((m) => {
@@ -143,31 +138,29 @@ export function AllMatches() {
                       <button
                         type="button"
                         onClick={() => openInLog(m.id)}
-                        className="group flex w-full cursor-pointer items-center gap-3 rounded-xl px-3 py-2.5 text-left transition hover:bg-court/5"
+                        className="group flex w-full cursor-pointer items-center gap-3 px-4 py-2 text-left transition-colors hover:bg-sunk sm:px-5"
                       >
                         <span className="w-9 shrink-0 text-xs font-semibold text-muted">{monthLabel(m.date.slice(0, 7)).slice(0, 3)}</span>
                         <span className="flex shrink-0 -space-x-2 max-sm:hidden">
-                          <Avatar name={m.winner} size="h-9 w-9 text-xs ring-2 ring-surface" />
-                          <Avatar name={m.loser} size="h-9 w-9 text-xs ring-2 ring-surface" />
+                          <Avatar name={m.winner} size="h-8 w-8 text-xs ring-2 ring-surface" />
+                          <Avatar name={m.loser} size="h-8 w-8 text-xs ring-2 ring-surface" />
                         </span>
                         <span className="min-w-0 flex-1">
-                          <TournamentLabel event={eventLabel(m)} surface={m.surface} className="max-w-full text-sm" />
+                          <TournamentLabel event={eventLabel(m)} surface={m.surface} logo="h-5 w-5" className="max-w-full text-sm" />
                           <span className="mt-0.5 block truncate text-sm">
                             <span className="font-semibold">{m.winner}</span> <span className="text-muted">beat {m.loser}</span>{" "}
-                            <span className="whitespace-nowrap font-mono text-xs text-muted">{scoreText(m.score)}</span>
+                            <span className="whitespace-nowrap text-xs tabular-nums text-muted">{scoreText(m.score)}</span>
                           </span>
                         </span>
                         <span className="flex shrink-0 flex-col items-end gap-1">
                           {watched(fan) ? (
-                            <span className="rounded-full bg-ball px-2 py-0.5 text-[11px] font-bold text-[#0b0d12]">★ Watched</span>
+                            <span className="rounded-[3px] bg-ball px-1.5 py-px text-[11px] font-bold">★ Watched</span>
                           ) : (
-                            <span className="rounded-full px-2 py-0.5 text-[11px] font-semibold text-muted ring-1 ring-line">☆ Starred</span>
+                            <span className="rounded-[3px] px-1.5 py-px text-[11px] font-semibold text-muted ring-1 ring-inset ring-line">☆ Starred</span>
                           )}
                           <BallScore value={fan.rating} size="xs" />
                         </span>
-                        <span aria-hidden className="shrink-0 text-court transition-transform group-hover:translate-x-1 max-sm:hidden">
-                          →
-                        </span>
+                        <Chevron className="h-3.5 w-3.5 text-muted transition-colors group-hover:text-court max-sm:hidden" />
                       </button>
                     </li>
                   );

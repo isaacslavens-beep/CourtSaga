@@ -7,7 +7,6 @@ import { rivalryRecords } from "./demos/rivalry-records";
 import { sampleEntries, sampleMatches, sampleOrder } from "./demos/sample";
 import { LogProvider } from "./diary/store";
 import { SignupBar } from "./signup-nudge";
-import { StepHeading } from "./step-heading";
 
 // The site's four parts, as on the nav: a quick taste of each, and a way into the real thing
 const parts = [
@@ -82,10 +81,20 @@ export default function Home() {
             key={p.id}
             id={p.id}
             aria-labelledby={`${p.id}-title`}
-            className={`border-t border-line py-12 sm:py-16 ${"room" in p ? "saga-room" : i % 2 ? "bg-surface/60" : ""}`}
+            className={`py-12 sm:py-16 ${"room" in p ? "saga-room border-t border-line" : ""}`}
           >
             <div className="mx-auto w-full max-w-6xl px-4 sm:px-8">
-              <StepHeading n={i + 1} verb={p.verb} title={p.title} body={p.body} id={`${p.id}-title`} compact />
+              {/* The part's number and verb on a tab hanging from a rule, as the site's sections are headed */}
+              <div className="section-rule">
+                <p className="section-tab">
+                  <span className="step h-5 w-5 text-xs">{i + 1}</span>
+                  {p.verb}
+                </p>
+                <h2 id={`${p.id}-title`} className="mt-5 font-display text-[2rem] font-bold leading-tight sm:text-[2.5rem]">
+                  {p.title}
+                </h2>
+                <p className="mt-2 max-w-3xl text-lg leading-relaxed text-muted">{p.body}</p>
+              </div>
               <div className="mt-8">{p.taste}</div>
               <div className="mt-8">
                 <SignUpLink>{p.more}</SignUpLink>
@@ -97,7 +106,7 @@ export default function Home() {
 
       {/* Credits for the photos and the match data, quietly at the very end */}
       {/* Room under the credits for the sign-up bar floating over the page's foot */}
-      <footer className="border-t border-line pb-16">
+      <footer className="border-t border-line bg-surface pb-16">
         <div className="mx-auto max-w-6xl space-y-2 px-4 py-6 text-xs leading-relaxed text-muted sm:px-8">
           <p>
             <span className="font-semibold">Photos:</span>{" "}

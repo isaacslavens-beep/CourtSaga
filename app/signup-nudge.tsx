@@ -38,12 +38,12 @@ export function SignupBar() {
 
   return (
     <div className="pointer-events-none fixed inset-x-0 bottom-3 z-40 flex justify-center px-4">
-      <div className="pointer-events-auto flex max-w-full items-center gap-3 rounded-full bg-[#0f1b2d]/90 py-1.5 pl-5 pr-1.5 text-sm text-white shadow-lg shadow-black/20 ring-1 ring-white/10 backdrop-blur-md">
+      <div className="pointer-events-auto flex max-w-full items-center gap-3 rounded-md bg-header py-1.5 pl-4 pr-1.5 text-sm text-white shadow-lg shadow-black/20">
         <span key={step ?? "none"} className="fade-in min-w-0 truncate font-medium">
           <span className="max-sm:hidden">{(step ? lines[step] : fallback)[0]}</span>
           <span className="sm:hidden">{(step ? lines[step] : fallback)[1]}</span>
         </span>
-        <Link href="/signup" className="shrink-0 rounded-full bg-ball px-4 py-1.5 font-bold text-[#0b0d12] transition hover:brightness-105">
+        <Link href="/signup" className="btn btn-primary btn-sm shrink-0">
           Sign up free
         </Link>
       </div>

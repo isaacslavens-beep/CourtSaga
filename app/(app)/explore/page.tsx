@@ -8,7 +8,7 @@ import { classics } from "../../diary/classics";
 import { bigEvents, diaryPages, roundName, slams, toFanEntry, toMatches } from "../../diary/library";
 import { ExploreSection } from "../../diary/explore";
 import { LogProvider } from "../../diary/store";
-import { PageTitle } from "../../page-title";
+import { PageBar } from "../../ui";
 import { OpeningDiary } from "../loading-page";
 import { saver } from "../saver";
 
@@ -28,12 +28,10 @@ const noDiary: DiaryData = { rows: [], entries: {}, order: [], version: "guest" 
 
 export default function ExplorePage({ searchParams }: PageProps<"/explore">) {
   return (
-    <div className="court-wimbledon flex flex-1 flex-col">
-      <section className="court-page flex-1 pb-16 pt-6 sm:pt-8">
+    <div className="flex flex-1 flex-col">
+      <PageBar n={1} title="Explore a match" />
+      <section className="flex-1 pb-16 pt-6 sm:pt-8">
         <div className="mx-auto w-full max-w-6xl px-4 sm:px-8">
-          <div className="mb-6">
-            <PageTitle n={1}>Explore a match</PageTitle>
-          </div>
           <Suspense fallback={<OpeningDiary />}>
             <Exploring searchParams={searchParams} />
           </Suspense>

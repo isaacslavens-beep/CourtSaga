@@ -24,8 +24,8 @@ import { LandingExplore } from "./landing-explore";
 /** The yellow button at the foot of a part: sign up for the rest */
 export function SignUpLink({ children }: { children: ReactNode }) {
   return (
-    <Link href="/signup" className="inline-flex items-center gap-2 rounded-full bg-ball px-6 py-3 font-display text-lg font-bold text-[#0b0d12] shadow-lg shadow-black/15 transition hover:-translate-y-0.5 hover:shadow-xl">
-      {children} <span aria-hidden>→</span>
+    <Link href="/signup" className="btn btn-primary btn-lg">
+      {children}
     </Link>
   );
 }

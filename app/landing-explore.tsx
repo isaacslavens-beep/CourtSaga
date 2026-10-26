@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { StoryView } from "./diary/explore";
+import { Segmented } from "./ui";
 import type { Story } from "./diary/story";
 
 /* The landing page's Explore: a few famous matches to read the story of, picked from chips. Stories come
@@ -39,20 +40,8 @@ export function LandingExplore({ initial, choices }: { initial: Story | null; ch
 
   return (
     <div>
-      <div className="mb-6 flex flex-wrap items-center gap-2">
-        {choices.map((c) => (
-          <button
-            key={c.id}
-            type="button"
-            aria-pressed={story?.id === c.id}
-            onClick={() => void open(c.id)}
-            className={`cursor-pointer rounded-full border-2 px-4 py-1.5 text-sm font-semibold transition sm:text-base ${story?.id === c.id ? "border-court bg-court text-court-ink" : "border-line bg-surface text-court hover:border-court"}`}
-          >
-            {c.label}
-          </button>
-        ))}
-      </div>
-      {failed && <p className="mb-4 rounded-2xl bg-fault/10 px-4 py-3 font-medium text-fault">That story didn&apos;t load. Check your connection and try again.</p>}
+      <Segmented label="Match" options={choices} value={story?.id ?? ""} onChange={(id) => void open(id)} className="mb-6" />
+      {failed && <p className="mb-4 rounded border border-fault/30 bg-fault/5 px-4 py-3 font-medium text-fault">That story didn&apos;t load. Check your connection and try again.</p>}
       {story ? (
         <StoryView story={story} follow={(id) => void open(id)} pending={pending} page={() => null} lite still short />
       ) : (

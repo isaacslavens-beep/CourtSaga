@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore, useTransition, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore, useTransition, type CSSProperties, type ReactNode } from "react";
 import { glideTo } from "../glide";
 import { HighlightsLink, SlamLogo, TournamentLabel, slamColours } from "../match-ui";
-import { Avatar, BallRating, BallScore, CourtArt, chartStyles } from "./fun";
-import { bigEventOf, bigEvents, diaryPages, roundName, scoreText, toMatches, watched, watchedHow, type Match, type MatchRow, type Round, type WatchMode } from "./library";
+import { Chevron, SectionHead, Segmented } from "../ui";
+import { Avatar, BallRating, BallScore, CollectionIcon, CourtArt, chartStyles } from "./fun";
+import { bigEventOf, bigEvents, diaryPages, finished, parseScore, roundName, scoreText, setWinner, toMatches, watched, watchedHow, type Match, type MatchRow, type Round, type WatchMode } from "./library";
 import { highlightVideos } from "./media";
 import { MatchFinder } from "./finder";
 import { Scoreboard } from "./scoreboard";
@@ -59,7 +60,7 @@ function Parts({ parts, follow, still = false }: { parts: Part[]; follow: Follow
 function FactLine({ fact, follow, colors, still }: { fact: Fact; follow: Follow; colors: Record<"a" | "b", string>; still?: boolean }) {
   return (
     <li className="flex gap-3">
-      <span aria-hidden className="mt-2 h-2 w-2 shrink-0 rounded-full" style={{ background: fact.side ? colors[fact.side] : "var(--line)" }} />
+      <span aria-hidden className="mt-[0.55rem] h-2 w-2 shrink-0 rounded-[1px]" style={{ background: fact.side ? colors[fact.side] : "var(--line-strong)" }} />
       <span className="min-w-0 leading-relaxed">
         <Parts parts={fact.parts} follow={follow} still={still} />
       </span>
@@ -128,14 +129,14 @@ const gridLegend = [
 function ResultCell({ result, won, color, focus, title, onClick }: { result: string; won: boolean; color: string; focus: boolean; title: string; onClick?: () => void }) {
   const shade = depthShade(result);
   const style = won
-    ? { background: "var(--ball)", color: "#0b0d12" }
+    ? { background: "var(--ball)", color: "var(--foreground)" }
     : { background: `color-mix(in srgb, ${color} ${shade}%, var(--surface))`, color: shade >= 70 ? "#ffffff" : "var(--foreground)" };
   return (
     <button
       type="button"
       title={title}
       onClick={onClick}
-      className={`flex h-9 w-full min-w-7 items-center justify-center rounded-lg text-xs font-bold transition ${onClick ? "cursor-pointer hover:scale-110 hover:shadow-md" : ""} ${focus ? "ring-2 ring-foreground ring-offset-2 ring-offset-surface" : ""} ${won ? "shadow-sm ring-1 ring-black/15" : ""}`}
+      className={`flex h-8 w-full min-w-7 items-center justify-center rounded-[3px] text-xs font-bold tabular-nums transition ${onClick ? "cursor-pointer hover:ring-2 hover:ring-foreground/40" : ""} ${focus ? "ring-2 ring-foreground ring-offset-1 ring-offset-surface" : ""} ${won ? "ring-1 ring-black/15" : ""}`}
       style={style}
     >
       {won ? "W" : result}
@@ -152,7 +153,7 @@ function EventGrid({ v, story, colors, follow }: { v: EventVisual; story: Story;
         <div className="grid min-w-max items-center gap-x-1 gap-y-2" style={{ gridTemplateColumns: `minmax(7.5rem, auto) repeat(${n}, minmax(1.95rem, 1fr))` }}>
           <span />
           {v.seasons.map((y) => (
-            <span key={y} className={`text-center text-xs tabular-nums ${y === story.season ? "font-bold text-foreground" : "text-muted"}`}>
+            <span key={y} className={`text-center text-xs font-semibold tabular-nums ${y === story.season ? "text-foreground" : "text-muted"}`}>
               {shortSeason(y)}
             </span>
           ))}
@@ -182,7 +183,7 @@ function EventGrid({ v, story, colors, follow }: { v: EventVisual; story: Story;
                     onClick={() => follow(cell.id)}
                   />
                 ) : (
-                  <span key={`${row.side}-${i}`} aria-label={`${v.seasons[i]}: didn't play`} className="flex h-9 items-center justify-center rounded-lg border border-dashed border-line text-xs text-muted/60">
+                  <span key={`${row.side}-${i}`} aria-label={`${v.seasons[i]}: didn't play`} className="flex h-8 items-center justify-center rounded-[3px] border border-dashed border-line text-xs text-muted/60">
                     –
                   </span>
                 ),
@@ -201,7 +202,7 @@ function EventGrid({ v, story, colors, follow }: { v: EventVisual; story: Story;
           </li>
         ))}
         <li className="flex items-center gap-1.5">
-          <span className="flex h-9 w-8 items-center justify-center rounded-lg border border-dashed border-line">–</span>
+          <span className="flex h-8 w-8 items-center justify-center rounded-[3px] border border-dashed border-line">–</span>
           Didn&apos;t play
         </li>
       </ul>
@@ -258,24 +259,24 @@ function DrawPaths({ v, story, follow }: { v: DrawVisual; story: Story; follow: 
         const key = path.side === "a" ? story.a.key : story.b.key;
         return (
           <div key={path.side} className="min-w-0">
-            <p className="flex items-center gap-2 text-sm font-semibold">
+            <p className="flex items-center gap-2 font-display text-base font-bold">
               <Avatar name={story.names[key]} size="h-6 w-6 text-[10px]" />
               {story.names[key]}
             </p>
-            <ol className="mt-2 space-y-0.5 text-sm">
+            <ol className="mt-2 divide-y divide-line border-y border-line text-sm">
               {path.steps.map((st) => (
                 <li key={st.id}>
                   <button
                     type="button"
                     onClick={() => !st.focus && follow(st.id)}
-                    className={`flex w-full items-baseline gap-2 rounded-lg px-2 py-1 text-left ${st.focus ? "bg-ball/35" : "cursor-pointer hover:bg-court/10"}`}
+                    className={`flex w-full items-baseline gap-2 px-2 py-1.5 text-left ${st.focus ? "bg-ball/40" : "cursor-pointer hover:bg-sunk"}`}
                   >
-                    <span className="w-9 shrink-0 font-mono text-xs text-muted">{roundCodes[st.round]}</span>
+                    <span className="w-9 shrink-0 text-xs font-semibold tabular-nums text-muted">{roundCodes[st.round]}</span>
                     <span className={`min-w-0 flex-1 truncate ${st.won ? "" : "text-muted line-through decoration-fault/50"}`}>
                       {st.won ? "beat" : "lost to"} {story.names[st.opp]}
                       {st.oppSeed ? <span className="text-muted"> ({st.oppSeed})</span> : null}
                     </span>
-                    <span className="shrink-0 font-mono text-xs text-muted">{scoreText(st.score)}</span>
+                    <span className="shrink-0 text-xs tabular-nums text-muted">{scoreText(st.score)}</span>
                   </button>
                 </li>
               ))}
@@ -287,6 +288,15 @@ function DrawPaths({ v, story, follow }: { v: DrawVisual; story: Story; follow: 
   );
 }
 
+/** A stat as a number, to size its bar: "12/13" is a share, "73%" a percentage, anything else a count */
+function statValue(v: string) {
+  const share = v.match(/^(\d+)\s*\/\s*(\d+)$/);
+  if (share) return Number(share[2]) ? Number(share[1]) / Number(share[2]) : 0;
+  const n = parseFloat(v.replace(/[^\d.]/g, ""));
+  return Number.isFinite(n) ? n : 0;
+}
+
+/** The match's stats line, each stat with a bar split between the players, the leader's side in full colour */
 function StatsTable({ v, story, colors }: { v: StatsVisual; story: Story; colors: Record<"a" | "b", string> }) {
   return (
     <div className="text-sm">
@@ -301,19 +311,23 @@ function StatsTable({ v, story, colors }: { v: StatsVisual; story: Story; colors
           <Avatar name={story.names[story.b.key]} size="h-6 w-6 text-[10px]" />
         </span>
       </div>
-      {v.rows.map((r) => (
-        <div key={r.label} className="grid grid-cols-[1fr_auto_1fr] items-center gap-x-3 border-b border-line/60 py-1.5 last:border-0">
-          <span className={`flex items-center gap-1.5 font-mono tabular-nums ${r.lead === "a" ? "font-bold" : "text-muted"}`}>
-            {r.lead === "a" && <span className="h-1.5 w-1.5 rounded-full" style={{ background: colors.a }} />}
-            {r.a}
-          </span>
-          <span className="text-center text-xs text-muted">{r.label}</span>
-          <span className={`flex items-center justify-end gap-1.5 font-mono tabular-nums ${r.lead === "b" ? "font-bold" : "text-muted"}`}>
-            {r.b}
-            {r.lead === "b" && <span className="h-1.5 w-1.5 rounded-full" style={{ background: colors.b }} />}
-          </span>
-        </div>
-      ))}
+      {v.rows.map((r) => {
+        const [a, b] = [statValue(r.a), statValue(r.b)];
+        const share = a + b > 0 ? a / (a + b) : 0.5;
+        return (
+          <div key={r.label} className="border-b border-line/70 py-2 last:border-0">
+            <div className="grid grid-cols-[1fr_auto_1fr] items-baseline gap-x-3">
+              <span className={`text-[0.9375rem] tabular-nums ${r.lead === "a" ? "font-bold" : "text-muted"}`}>{r.a}</span>
+              <span className="text-center text-[0.8125rem] text-muted">{r.label}</span>
+              <span className={`text-right text-[0.9375rem] tabular-nums ${r.lead === "b" ? "font-bold" : "text-muted"}`}>{r.b}</span>
+            </div>
+            <div aria-hidden className="mt-1.5 flex h-1 gap-0.5">
+              <span style={{ width: `${share * 100}%`, background: colors.a, opacity: r.lead === "a" ? 1 : 0.28 }} />
+              <span className="flex-1" style={{ background: colors.b, opacity: r.lead === "b" ? 1 : 0.28 }} />
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -337,7 +351,7 @@ function BracketMatch({ slot, story, follow }: { slot: BracketSlot; story: Story
       <Avatar name={story.names[key]} size="h-6 w-6 text-[10px]" />
       <span className="min-w-0 truncate">{story.names[key]}</span>
       {seed ? <span className="shrink-0 text-xs font-normal text-muted">({seed})</span> : null}
-      {won && <span aria-hidden className="ml-auto h-2 w-2 shrink-0 rounded-full bg-ball ring-1 ring-black/15" />}
+      {won && <span aria-hidden className="ml-auto h-2 w-2 shrink-0 rounded-[1px] bg-ball ring-1 ring-black/20" />}
     </span>
   );
   const open = slot.played && !slot.focus;
@@ -347,13 +361,13 @@ function BracketMatch({ slot, story, follow }: { slot: BracketSlot; story: Story
       onClick={() => open && follow(slot.id)}
       disabled={!slot.played}
       title={slot.focus ? "This match" : slot.played ? "Explore it" : "A walkover: never played"}
-      className={`flex w-full min-w-0 flex-col gap-1 rounded-xl border px-3 py-2 text-left text-sm shadow-sm transition ${
-        slot.focus ? "cursor-default border-ball bg-ball/20 ring-2 ring-ball" : open ? "cursor-pointer border-line bg-surface hover:-translate-y-0.5 hover:border-court hover:shadow-md" : "border-dashed border-line bg-surface/60"
+      className={`flex w-full min-w-0 flex-col gap-1 rounded border px-3 py-2 text-left text-sm transition-colors ${
+        slot.focus ? "cursor-default border-foreground bg-ball/25" : open ? "cursor-pointer border-line bg-surface hover:border-foreground/50" : "border-dashed border-line bg-surface/60"
       }`}
     >
       {row(slot.w, slot.ws, true)}
       {row(slot.l, slot.ls, false)}
-      <span className="font-mono text-[11px] text-muted">{scoreText(slot.score)}</span>
+      <span className="text-xs tabular-nums text-muted">{scoreText(slot.score)}</span>
     </button>
   );
 }
@@ -361,9 +375,11 @@ function BracketMatch({ slot, story, follow }: { slot: BracketSlot; story: Story
 /** The semifinals feeding the final, with lines joining them, for a semifinal's or final's story */
 function MiniBracket({ b, story, follow }: { b: Bracket; story: Story; follow: Follow }) {
   return (
-    <div className="mt-8">
-      <p className="text-sm font-semibold uppercase tracking-[0.16em] text-muted">The last four</p>
-      <div className="mt-3 grid grid-cols-[minmax(0,1fr)_1.5rem_minmax(0,1fr)] items-center">
+    <section aria-label="The last four" className="panel">
+      <header className="panel-head">
+        <h3 className="panel-title">The last four</h3>
+      </header>
+      <div className="panel-body grid grid-cols-[minmax(0,1fr)_1.5rem_minmax(0,1fr)] items-center">
         <div className="space-y-3">
           {b.semis.map((s) => (
             <BracketMatch key={s.id} slot={s} story={story} follow={follow} />
@@ -371,23 +387,23 @@ function MiniBracket({ b, story, follow }: { b: Bracket; story: Story; follow: F
         </div>
         {/* The lines: each semifinal's winner on to the final */}
         <div aria-hidden className="relative h-full">
-          <span className="absolute inset-y-1/4 left-0 right-1/2 rounded-r-lg border-y-2 border-r-2 border-line" />
-          <span className="absolute left-1/2 right-0 top-1/2 border-t-2 border-line" />
+          <span className="absolute inset-y-1/4 left-0 right-1/2 border-y-2 border-r-2 border-line-strong" />
+          <span className="absolute left-1/2 right-0 top-1/2 border-t-2 border-line-strong" />
         </div>
         <div>
           {b.final ? (
             <BracketMatch slot={b.final} story={story} follow={follow} />
           ) : (
-            <span className="block rounded-xl border border-dashed border-line px-3 py-4 text-center text-sm text-muted">Final not in the record yet</span>
+            <span className="block rounded border border-dashed border-line px-3 py-4 text-center text-sm text-muted">Final not in the record yet</span>
           )}
           {b.final && (
             <p className="mt-2 flex items-center justify-center gap-1.5 text-sm font-semibold">
-              <span aria-hidden>🏆</span> {story.names[b.final.w]}
+              <CollectionIcon id="finals" className="h-4 w-4 text-muted" /> {story.names[b.final.w]}
             </p>
           )}
         </div>
       </div>
-    </div>
+    </section>
   );
 }
 
@@ -465,71 +481,67 @@ export function StoryView({
   const h2h = story.threads.find((t) => t.id === "h2h");
   const rest = short ? [] : story.threads.filter((t) => t.id !== "h2h");
   const thread = (t: Thread) => (
-    <section
-      key={t.id}
-      aria-label={t.title}
-      className={`min-w-0 rounded-3xl border border-line bg-surface p-5 shadow-sm sm:p-6 ${wide.has(t.id) ? "lg:col-span-2" : ""} ${lite && !quick.has(t.id) ? "max-sm:hidden" : ""}`}
-    >
-      <header className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-        <h3 className="font-display text-xl font-bold tracking-tight">{t.title}</h3>
-        {t.kicker && <span className="text-sm text-muted">{t.kicker}</span>}
+    <section key={t.id} aria-label={t.title} className={`panel ${wide.has(t.id) ? "lg:col-span-2" : ""} ${lite && !quick.has(t.id) ? "max-sm:hidden" : ""}`}>
+      <header className="panel-head">
+        <h3 className="panel-title">{t.title}</h3>
+        {t.kicker && <span className="panel-meta">{t.kicker}</span>}
       </header>
-      {t.facts.length > 0 && (
-        <ul className="mt-3 space-y-2">
-          {t.facts.map((f) => (
-            <FactLine key={f.key} fact={f} follow={follow} colors={colors} still={still} />
-          ))}
-        </ul>
-      )}
-      {t.visual && (
-        <div className={t.facts.length ? "mt-5 border-t border-line pt-4" : "mt-4"}>
-          <Picture thread={t} story={story} colors={colors} follow={follow} page={page} starOf={starOf} still={still} />
-        </div>
-      )}
+      <div className="panel-body">
+        {t.facts.length > 0 && (
+          <ul className="space-y-1.5">
+            {t.facts.map((f) => (
+              <FactLine key={f.key} fact={f} follow={follow} colors={colors} still={still} />
+            ))}
+          </ul>
+        )}
+        {t.visual && (
+          <div className={t.facts.length ? "mt-4 border-t border-line pt-4" : ""}>
+            <Picture thread={t} story={story} colors={colors} follow={follow} page={page} starOf={starOf} still={still} />
+          </div>
+        )}
+      </div>
     </section>
   );
 
   return (
     <div className={`transition-opacity duration-300 ${pending ? "opacity-50" : ""}`} aria-busy={pending}>
       {/* Which match this is, before anything else */}
-      <header key={story.id} className="fade-in mb-8 flex flex-wrap items-center gap-x-5 gap-y-4">
-        <span className="text-5xl sm:text-7xl">
-          <SlamLogo event={story.event} size="h-14 w-14 sm:h-20 sm:w-20" />
-        </span>
+      <header key={story.id} className="fade-in mb-6 flex flex-wrap items-center gap-x-4 gap-y-4">
+        <SlamLogo event={story.event} size="h-14 w-14 text-4xl sm:h-16 sm:w-16 sm:text-5xl" />
         <div className="min-w-0">
-          <h2 className="font-display text-3xl font-bold leading-tight tracking-tight sm:text-5xl">
-            {story.event} {story.season} <span className="text-court">· {roundName(match)}</span>
+          <h2 className="font-display text-3xl font-bold leading-[1.05] sm:text-[2.75rem]">
+            {story.event} {story.season} · {roundName(match)}
           </h2>
-          <p className="mt-1.5 text-lg font-medium text-muted sm:text-xl">
+          <p className="mt-1 text-[1.0625rem] text-muted">
             <span className="font-semibold text-foreground">{story.a.name}</span> beat <span className="font-semibold text-foreground">{story.b.name}</span>{" "}
-            <span className="whitespace-nowrap font-mono text-base">{scoreText(story.score)}</span>
+            <span className="whitespace-nowrap font-semibold tabular-nums text-foreground">{scoreText(story.score)}</span>
           </p>
         </div>
         {star && <div className="w-full sm:ml-auto sm:w-auto">{star}</div>}
       </header>
-      {take && <div className="mb-8">{take}</div>}
+      {take && <div className="mb-6">{take}</div>}
 
-      <div className="grid gap-8 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1fr)] lg:gap-10">
+      <div className="grid gap-5 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1fr)]">
         {/* The match, as a page of the record */}
         <div className="min-w-0">
-          <div key={story.id} className={`page-turn page-stack overflow-hidden rounded-3xl border bg-surface ${here ? "border-ball ring-4 ring-ball/60" : "border-line"}`}>
-            {/* Starred: say so loudly, across the top of the card */}
+          <div key={story.id} className={`page-turn page-stack overflow-hidden rounded-md border bg-surface ${here ? "border-foreground" : "border-line"}`}>
+            {/* Starred: say so across the top of the card */}
             {here && (
-              <p className="flex items-center gap-2 bg-ball px-4 py-2.5 font-display text-lg font-bold text-[#0b0d12]">
-                <span aria-hidden className="text-xl">★</span> In your saga
+              <p className="flex items-center gap-2 bg-ball px-4 py-2 font-display text-lg font-bold">
+                <span aria-hidden>★</span> In your saga
                 <span className="ml-auto font-sans text-sm font-semibold opacity-75">page {here}</span>
               </p>
             )}
-            <p className="flex items-baseline justify-between gap-3 border-b border-line px-4 py-2.5 text-sm">
+            <p className="flex items-baseline justify-between gap-3 border-b border-line px-4 py-2 text-sm">
               <span className="font-semibold">{here ? <span className="text-muted">Starred</span> : still ? null : <span className="font-normal text-muted">Not in your saga</span>}</span>
-              <span className="text-muted">
+              <span className="tabular-nums text-muted">
                 {new Date(`${story.date.slice(0, 7)}-15`).toLocaleDateString("en-GB", { month: "short", year: "numeric" })}
                 {story.minutes ? ` · ${Math.floor(story.minutes / 60)} h ${String(story.minutes % 60).padStart(2, "0")}` : ""}
               </span>
             </p>
             <div className="relative">
               <CourtArt surface={story.surface} className="aspect-[16/9] w-full" />
-              <div className="absolute inset-x-0 top-0 flex flex-col items-start gap-2 bg-gradient-to-b from-[#0a1220]/75 to-transparent px-4 pb-10 pt-3 text-white">
+              <div className="absolute inset-x-0 top-0 flex flex-wrap items-center justify-between gap-2 bg-[#0a1220]/55 px-4 py-2.5 text-white">
                 <TournamentLabel event={label} surface={story.surface} onPhoto />
                 <HighlightsLink videoId={highlightVideos[story.id]} players={[nameA, nameB]} event={label} onPhoto />
               </div>
@@ -545,29 +557,34 @@ export function StoryView({
         </div>
 
         {/* The story in three lines */}
-        <div className="min-w-0">
-          <p className="text-sm font-semibold uppercase tracking-[0.16em] text-muted">The story</p>
-          {story.lede.length ? (
-            <ol className="mt-3 space-y-4">
-              {story.lede.map((f, i) => (
-                <li
-                  key={`${story.id}-${f.key}`}
-                  style={{ animationDelay: `${150 + i * 220}ms` }}
-                  className={`rise-in ${i === 0 ? "font-display text-2xl font-bold leading-snug tracking-tight sm:text-3xl" : "text-lg font-medium leading-relaxed"}`}
-                >
-                  <Parts parts={f.parts} follow={follow} still={still} />.
-                </li>
-              ))}
-            </ol>
-          ) : (
-            <p className="mt-3 text-lg text-muted">A quiet one: nothing in the record stands out about it. The threads below still lead somewhere.</p>
-          )}
+        <div className="min-w-0 space-y-5">
+          <section aria-label="The story" className="panel">
+            <header className="panel-head">
+              <h3 className="panel-title">The story</h3>
+            </header>
+            <div className="panel-body">
+              {story.lede.length ? (
+                <ol className="space-y-3">
+                  {story.lede.map((f, i) => (
+                    <li
+                      key={`${story.id}-${f.key}`}
+                      className={i === 0 ? "font-display text-2xl font-bold leading-tight sm:text-[1.75rem]" : "border-t border-line pt-3 text-[1.0625rem] leading-relaxed"}
+                    >
+                      <Parts parts={f.parts} follow={follow} still={still} />.
+                    </li>
+                  ))}
+                </ol>
+              ) : (
+                <p className="text-[1.0625rem] text-muted">A quiet one: nothing in the record stands out about it. The threads below still lead somewhere.</p>
+              )}
+            </div>
+          </section>
           {story.bracket && <MiniBracket b={story.bracket} story={story} follow={follow} />}
         </div>
       </div>
 
       {/* The rivalry first, then where to go next, then everything else */}
-      <div className="mt-10 grid items-start gap-5 lg:grid-flow-dense lg:grid-cols-2">
+      <div className="mt-5 grid items-start gap-5 lg:grid-flow-dense lg:grid-cols-2">
         {h2h && thread(h2h)}
         {story.trail.length > 0 && !still && <Trail story={story} follow={follow} page={page} lite={lite} />}
         {rest.map(thread)}
@@ -580,12 +597,12 @@ export function StoryView({
 function Trail({ story, follow, page, lite = false }: { story: Story; follow: Follow; page: (id: string) => number | null; lite?: boolean }) {
   const teasers = useTeasers();
   return (
-    <section aria-label="Follow the thread" className="min-w-0 rounded-3xl bg-court p-5 text-court-ink shadow-lg sm:p-6 lg:col-span-2">
-      <header className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-        <h3 className="font-display text-2xl font-bold tracking-tight">Follow the thread</h3>
-        <span className="text-sm text-white/75">Every match here has its own story. Point at one for a taste.</span>
+    <section aria-label="Follow the thread" className="panel lg:col-span-2">
+      <header className="panel-head">
+        <h3 className="panel-title">Follow the thread</h3>
+        <span className="panel-meta">Every match here has its own story. Point at one for a taste.</span>
       </header>
-      <ol className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <ol className="panel-body grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {story.trail.map((t, i) => {
           const r = story.refs[t.ref];
           return (
@@ -635,7 +652,37 @@ function useTeasers() {
   };
 }
 
-/** A match as a card to turn to: its court and event on a banner, both faces, a headline, and a taste of its story */
+/** Both players and their games set by set, as a score card prints them: the winner on top, each set's winner in bold */
+function MiniScore({ names, score }: { names: readonly [string, string]; score: string }) {
+  const { sets, outcome } = parseScore(score);
+  const done = finished(score);
+  const ending = outcome === "retired" ? "ret." : outcome === "defaulted" ? "def." : outcome === "abandoned" ? "abd." : null;
+  return (
+    <span className="block">
+      {names.map((name, row) => (
+        <span key={row} className="flex items-center gap-2 py-0.5">
+          <Avatar name={name} size="h-6 w-6 text-[10px]" />
+          <span className={`min-w-0 flex-1 truncate text-[0.9375rem] ${row ? "text-muted" : "font-semibold"}`}>{name}</span>
+          <span className="flex text-[0.9375rem]">
+            {sets.map((set, i) => {
+              const went = setWinner(sets, i, done);
+              const took = went === (row ? "l" : "w");
+              return (
+                <span key={i} className={`relative w-5 text-center tabular-nums ${took ? "font-bold text-court" : "text-muted"}`}>
+                  {row ? set.l : set.w}
+                  {set.tb !== null && went && !took && <sup className="absolute -right-0.5 top-0 text-[9px] font-normal">{set.tb}</sup>}
+                </span>
+              );
+            })}
+            {ending && <span className={`w-7 text-right text-xs leading-6 text-muted ${row ? "" : "invisible"}`}>{ending}</span>}
+          </span>
+        </span>
+      ))}
+    </span>
+  );
+}
+
+/** A match as a card to turn to: its event along the top, a headline, the score card, and a taste of its story */
 function StoryCard({
   n,
   label,
@@ -659,43 +706,34 @@ function StoryCard({
   onPeek: () => void;
   onOpen: () => void;
 }) {
-  const [w, l] = names;
   return (
     <button
       type="button"
       onClick={onOpen}
       onPointerEnter={onPeek}
       onFocus={onPeek}
-      className="group relative flex h-full w-full cursor-pointer flex-col overflow-hidden rounded-2xl bg-surface text-left text-foreground shadow-md ring-1 ring-line transition duration-200 hover:-translate-y-1 hover:shadow-xl hover:ring-court/40"
+      className="group flex h-full w-full cursor-pointer flex-col rounded-md border border-line bg-surface text-left text-foreground transition-colors hover:border-foreground/45"
     >
-      <span className="relative block h-20 overflow-hidden">
-        <CourtArt surface={surface} className="absolute inset-0 h-full w-full scale-150 transition-transform duration-500 group-hover:scale-[1.6]" />
-        <span className="absolute inset-0 bg-[#0a1220]/55" />
-        {n !== undefined && <span className="absolute left-3 top-3 flex h-7 w-7 items-center justify-center rounded-full bg-ball font-display text-sm font-bold text-[#0b0d12]">{n}</span>}
-        <span className="absolute bottom-2.5 left-3 right-3 flex min-w-0 items-center gap-2 text-white">
-          <TournamentLabel event={label} surface={surface} onPhoto className="text-sm" />
-        </span>
-        <span className="absolute right-3 top-3 flex -space-x-2 transition-transform duration-300 group-hover:-translate-y-0.5">
-          <Avatar name={w} size="h-9 w-9 text-xs ring-2 ring-white/80" />
-          <Avatar name={l} size="h-9 w-9 text-xs ring-2 ring-white/80" />
-        </span>
+      <span className="flex min-w-0 items-center gap-2 border-b border-line bg-sunk px-3 py-1.5">
+        {n !== undefined && <span className="rank h-5 min-w-5 text-[11px]">{n}</span>}
+        <TournamentLabel event={label} surface={surface} logo="h-5 w-5" className="min-w-0 text-[0.8125rem]" />
       </span>
-      <span className="flex flex-1 flex-col gap-1.5 px-4 pb-4 pt-3">
+      <span className="flex flex-1 flex-col px-3 pb-3 pt-2.5">
         <span className="font-display text-lg font-bold leading-snug">{headline}</span>
-        <span className="text-sm text-muted">
-          <span className="font-semibold text-foreground">{w}</span> beat {l} <span className="whitespace-nowrap font-mono text-xs">{scoreText(score)}</span>
+        <span className="mt-2 block">
+          <MiniScore names={names} score={score} />
         </span>
         {/* A taste of the story, once pointed at */}
         <span className="grid grid-rows-[0fr] transition-[grid-template-rows] duration-300 group-hover:grid-rows-[1fr] group-focus-visible:grid-rows-[1fr]">
           <span className="overflow-hidden">
-            <span className="mt-1 block border-l-2 border-ball pl-2.5 text-sm font-medium italic leading-snug text-court">{teaser ?? "Opening the record…"}</span>
+            <span className="mt-2 block border-l-2 border-ball pl-2.5 text-sm leading-snug text-muted">{teaser ?? "Opening the record…"}</span>
           </span>
         </span>
-        <span className="mt-auto flex items-center justify-between pt-2 text-sm font-semibold text-court">
-          <span className="flex items-center gap-1.5">
-            Turn to it <span aria-hidden className="transition-transform group-hover:translate-x-1">→</span>
+        <span className="mt-auto flex items-center justify-between gap-2 pt-2.5 text-sm font-semibold text-court">
+          <span className="flex items-center gap-1">
+            Turn to it <Chevron className="h-3 w-3 transition-transform group-hover:translate-x-0.5" />
           </span>
-          {page ? <span className="rounded-full bg-ball px-2 py-0.5 text-xs font-bold text-foreground">★ In your saga</span> : null}
+          {page ? <span className="rounded-[3px] bg-ball px-1.5 py-px text-xs font-bold text-foreground">★ In your saga</span> : null}
         </span>
       </span>
     </button>
@@ -719,11 +757,6 @@ const starModes: { mode: WatchMode; label: string }[] = [
   { mode: "Stream", label: "Streamed" },
 ];
 
-const takeChip = (on: boolean) =>
-  `inline-flex cursor-pointer items-center gap-1.5 rounded-full border-2 px-3 py-1.5 text-sm font-semibold transition ${
-    on ? "border-court bg-court text-court-ink shadow-md" : "border-line bg-surface text-muted hover:border-court hover:text-court"
-  }`;
-
 /**
  * Your take on a match, at the top of its story: one click stars it, then say if you watched it, rate it,
  * say who you were backing and write a note. Everything saves as you go. At the foot of the story (`ask`),
@@ -743,20 +776,20 @@ function YourTake({ story, ask = false }: { story: Story; ask?: boolean }) {
         type="button"
         disabled={!m}
         onClick={() => add(story.id, { watchedOn: null, watchedDate: played, rating: null, cheering: null, pick: null, note: "" })}
-        className="inline-flex shrink-0 cursor-pointer items-center gap-2 rounded-full bg-ball px-6 py-3 font-display text-lg font-bold text-[#0b0d12] shadow-lg shadow-black/15 transition hover:-translate-y-0.5 hover:shadow-xl disabled:opacity-60"
+        className="btn btn-primary btn-lg shrink-0"
       >
-        <span aria-hidden className="text-xl">☆</span> Star this match
+        <span aria-hidden>☆</span> Star this match
       </button>
     );
     if (ask)
       return (
         <div className="flex flex-col items-center gap-3 text-center">
-          <p className="font-display text-2xl font-bold tracking-tight">Want to remember this one?</p>
+          <p className="font-display text-2xl font-bold">Want to remember this one?</p>
           {button}
         </div>
       );
     return (
-      <div className="flex flex-col items-start gap-3 rounded-3xl border-2 border-dashed border-line bg-surface/70 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="panel flex flex-col items-start gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-5" style={{ "--accent": "var(--ball)" } as CSSProperties}>
         <p className="text-muted">
           <span className="font-display text-lg font-bold text-foreground">Remember this one?</span> Star it to rate it, note it, and keep it in your saga.
         </p>
@@ -767,36 +800,33 @@ function YourTake({ story, ask = false }: { story: Story; ask?: boolean }) {
 
   const seen = watched(fan);
   const sagaLink = (
-    <Link
-      href={`/saga?m=${encodeURIComponent(story.id)}`}
-      className="inline-flex items-center gap-1.5 rounded-full bg-[#0b0d12] px-3.5 py-1.5 text-sm font-bold text-ball transition hover:-translate-y-0.5"
-    >
-      See it in your saga <span aria-hidden>→</span>
+    <Link href={`/saga?m=${encodeURIComponent(story.id)}`} className="btn btn-sm bg-foreground text-white hover:bg-foreground/85">
+      See it in your saga <Chevron />
     </Link>
   );
 
   // At the foot: what you said, and the way to the saga
   if (ask)
     return (
-      <div className="rise-in rounded-2xl bg-ball px-5 py-4 text-[#0b0d12] shadow-lg shadow-black/15 ring-1 ring-black/10">
+      <div className="panel w-full max-w-md px-5 py-4" style={{ "--accent": "var(--ball)" } as CSSProperties}>
         <p className="flex flex-wrap items-center gap-x-2 font-display text-xl font-bold">
-          <span aria-hidden className="text-2xl">★</span> In your saga
-          <span className="font-sans text-sm font-semibold opacity-75">{seen ? `· watched ${watchedHow(fan.watchedOn)}` : "· starred, not watched"}</span>
+          <span aria-hidden>★</span> In your saga
+          <span className="font-sans text-sm font-semibold text-muted">{seen ? `· watched ${watchedHow(fan.watchedOn)}` : "· starred, not watched"}</span>
         </p>
         {fan.rating ? (
-          <span className="mt-1.5 inline-flex rounded-full bg-[#0b0d12] px-2 py-1">
+          <span className="mt-1.5 inline-flex">
             <BallScore value={fan.rating} size="sm" />
           </span>
         ) : null}
-        {fan.note && <p className="mt-2 max-w-sm border-l-2 border-[#0b0d12]/40 pl-3 text-sm font-medium italic">&ldquo;{fan.note}&rdquo;</p>}
+        {fan.note && <p className="mt-2 border-l-2 border-ball pl-3 text-sm italic">&ldquo;{fan.note}&rdquo;</p>}
         <p className="mt-3">{sagaLink}</p>
       </div>
     );
 
   const players = m ? [m.winner, m.loser] : [];
   return (
-    <section aria-label="Your take" className="rise-in overflow-hidden rounded-3xl bg-surface shadow-lg ring-4 ring-ball">
-      <header className="flex flex-wrap items-center gap-x-3 gap-y-2 bg-ball px-5 py-3 text-[#0b0d12]">
+    <section aria-label="Your take" className="panel overflow-hidden" style={{ "--accent": "var(--ball)" } as CSSProperties}>
+      <header className="flex flex-wrap items-center gap-x-3 gap-y-2 bg-ball px-4 py-2.5 sm:px-5">
         <p className="font-display text-xl font-bold">
           <span aria-hidden>★</span> In your saga{here ? <span className="font-sans text-sm font-semibold opacity-70"> · page {here}</span> : null}
         </p>
@@ -807,41 +837,35 @@ function YourTake({ story, ask = false }: { story: Story; ask?: boolean }) {
           {sagaLink}
         </span>
       </header>
-      <div className="grid gap-6 p-5 sm:p-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-        <div className="space-y-5">
+      <div className="grid gap-6 p-4 sm:p-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+        <div className="space-y-4">
           <div>
-            <p className="font-display font-bold">Did you watch it?</p>
-            <div className="mt-2 flex flex-wrap gap-2">
+            <p className="text-sm font-semibold">Did you watch it?</p>
+            <div className="seg mt-1.5" role="group" aria-label="Did you watch it?">
               {starModes.map(({ mode, label }) => (
-                <button key={mode} type="button" aria-pressed={fan.watchedOn === mode} onClick={() => update(story.id, { watchedOn: mode, ...(seen ? {} : { watchedDate: played }) })} className={takeChip(fan.watchedOn === mode)}>
+                <button key={mode} type="button" aria-pressed={fan.watchedOn === mode} onClick={() => update(story.id, { watchedOn: mode, ...(seen ? {} : { watchedDate: played }) })}>
                   {label}
                 </button>
               ))}
-              <button type="button" aria-pressed={!seen} onClick={() => update(story.id, { watchedOn: null, watchedDate: played })} className={takeChip(!seen)}>
+              <button type="button" aria-pressed={!seen} onClick={() => update(story.id, { watchedOn: null, watchedDate: played })}>
                 ☆ Didn&apos;t watch it
               </button>
             </div>
           </div>
           <div>
-            <p className="font-display font-bold">
-              Your rating <span className="font-sans text-sm font-normal text-muted">· if you like</span>
+            <p className="text-sm font-semibold">
+              Your rating <span className="font-normal text-muted">· if you like</span>
             </p>
-            <div className="mt-2">
+            <div className="mt-1.5">
               <BallRating value={fan.rating} size="md" onChange={(rating) => update(story.id, { rating })} />
             </div>
           </div>
           <div>
-            <p className="font-display font-bold">Who were you backing?</p>
-            <div className="mt-2 flex flex-wrap gap-2">
+            <p className="text-sm font-semibold">Who were you backing?</p>
+            <div className="seg mt-1.5" role="group" aria-label="Who were you backing?">
               {[...players, null].map((p) => (
-                <button
-                  key={p ?? "none"}
-                  type="button"
-                  aria-pressed={fan.cheering === p}
-                  onClick={() => update(story.id, { cheering: p, pick: p ? { winner: p } : null })}
-                  className={takeChip(fan.cheering === p)}
-                >
-                  {p && <Avatar name={p} size="h-6 w-6 text-[10px]" />}
+                <button key={p ?? "none"} type="button" aria-pressed={fan.cheering === p} onClick={() => update(story.id, { cheering: p, pick: p ? { winner: p } : null })}>
+                  {p && <Avatar name={p} size="h-5 w-5 text-[9px]" />}
                   {p ?? "No one"}
                 </button>
               ))}
@@ -849,8 +873,8 @@ function YourTake({ story, ask = false }: { story: Story; ask?: boolean }) {
           </div>
         </div>
         <div className="flex min-w-0 flex-col">
-          <label htmlFor="your-note" className="font-display font-bold">
-            Your note <span className="font-sans text-sm font-normal text-muted">· why it matters to you, or anything else</span>
+          <label htmlFor="your-note" className="text-sm font-semibold">
+            Your note <span className="font-normal text-muted">· why it matters to you, or anything else</span>
           </label>
           <textarea
             id="your-note"
@@ -859,7 +883,7 @@ function YourTake({ story, ask = false }: { story: Story; ask?: boolean }) {
             rows={4}
             maxLength={2000}
             placeholder="Where you watched, who with, why it's one to remember…"
-            className="paper mt-2 w-full flex-1 resize-none rounded-xl border border-line bg-surface pb-1 pr-3 pt-0 leading-[var(--rule)] shadow-sm [--rule:1.75rem] placeholder:text-muted/70 focus:border-court focus:outline-none focus:ring-2 focus:ring-court/20"
+            className="paper mt-1.5 w-full flex-1 resize-none rounded border border-line-strong bg-surface pb-1 pr-3 pt-0 leading-[var(--rule)] [--rule:1.75rem] placeholder:text-muted/70 focus:border-court focus:outline-none focus:ring-3 focus:ring-court/15"
           />
           <button
             type="button"
@@ -893,11 +917,9 @@ function ShareLink({ story }: { story: Story }) {
     <button
       type="button"
       onClick={share}
-      className={`group inline-flex cursor-pointer items-center gap-2 rounded-full px-5 py-2.5 font-display text-base font-bold text-white shadow-lg shadow-[#1f74d6]/30 ring-1 ring-black/10 transition hover:-translate-y-0.5 hover:shadow-xl ${
-        copied ? "bg-grass" : "bg-[#1f74d6] hover:bg-[#1a66bd]"
-      }`}
+      className={`btn btn-secondary ${copied ? "border-grass text-grass" : ""}`}
     >
-      <svg viewBox="0 0 20 20" aria-hidden className="h-5 w-5 fill-none stroke-current stroke-2 transition-transform group-hover:-rotate-12" strokeLinecap="round" strokeLinejoin="round">
+      <svg viewBox="0 0 20 20" aria-hidden className="h-[1.125rem] w-[1.125rem] fill-none stroke-current stroke-2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M8.5 11.5a3.5 3.5 0 0 0 5 0l2.5-2.5a3.5 3.5 0 0 0-5-5L10 5M11.5 8.5a3.5 3.5 0 0 0-5 0L4 11a3.5 3.5 0 0 0 5 5l1-1" />
       </svg>
       {copied ? "Link copied ✓" : "Copy link to share"}
@@ -908,7 +930,7 @@ function ShareLink({ story }: { story: Story }) {
 /** Signed out, on a shared match: what an account adds here */
 function GuestTake() {
   return (
-    <div className="flex flex-col items-start gap-3 rounded-3xl border-2 border-dashed border-line bg-surface/70 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+    <div className="panel flex flex-col items-start gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-5" style={{ "--accent": "var(--ball)" } as CSSProperties}>
       <p className="text-muted">
         <span className="font-display text-lg font-bold text-foreground">Remember this one?</span> Sign up free to star it, rate it, note it, and keep it in your saga.
       </p>
@@ -920,11 +942,8 @@ function GuestTake() {
 /** In the landing's demo, the star button leads to signing up */
 function StarDemo() {
   return (
-    <Link
-      href="/signup"
-      className="inline-flex items-center gap-2 rounded-full bg-ball px-6 py-3 font-display text-lg font-bold text-[#0b0d12] shadow-lg shadow-black/15 transition hover:-translate-y-0.5 hover:shadow-xl"
-    >
-      <span aria-hidden className="text-xl">☆</span> Star this match
+    <Link href="/signup" className="btn btn-primary btn-lg shrink-0">
+      <span aria-hidden>☆</span> Star this match
     </Link>
   );
 }
@@ -942,22 +961,22 @@ function MatchCard({ row, why, page, onOpen, names }: { row: MatchRow; why?: str
     <button
       type="button"
       onClick={onOpen}
-      className="group flex h-full w-full cursor-pointer items-center gap-3 rounded-2xl border border-line bg-surface px-3.5 py-3 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-court hover:shadow-md"
+      className="group flex h-full w-full cursor-pointer items-center gap-3 rounded-md border border-line bg-surface px-3 py-2.5 text-left transition-colors hover:border-foreground/45"
     >
       <span className="flex shrink-0 -space-x-2">
-        <Avatar name={names[0]} size="h-9 w-9 text-sm ring-2 ring-surface" />
-        <Avatar name={names[1]} size="h-9 w-9 text-sm ring-2 ring-surface" />
+        <Avatar name={names[0]} size="h-8 w-8 text-xs ring-2 ring-surface" />
+        <Avatar name={names[1]} size="h-8 w-8 text-xs ring-2 ring-surface" />
       </span>
       <span className="min-w-0 flex-1">
-        {why && <span className="block truncate text-xs font-semibold uppercase tracking-wide text-muted">{why}</span>}
+        {why && <span className="block truncate text-xs font-semibold text-muted">{why}</span>}
         <span className="block truncate text-sm font-semibold">
           {row.event} {row.season} · {roundName({ ...row, event: row.event })}
         </span>
         <span className="block truncate text-sm text-muted">
-          {names[0]} beat {names[1]} <span className="font-mono">{scoreText(row.score)}</span>
+          {names[0]} beat {names[1]} <span className="tabular-nums">{scoreText(row.score)}</span>
         </span>
       </span>
-      {page ? <span className="shrink-0 rounded-full bg-ball/50 px-2 py-0.5 text-xs font-semibold">p. {page}</span> : null}
+      {page ? <span className="shrink-0 rounded-[3px] bg-ball/60 px-1.5 py-px text-xs font-semibold tabular-nums">p. {page}</span> : null}
     </button>
   );
 }
@@ -990,24 +1009,24 @@ function FinalRow({
   sameYear?: boolean; // the year is shown once, on its first row
 }) {
   return (
-    <button type="button" onClick={onOpen} onPointerEnter={onPeek} onFocus={onPeek} className="group flex w-full cursor-pointer flex-wrap items-center gap-x-3 rounded-xl px-2 py-2 text-left transition hover:bg-court/10">
-      <span className={`w-12 shrink-0 font-display text-lg font-bold tabular-nums ${sameYear ? "invisible" : ""}`}>{row.season}</span>
+    <button type="button" onClick={onOpen} onPointerEnter={onPeek} onFocus={onPeek} className="group flex w-full cursor-pointer flex-wrap items-center gap-x-3 px-4 py-2 text-left transition-colors hover:bg-sunk sm:px-5">
+      <span className={`stat w-11 shrink-0 text-xl ${sameYear ? "invisible" : ""}`}>{row.season}</span>
       {tag && (
-        <span className={`w-14 shrink-0 rounded-full px-2 py-0.5 text-center text-[11px] font-bold ${tag === "Final" ? "bg-ball text-[#0b0d12]" : "bg-line/70 text-muted"}`}>{tag}</span>
+        <span className={`w-12 shrink-0 rounded-[3px] px-1.5 py-px text-center text-[11px] font-bold ${tag === "Final" ? "bg-ball" : "bg-sunk text-muted ring-1 ring-inset ring-line"}`}>{tag}</span>
       )}
       <span className="flex shrink-0 -space-x-2">
-        <Avatar name={names[0]} size="h-8 w-8 text-xs ring-2 ring-surface" />
-        <Avatar name={names[1]} size="h-8 w-8 text-xs ring-2 ring-surface" />
+        <Avatar name={names[0]} size="h-7 w-7 text-xs ring-2 ring-surface" />
+        <Avatar name={names[1]} size="h-7 w-7 text-xs ring-2 ring-surface" />
       </span>
       <span className="min-w-0 flex-1 truncate text-sm">
         <span className="font-semibold">{names[0]}</span> <span className="text-muted">beat {names[1]}</span>{" "}
-        <span className="font-mono text-xs text-muted max-sm:hidden">{scoreText(row.score)}</span>
+        <span className="text-xs tabular-nums text-muted max-sm:hidden">{scoreText(row.score)}</span>
       </span>
-      {page ? <span className="shrink-0 rounded-full bg-ball/50 px-2 py-0.5 text-xs font-semibold">p. {page}</span> : null}
+      {page ? <span className="shrink-0 rounded-[3px] bg-ball/60 px-1.5 py-px text-xs font-semibold tabular-nums">p. {page}</span> : null}
       {/* A taste of the story, once pointed at */}
-      <span className="grid w-full grid-rows-[0fr] pl-[3.75rem] transition-[grid-template-rows] duration-300 group-hover:grid-rows-[1fr] group-focus-visible:grid-rows-[1fr]">
+      <span className="grid w-full grid-rows-[0fr] pl-14 transition-[grid-template-rows] duration-300 group-hover:grid-rows-[1fr] group-focus-visible:grid-rows-[1fr]">
         <span className="overflow-hidden">
-          <span className="mt-1 block border-l-2 border-ball pl-2.5 text-sm font-medium italic text-court">{teaser ?? "Opening the record…"}</span>
+          <span className="mt-1 block border-l-2 border-ball pl-2.5 text-sm text-muted">{teaser ?? "Opening the record…"}</span>
         </span>
       </span>
     </button>
@@ -1024,28 +1043,17 @@ const surpriseWhat = (slam: string | null) => (slam ? `Random ${slam} match` : "
 function SurpriseMe({ className = "", again = false, slam = null }: { className?: string; again?: boolean; slam?: string | null }) {
   return (
     <div className={`flex justify-center ${className}`}>
-      <Link
-        href={surpriseHref(slam)}
-        scroll={false}
-        title={surpriseWhat(slam)}
-        className="rounded-full bg-ball px-9 py-4 font-display text-2xl font-bold text-[#0b0d12] shadow-lg shadow-black/15 transition hover:-translate-y-0.5 hover:shadow-xl sm:text-3xl"
-      >
+      <Link href={surpriseHref(slam)} scroll={false} title={surpriseWhat(slam)} className="btn btn-primary btn-lg">
         {again ? "Surprise me again" : "Surprise me"}
       </Link>
     </div>
   );
 }
 
-/** Surprise me, small: at the top of a story, beside the way back to the Slams */
+/** Surprise me, small: at the right end of the search bar */
 function SurpriseSmall({ slam }: { slam: string | null }) {
   return (
-    <Link
-      href={surpriseHref(slam)}
-      scroll={false}
-      title={surpriseWhat(slam)}
-      aria-label={`Surprise me: ${surpriseWhat(slam)}`}
-      className="nudge shine inline-block rounded-full bg-ball px-5 py-2 font-display text-lg font-bold text-[#0b0d12] shadow-md shadow-black/15 ring-1 ring-black/10 transition hover:scale-105 hover:shadow-lg sm:px-6"
-    >
+    <Link href={surpriseHref(slam)} scroll={false} title={surpriseWhat(slam)} aria-label={`Surprise me: ${surpriseWhat(slam)}`} className="btn btn-primary">
       Surprise me
     </Link>
   );
@@ -1075,23 +1083,13 @@ function Start({ start, follow, slam, setSlam }: { start: StartData; follow: Fol
   const tours = (["atp", "wta"] as const).filter((tour) => finals.some((r) => r.tour === tour));
   const shownTour = tours.includes(onTour as "atp" | "wta") ? onTour : tours[0];
   const finalsPanel = (
-    <div ref={panel} className="fade-in mt-4 rounded-3xl border border-line bg-surface p-4 shadow-sm sm:p-6">
+    <div ref={panel} className="fade-in panel mt-3">
       {tours.length > 1 && (
-        <div className="mb-3 flex rounded-full bg-background p-1 ring-1 ring-line lg:hidden" role="group" aria-label="Tour">
-          {tours.map((tour) => (
-            <button
-              key={tour}
-              type="button"
-              aria-pressed={shownTour === tour}
-              onClick={() => setOnTour(tour)}
-              className={`flex-1 cursor-pointer rounded-full px-4 py-1.5 text-sm font-bold transition ${shownTour === tour ? "bg-court text-court-ink shadow-sm" : "text-court"}`}
-            >
-              {tour === "atp" ? "Men" : "Women"}
-            </button>
-          ))}
+        <div className="border-b border-line px-4 py-2.5 lg:hidden">
+          <Segmented label="Tour" options={tours.map((tour) => ({ id: tour as string, label: tour === "atp" ? "Men" : "Women" }))} value={shownTour} onChange={setOnTour} />
         </div>
       )}
-      <div className={`grid gap-6 ${tours.length > 1 ? "lg:grid-cols-2" : ""}`}>
+      <div className={`grid ${tours.length > 1 ? "lg:grid-cols-2 lg:divide-x lg:divide-line" : ""}`}>
         {tours.map((tour) => {
           const all = finals
             .filter((r) => r.tour === tour)
@@ -1101,13 +1099,13 @@ function Start({ start, follow, slam, setSlam }: { start: StartData; follow: Fol
           const rows = everything ? all : onlyFinals.slice(0, RECENT_FINALS);
           return (
             <div key={tour} className={`min-w-0 ${shownTour === tour ? "" : "max-lg:hidden"}`}>
-              <h3 className="px-2 font-display text-lg font-bold">
-                {tour === "atp" ? "Men's finals" : "Women's finals"}
-                {!isSlamTile && everything && <span className="font-sans text-sm font-normal text-muted"> · with semifinals</span>}
+              <h3 className="flex items-baseline justify-between gap-3 border-b border-line px-4 py-2.5 sm:px-5">
+                <span className="panel-title">{tour === "atp" ? "Men's finals" : "Women's finals"}</span>
+                {!isSlamTile && everything && <span className="panel-meta">with semifinals</span>}
               </h3>
-              <ul className="mt-1 divide-y divide-line">
+              <ul className="divide-y divide-line">
                 {rows.map((row, i) => (
-                  <li key={row.id} className={!isSlamTile && i > 0 && rows[i - 1].season === row.season ? "border-t-0" : ""}>
+                  <li key={row.id}>
                     <FinalRow
                       row={row}
                       tag={isSlamTile ? undefined : roundTags[row.round]}
@@ -1122,9 +1120,11 @@ function Start({ start, follow, slam, setSlam }: { start: StartData; follow: Fol
                 ))}
               </ul>
               {all.length > rows.length && (
-                <button type="button" onClick={() => setEverything(true)} className="mt-2 cursor-pointer px-2 text-sm font-semibold text-court underline-offset-4 hover:underline">
-                  {isSlamTile ? `Show all ${onlyFinals.length} finals` : `Show all ${onlyFinals.length} finals, with semifinals`}
-                </button>
+                <div className="border-t border-line px-4 py-2.5 sm:px-5">
+                  <button type="button" onClick={() => setEverything(true)} className="tag">
+                    {isSlamTile ? `Show all ${onlyFinals.length} finals` : `Show all ${onlyFinals.length} finals, with semifinals`}
+                  </button>
+                </div>
               )}
             </div>
           );
@@ -1133,52 +1133,50 @@ function Start({ start, follow, slam, setSlam }: { start: StartData; follow: Fol
     </div>
   );
   return (
-    <div className="space-y-12">
+    <div className="space-y-10">
       <section>
-        <h2 className="font-display text-2xl font-bold tracking-tight">Start at a Slam</h2>
-        <p className="text-muted">Pick one for its last ten finals, then follow the story from any of them.</p>
-        <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-          {slamTiles.map((t, i) => (
+        <SectionHead title="Start at a Slam" body="Pick one for its last ten finals, then follow the story from any of them." />
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {slamTiles.map((t) => (
             <button
               key={t}
               type="button"
               aria-pressed={slam === t}
               onClick={() => pick(t)}
-              style={{ background: slamColours[t], animationDelay: `${i * 70}ms` }}
-              className={`rise-in group flex cursor-pointer flex-col items-center gap-2 rounded-3xl px-3 py-3 font-semibold text-white shadow-md transition duration-200 hover:-translate-y-1.5 hover:shadow-xl sm:gap-3 sm:py-5 ${
-                slam === t ? "-translate-y-1.5 shadow-xl ring-4 ring-ball ring-offset-2 ring-offset-[var(--page)]" : slam ? "opacity-70 hover:opacity-100" : ""
+              style={{ borderTopColor: slamColours[t] }}
+              className={`flex cursor-pointer items-center gap-3 rounded-md border border-t-4 bg-surface px-3 py-3 text-left transition-colors sm:px-4 ${
+                slam === t ? "border-x-foreground border-b-foreground bg-sunk" : "border-x-line border-b-line hover:bg-sunk"
               }`}
             >
-              <span className="transition-transform duration-300 group-hover:-rotate-6 group-hover:scale-110">
-                <SlamLogo event={t} size="h-12 w-12 sm:h-20 sm:w-20" />
+              <SlamLogo event={t} size="h-10 w-10 sm:h-12 sm:w-12" />
+              <span className="min-w-0">
+                <span className="block font-display text-base font-bold leading-tight sm:text-lg">{t}</span>
+                <span className="block text-sm tabular-nums text-muted">{start.finals.filter((r) => r.event === t).length} finals</span>
               </span>
-              <span className="text-center font-display text-base sm:text-lg">{t}</span>
-              <span className="rounded-full bg-white/20 px-2.5 py-0.5 text-xs">{start.finals.filter((r) => r.event === t).length} finals</span>
             </button>
           ))}
         </div>
         {slam && isSlamTile && finalsPanel}
 
         {/* The big events after the Slams, smaller: a flag and the city, or the event's own mark */}
-        <h3 className="mt-8 font-display text-lg font-bold tracking-tight">Masters &amp; 1000s, tour finals and the Olympics</h3>
+        <h3 className="mt-6 font-display text-lg font-bold">Masters &amp; 1000s, tour finals and the Olympics</h3>
         <p className="text-sm text-muted">Their last ten finals, men&apos;s and women&apos;s, with semifinals a click away.</p>
-        <div className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-6 lg:grid-cols-8">
-          {bigEvents.map((b, i) => (
+        <div className="mt-2.5 grid grid-cols-2 gap-px overflow-hidden rounded-md border border-line bg-line sm:grid-cols-4 lg:grid-cols-8">
+          {bigEvents.map((b) => (
             <button
               key={b.key}
               type="button"
               aria-pressed={slam === b.key}
               onClick={() => pick(b.key)}
-              style={{ animationDelay: `${300 + i * 30}ms` }}
-              className={`rise-in group flex cursor-pointer flex-col items-center gap-1 rounded-2xl border bg-surface px-2 py-3 text-center shadow-sm transition duration-200 hover:-translate-y-1 hover:shadow-md ${
-                slam === b.key ? "-translate-y-1 border-transparent shadow-md ring-4 ring-ball" : slam ? "border-line opacity-70 hover:opacity-100" : "border-line"
-              }`}
+              className={`flex cursor-pointer items-center gap-2 px-3 py-2.5 text-left transition-colors ${slam === b.key ? "bg-foreground text-white" : "bg-surface hover:bg-sunk"}`}
             >
-              <span aria-hidden className="flex h-8 items-center text-3xl leading-none transition-transform duration-300 group-hover:scale-110">
-                {b.key === "Olympics" ? <SlamLogo event="Olympics" size="h-8 w-8" /> : (b.flag ?? "🏆")}
+              <span aria-hidden className="flex h-7 w-7 shrink-0 items-center justify-center text-2xl leading-none">
+                {b.key === "Olympics" ? <SlamLogo event="Olympics" size="h-7 w-7" /> : (b.flag ?? <CollectionIcon id="finals" className="h-5 w-5" />)}
               </span>
-              <span className="text-sm font-semibold leading-tight">{b.label}</span>
-              <span className="text-[11px] text-muted">{b.tours.length > 1 ? "Men & women" : b.tours[0] === "atp" ? "Men" : "Women"}</span>
+              <span className="min-w-0">
+                <span className="block truncate text-sm font-semibold leading-tight">{b.label}</span>
+                <span className={`block text-[11px] ${slam === b.key ? "text-white/70" : "text-muted"}`}>{b.tours.length > 1 ? "Men & women" : b.tours[0] === "atp" ? "Men" : "Women"}</span>
+              </span>
             </button>
           ))}
         </div>
@@ -1187,11 +1185,10 @@ function Start({ start, follow, slam, setSlam }: { start: StartData; follow: Fol
 
       {start.classics.length > 0 && (
         <section>
-          <h2 className="font-display text-2xl font-bold tracking-tight">Matches everyone talks about</h2>
-          <p className="text-muted">Start with one you&apos;ve heard of. Point at a card for a taste of its story.</p>
-          <ul className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {start.classics.map(({ row, why }, i) => (
-              <li key={row.id} className="rise-in" style={{ animationDelay: `${i * 50}ms` }}>
+          <SectionHead title="Matches everyone talks about" body="Start with one you've heard of. Point at a card for a taste of its story." />
+          <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {start.classics.map(({ row, why }) => (
+              <li key={row.id}>
                 <StoryCard
                   label={`${row.event} ${row.season} · ${roundName({ ...row, event: row.event })}`}
                   surface={row.surface}
@@ -1211,8 +1208,8 @@ function Start({ start, follow, slam, setSlam }: { start: StartData; follow: Fol
 
       {start.diary.length > 0 && (
         <section>
-          <h2 className="font-display text-xl font-bold tracking-tight">From your saga</h2>
-          <ul className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          <SectionHead title="From your saga" />
+          <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
             {start.diary.map((row) => (
               <li key={row.id}>
                 <MatchCard row={row} page={page(row.id)} onOpen={() => follow(row.id)} names={cardNames(row)} />
@@ -1273,20 +1270,18 @@ function Crumbs({ story, follow }: { story: Story; follow: Follow }) {
 
   if (crumbs.length < 2) return null;
   return (
-    <nav aria-label="Your trail" className="mb-6 flex items-center gap-3">
-      <span className="shrink-0 rounded-full bg-court px-3 py-1 text-sm font-bold text-court-ink">
-        {crumbs.length} explored
-      </span>
+    <nav aria-label="Your trail" className="mb-5 flex items-center gap-3">
+      <span className="shrink-0 text-sm font-semibold tabular-nums text-muted">{crumbs.length} explored</span>
       <ol ref={list} className="flex min-w-0 items-center gap-1.5 overflow-x-auto py-1 text-sm [scrollbar-width:none]">
         {crumbs.map((c, i) => (
           <li key={c.id} className="flex shrink-0 items-center gap-1.5">
-            {i > 0 && <span aria-hidden className="text-muted">→</span>}
+            {i > 0 && <Chevron className="h-3 w-3 text-muted" />}
             {c.id === story.id ? (
-              <span aria-current="page" className="rounded-full bg-ball px-3 py-1 font-semibold text-[#0b0d12]">
+              <span aria-current="page" className="rounded-[3px] bg-foreground px-2 py-0.5 font-semibold text-white">
                 {c.label}
               </span>
             ) : (
-              <button type="button" onClick={() => follow(c.id)} className="cursor-pointer rounded-full border border-line bg-surface px-3 py-1 font-medium text-court transition hover:border-court">
+              <button type="button" onClick={() => follow(c.id)} className="tag">
                 {c.label}
               </button>
             )}
@@ -1335,16 +1330,16 @@ export function ExploreSection({
   }, [story?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       {!guest && <MatchFinder seasons={seasons} onPick={(row) => follow(row.id)} inside={<SurpriseSmall slam={story ? slam : picked} />} />}
       <div ref={top} className="scroll-mt-6">
-        {missing && <p className="mb-6 rounded-2xl bg-fault/10 px-4 py-3 font-medium text-fault">That match isn&apos;t in the record.</p>}
+        {missing && <p className="mb-6 rounded border border-fault/30 bg-fault/5 px-4 py-3 font-medium text-fault">That match isn&apos;t in the record.</p>}
         {story ? (
           <>
             {/* Back to where Explore starts */}
             {!guest && (
               <>
-                <Link href="/explore" className="mb-6 inline-block font-semibold text-court underline-offset-4 hover:underline">
+                <Link href="/explore" className="mb-4 inline-block text-sm font-semibold text-court underline-offset-4 hover:underline">
                   ← All Slams
                 </Link>
                 <Crumbs story={story} follow={follow} />
@@ -1372,72 +1367,6 @@ export function ExploreSection({
           </>
         )}
       </div>
-    </div>
-  );
-}
-
-/* ---------- The landing page's demo ---------- */
-
-/**
- * The demo follows the sample log: picking a match there opens its story here when the record has it.
- * Stories come from /api/story as you click through.
- */
-export function ExploreDemo({ initial, choices, toData, toSample }: { initial: Story | null; choices: { id: string; label: string }[]; toData: Record<string, string>; toSample: Record<string, string> }) {
-  const { spotlight } = useLog();
-  const [story, setStory] = useState(initial);
-  const [pending, setPending] = useState(false);
-  const [failed, setFailed] = useState(false);
-  const root = useRef<HTMLDivElement>(null);
-  const page = usePages((id) => toSample[id]);
-  const starOf = useStarState((id) => toSample[id]);
-  const asked = useRef(0);
-
-  const follow = async (id: string, scroll = true) => {
-    const n = ++asked.current;
-    setPending(true);
-    try {
-      const res = await fetch(`/api/story?id=${encodeURIComponent(id)}`);
-      if (!res.ok) throw new Error(String(res.status));
-      const next: Story = await res.json();
-      if (n !== asked.current) return;
-      setStory(next);
-      setFailed(false);
-      if (scroll && root.current && root.current.getBoundingClientRect().top < 0) glideTo(root.current, "start");
-    } catch {
-      if (n === asked.current) setFailed(true);
-    } finally {
-      if (n === asked.current) setPending(false);
-    }
-  };
-
-  // Arriving from the log above: open that match's story
-  useEffect(() => {
-    if (spotlight?.target !== "explore") return;
-    glideTo(root.current, "start");
-    const id = toData[spotlight.id];
-    if (!id) return;
-    const t = setTimeout(() => void follow(id, false), 0);
-    return () => clearTimeout(t);
-  }, [spotlight]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  return (
-    <div ref={root} className="scroll-mt-6">
-      <div className="mb-6 flex flex-wrap items-center gap-2">
-        <span className="mr-1 text-sm font-semibold text-muted">Try:</span>
-        {choices.map((c) => (
-          <button
-            key={c.id}
-            type="button"
-            aria-pressed={story?.id === c.id}
-            onClick={() => follow(c.id, false)}
-            className={`cursor-pointer rounded-full border-2 px-3 py-1 text-sm font-semibold transition ${story?.id === c.id ? "border-court bg-court text-court-ink" : "border-line bg-surface text-court hover:border-court"}`}
-          >
-            {c.label}
-          </button>
-        ))}
-      </div>
-      {failed && <p className="mb-4 rounded-2xl bg-fault/10 px-4 py-3 font-medium text-fault">That story didn&apos;t load. Check your connection and try again.</p>}
-      {story ? <StoryView story={story} follow={(id) => void follow(id)} pending={pending} page={page} lite star={<StarDemo />} starOf={starOf} /> : <p className="text-muted">The match data isn&apos;t available right now.</p>}
     </div>
   );
 }

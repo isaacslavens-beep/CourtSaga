@@ -17,7 +17,7 @@ export const metadata: Metadata = { title: "Your saga · CourtSaga" };
 
 export default function SagaPage({ searchParams }: PageProps<"/saga">) {
   return (
-    <div className="court-saga saga-room flex flex-1 flex-col">
+    <div className="saga-room flex flex-1 flex-col">
       <Suspense
         fallback={
           <>
@@ -54,7 +54,7 @@ async function Saga({ searchParams }: Pick<PageProps<"/saga">, "searchParams">) 
         have={have}
         need={SAGA_MIN_MATCHES}
       />
-      <section className="flex-1 pb-20 pt-10 sm:pt-12">
+      <section className="flex-1 pb-20 pt-8 sm:pt-10">
         <div className="mx-auto w-full max-w-6xl px-4 sm:px-8">
           <LogProvider key={`${diary.version}:${spot?.id}`} mode="diary" rows={diary.rows} entries={diary.entries} order={diary.order} records={diary.records} spotlight={spot} saver={saver}>
             <div className="space-y-14">

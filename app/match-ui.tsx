@@ -46,7 +46,7 @@ export const slamColours: Record<"Australian Open" | "Roland Garros" | "Wimbledo
   "US Open": "#002f87",
 };
 
-/** The Slam's logo on a small white tile, a Masters 1000's flag, or null for any other event. */
+/** The Slam's logo on a small white square, a Masters 1000's flag, or null for any other event. */
 export function SlamLogo({ event, size = "h-7 w-7" }: { event: string; size?: string }) {
   const logo = slamLogos.find(([prefix]) => event.startsWith(prefix))?.[1];
   const flag = mastersFlag(event);
@@ -58,7 +58,7 @@ export function SlamLogo({ event, size = "h-7 w-7" }: { event: string; size?: st
     );
   if (!logo) return null;
   return (
-    <span aria-hidden className={`inline-flex shrink-0 items-center justify-center rounded-md bg-white p-0.5 shadow-sm ring-1 ring-black/10 ${size}`}>
+    <span aria-hidden className={`inline-flex shrink-0 items-center justify-center rounded-[3px] bg-white p-0.5 ring-1 ring-black/10 ${size}`}>
       <Image src={logo} alt="" className="h-full w-full object-contain" sizes="112px" />
     </span>
   );
@@ -106,12 +106,14 @@ export function TournamentLabel({
   surface: played,
   onPhoto = false,
   wrap = false,
+  logo = "h-8 w-8",
   className = "",
 }: {
   event: string;
   surface?: CourtSurface; // the match's own surface, for events not in the list above
   onPhoto?: boolean;
   wrap?: boolean; // wrap long names instead of truncating
+  logo?: string; // the logo's size
   className?: string;
 }) {
   const surface = surfaceByEvent.find(([prefix]) => event.startsWith(prefix))?.[1] ?? played;
@@ -119,8 +121,8 @@ export function TournamentLabel({
 
   return (
     <span className={`inline-flex min-w-0 items-center gap-2 font-semibold ${onPhoto ? "text-white" : style.text} ${className}`}>
-      <SlamLogo event={event} size="h-8 w-8" /> {/* the Slams show their logo, other events a surface dot */}
-      {!slamLogos.some(([prefix]) => event.startsWith(prefix)) && !mastersFlag(event) && <span aria-hidden className={`h-4 w-4 shrink-0 rounded-full ${style.dot}`} />}
+      <SlamLogo event={event} size={logo} /> {/* the Slams show their logo, other events a surface dot */}
+      {!slamLogos.some(([prefix]) => event.startsWith(prefix)) && !mastersFlag(event) && <span aria-hidden className={`h-2.5 w-2.5 shrink-0 rounded-full ${style.dot}`} />}
       <span className={wrap ? "" : "truncate"}>{event}</span>
     </span>
   );
@@ -153,10 +155,10 @@ export function HighlightsLink({
       }
       target="_blank"
       rel="noopener noreferrer"
-      className={`inline-flex w-fit items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 ${
+      className={`inline-flex w-fit items-center gap-1.5 rounded-[3px] border px-2 py-0.5 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 ${
         onPhoto
-          ? "border-white/40 bg-black/30 text-white backdrop-blur-sm hover:bg-black/50 focus-visible:outline-white"
-          : "border-line text-muted hover:border-court hover:text-court focus-visible:outline-court"
+          ? "border-white/40 bg-black/40 text-white hover:bg-black/60 focus-visible:outline-white"
+          : "border-line bg-surface text-foreground hover:border-foreground/45 focus-visible:outline-court"
       } ${className}`}
     >
       <svg viewBox="0 0 12 12" aria-hidden className="h-2.5 w-2.5 fill-current">

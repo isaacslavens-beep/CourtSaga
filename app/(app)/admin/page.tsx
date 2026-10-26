@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { isAdmin, listAccounts, siteStats } from "@/lib/admin";
 import { requireUser } from "@/lib/auth";
-import { CourtBand } from "../../court-band";
+import { PageBar } from "../../ui";
 import { OpeningDiary } from "../loading-page";
 
 export const metadata: Metadata = { title: "Accounts · CourtSaga", robots: { index: false } };
@@ -12,11 +12,9 @@ export const metadata: Metadata = { title: "Accounts · CourtSaga", robots: { in
 // Not linked from anywhere. Anyone but the admin account gets a 404, as if the page weren't there.
 export default function AdminPage() {
   return (
-    <div className="court-uso flex flex-1 flex-col">
-      <CourtBand>
-        <h1 className="font-display text-4xl font-bold tracking-tight sm:text-5xl">Accounts</h1>
-      </CourtBand>
-      <section className="court-page flex-1 pb-16 pt-10 sm:pt-12">
+    <div className="flex flex-1 flex-col">
+      <PageBar title="Accounts" />
+      <section className="flex-1 pb-16 pt-6 sm:pt-8">
         <div className="mx-auto w-full max-w-4xl px-4 sm:px-8">
           <Suspense fallback={<OpeningDiary />}>
             <Accounts />
@@ -51,26 +49,28 @@ async function Accounts() {
   ] as const;
   return (
     <div className="space-y-8">
-      <section className="rounded-3xl border border-line bg-surface p-5 shadow-sm sm:p-7">
-        <dl className="grid grid-cols-2 gap-5 sm:grid-cols-4">
+      <section className="panel">
+        <dl className="grid grid-cols-2 gap-px bg-line sm:grid-cols-4">
           {figures.map(([label, n]) => (
-            <div key={label}>
+            <div key={label} className="bg-surface px-4 py-3 sm:px-5">
               <dt className="text-sm text-muted">{label}</dt>
-              <dd className="font-display text-3xl font-bold tabular-nums">{n}</dd>
+              <dd className="stat text-4xl">{n}</dd>
             </div>
           ))}
         </dl>
         {stats.latestEvent && (
-          <p className="mt-5 border-t border-line pt-4 text-sm text-muted">
+          <p className="border-t border-line px-4 py-3 text-sm text-muted sm:px-5">
             Latest tournament in the data started <span className="font-semibold">{joined.format(new Date(stats.latestEvent))}</span>
           </p>
         )}
       </section>
-      <section className="rounded-3xl border border-line bg-surface p-5 shadow-sm sm:p-7">
-        <h2 className="font-display text-2xl font-bold tracking-tight">{accounts.length === 1 ? "1 account" : `${accounts.length} accounts`}</h2>
-        <div className="mt-4 overflow-x-auto">
+      <section className="panel">
+        <header className="panel-head">
+          <h2 className="panel-title">{accounts.length === 1 ? "1 account" : `${accounts.length} accounts`}</h2>
+        </header>
+        <div className="overflow-x-auto px-4 pb-2 sm:px-5">
           <table className="w-full text-left text-sm">
-            <thead className="text-muted">
+            <thead className="text-xs text-muted">
               <tr className="border-b border-line">
                 <th className="py-2 pr-4 font-semibold">Name</th>
                 <th className="py-2 pr-4 font-semibold">Email</th>

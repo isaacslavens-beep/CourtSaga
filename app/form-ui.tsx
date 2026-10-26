@@ -5,12 +5,9 @@ import type { InputHTMLAttributes, ReactNode } from "react";
 export function Field({ label, hint, ...input }: { label: string; hint?: string } & InputHTMLAttributes<HTMLInputElement>) {
   return (
     <label className="block">
-      <span className="font-semibold">{label}</span>
-      {hint && <span className="text-sm text-muted"> · {hint}</span>}
-      <input
-        {...input}
-        className="mt-1.5 w-full rounded-xl border-2 border-line bg-background px-3.5 py-2.5 text-lg font-medium placeholder:text-muted/70 focus:border-court focus:outline-none focus:ring-4 focus:ring-court/15"
-      />
+      <span className="text-sm font-semibold">{label}</span>
+      {hint && <span className="text-sm text-muted"> ({hint})</span>}
+      <input {...input} className="field mt-1 text-lg" />
     </label>
   );
 }
@@ -20,9 +17,7 @@ export function SubmitButton({ pending, children, danger = false }: { pending: b
     <button
       type="submit"
       disabled={pending}
-      className={`inline-flex w-full cursor-pointer items-center justify-center rounded-full px-6 py-3 text-lg font-bold shadow-md transition hover:-translate-y-0.5 hover:shadow-lg disabled:cursor-wait disabled:opacity-60 ${
-        danger ? "bg-fault text-white" : "bg-ball text-[#0b0d12]"
-      }`}
+      className={`btn btn-lg w-full ${danger ? "border-fault bg-fault text-white hover:brightness-110" : "btn-primary"}`}
     >
       {children}
     </button>
@@ -31,7 +26,7 @@ export function SubmitButton({ pending, children, danger = false }: { pending: b
 
 export function Message({ tone, children }: { tone: "error" | "done"; children: ReactNode }) {
   return (
-    <p role={tone === "error" ? "alert" : "status"} className={`rounded-2xl px-4 py-3 font-medium ${tone === "error" ? "bg-fault/10 text-fault" : "bg-grass/10 text-grass"}`}>
+    <p role={tone === "error" ? "alert" : "status"} className={`rounded border px-4 py-3 font-medium ${tone === "error" ? "border-fault/30 bg-fault/5 text-fault" : "border-grass/30 bg-grass/5 text-grass"}`}>
       {children}
     </p>
   );

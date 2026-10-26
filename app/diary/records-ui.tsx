@@ -9,6 +9,7 @@ import streaksPhoto from "@/public/photos/statistics/streaks.jpg";
 import seasonsPhoto from "@/public/photos/statistics/seasons.jpg";
 import matchesPhoto from "@/public/photos/statistics/matches.jpg";
 import specialistsPhoto from "@/public/photos/statistics/specialists.jpg";
+import { SearchIcon, SectionHead } from "../ui";
 import { Avatar } from "./fun";
 import { chapters, type Board, type BoardRow, type ChapterId, type RecordBooks } from "./records";
 
@@ -35,9 +36,12 @@ const chapterPhotos: Record<ChapterId, Cover> = {
 const TOP = 5;
 
 const tours = [
-  { tour: "atp", label: "Men", href: "/statistics", examples: ["Federer", "Nadal", "Alcaraz"] },
-  { tour: "wta", label: "Women", href: "/statistics/women", examples: ["Serena", "Swiatek", "Sabalenka"] },
+  { tour: "atp", label: "Men", examples: ["Federer", "Nadal", "Alcaraz"] },
+  { tour: "wta", label: "Women", examples: ["Serena", "Swiatek", "Sabalenka"] },
 ] as const;
+
+// What a board's middle column holds, by what its rows are about
+const subjects = { player: "Player", pair: "Head-to-head", match: "Match" } as const;
 
 /** Who a row is about: a player, a pair (the leader first) or a match (the winner first) */
 function RowTitle({ row, names }: { row: BoardRow; names: Record<string, string> }) {
@@ -53,44 +57,33 @@ function RowTitle({ row, names }: { row: BoardRow; names: Record<string, string>
 function RowLine({ row, names, full, tag, still }: { row: BoardRow; names: Record<string, string>; full: Record<string, string>; tag?: string; still?: boolean }) {
   const body = (
     <>
-      <span
-        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full font-display text-base font-bold tabular-nums ${
-          row.rank === 1 ? "bg-ball text-[#0b0d12] ring-1 ring-black/10" : "text-muted"
-        }`}
-      >
-        {row.rank}
-      </span>
+      <span className={`rank ${row.rank === 1 ? "rank-first" : ""}`}>{row.rank}</span>
       <span className={`flex shrink-0 -space-x-2 max-sm:hidden ${still ? "lg:hidden" : ""}`}>
         {row.players.map((k) => (
-          <Avatar key={k} name={names[k] ?? "?"} size="h-9 w-9 text-sm ring-2 ring-surface" />
+          <Avatar key={k} name={names[k] ?? "?"} size="h-8 w-8 text-sm ring-2 ring-surface" />
         ))}
       </span>
       <span className="min-w-0 flex-1">
         <span className="block leading-snug" title={row.players.map((k) => full[k]).join(" and ")}>
           <RowTitle row={row} names={names} />
-          {tag && <span className="ml-2 rounded-full bg-line/70 px-2 py-0.5 align-middle text-[11px] font-bold text-muted">{tag}</span>}
+          {tag && <span className="ml-2 rounded-[3px] bg-sunk px-1.5 py-px align-middle text-[11px] font-bold text-muted ring-1 ring-inset ring-line">{tag}</span>}
         </span>
         <span className="block text-sm leading-snug text-muted">{row.note}</span>
         {row.go && (
-          <span className={`mt-0.5 block text-sm leading-snug ${still ? "text-muted" : "font-semibold text-court"}`}>
-            {row.go.text} {!still && <span aria-hidden className="inline-block transition-transform group-hover:translate-x-1">→</span>}
-          </span>
+          <span className={`block text-sm leading-snug ${still ? "text-muted" : "font-semibold text-court group-hover:underline group-hover:underline-offset-4"}`}>{row.go.text}</span>
         )}
       </span>
-      <span className="shrink-0 pl-1 text-right font-display text-xl font-bold tabular-nums sm:text-2xl">{row.stat}</span>
+      <span className="stat shrink-0 pl-1 text-right text-2xl leading-none">{row.stat}</span>
     </>
   );
-  const shape = "group flex w-full items-center gap-3 rounded-2xl px-2 py-2.5 text-left";
+  const shape = "group flex w-full items-center gap-3 px-4 py-2.5 text-left sm:px-5";
   if (!row.go || still) return <div className={shape}>{body}</div>;
   return (
-    <Link href={exploreHref(row.go.id)} prefetch={false} className={`${shape} transition hover:bg-court/5`}>
+    <Link href={exploreHref(row.go.id)} prefetch={false} className={`${shape} transition-colors hover:bg-sunk`}>
       {body}
     </Link>
   );
 }
-
-const chip = (on: boolean) =>
-  `cursor-pointer rounded-full border-2 px-3 py-1 text-sm font-semibold transition ${on ? "border-court bg-court text-court-ink" : "border-line bg-surface text-court hover:border-court"}`;
 
 /**
  * One board: its title and rule, a choice of views where it has several (clay, grass, hard), and its top
@@ -110,7 +103,7 @@ export function BoardCard({
   only?: Set<string>;
   top?: number;
   still?: boolean;
-  cover?: ChapterId | Cover; // a chapter's photo (or one of its own) across the top, with the title over it
+  cover?: ChapterId | Cover; // a chapter's photo (or one of its own) across the top
   label?: string; // on the photo's corner, e.g. which tour
 }) {
   const chapter = chapters.find((c) => c.id === board.chapter)!;
@@ -124,44 +117,41 @@ export function BoardCard({
   const rows = found ?? (open ? view.rows : view.rows.slice(0, top)).map((r) => ({ r, tag: undefined }));
 
   return (
-    <section aria-labelledby={`board-${board.id}`} className="min-w-0 overflow-hidden rounded-3xl border border-line bg-surface p-4 shadow-sm sm:p-6">
+    <section aria-labelledby={`board-${board.id}`} className="panel overflow-hidden">
       {photo && (
-        <div className="relative -mx-4 -mt-4 mb-4 h-40 sm:-mx-6 sm:-mt-6 sm:h-44">
-          <Image src={photo.src} alt={photo.alt} fill placeholder="blur" sizes="(min-width: 1024px) 24rem, 100vw" className={`object-cover ${photo.position}`} />
-          <span aria-hidden className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/10 to-transparent" />
-          {label && <span className="absolute left-4 top-3 rounded-full bg-white px-2.5 py-0.5 text-xs font-bold tracking-wide text-[#0b0d12] shadow sm:left-6">{label}</span>}
-          <h3 id={`board-${board.id}`} className="absolute inset-x-4 bottom-3 font-display text-2xl font-bold tracking-tight text-white sm:inset-x-6">
-            {board.title}
-          </h3>
+        <div className="relative h-32 border-b border-line sm:h-36">
+          <Image src={photo.src} alt={photo.alt} fill placeholder="blur" sizes="(min-width: 1024px) 36rem, 100vw" className={`object-cover ${photo.position}`} />
+          {label && <span className="absolute left-3 top-3 rounded-[3px] bg-white px-1.5 py-0.5 text-xs font-bold ring-1 ring-black/10 sm:left-4">{label}</span>}
         </div>
       )}
-      <header className="flex items-start justify-between gap-3 px-1">
+      <header className="panel-head">
         <div className="min-w-0">
           {/* A search mixes the chapters, so each board says which it's from */}
-          {only && (
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted">
-              {chapter.title}
-            </p>
-          )}
-          {!cover && (
-            <h3 id={`board-${board.id}`} className="font-display text-xl font-bold tracking-tight">
-              {board.title}
-            </h3>
-          )}
+          {only && <p className="text-xs font-semibold text-muted">{chapter.title}</p>}
+          <h3 id={`board-${board.id}`} className="panel-title">
+            {board.title}
+          </h3>
           <p className="mt-0.5 text-sm text-muted">{board.rule}</p>
         </div>
-        <span className="mt-1.5 shrink-0 text-right text-xs font-semibold uppercase tracking-wide text-muted max-sm:hidden">{board.unit}</span>
       </header>
       {!found && board.views.length > 1 && (
-        <div className="mt-3 flex flex-wrap gap-2 px-1" role="group" aria-label={`${board.title}: show`}>
-          {board.views.map((v) => (
-            <button key={v.id} type="button" aria-pressed={v.id === view.id} onClick={() => setViewId(v.id)} className={chip(v.id === view.id)}>
-              {v.label}
-            </button>
-          ))}
+        <div className="border-b border-line bg-sunk px-4 py-2 sm:px-5">
+          <div className="seg" role="group" aria-label={`${board.title}: show`}>
+            {board.views.map((v) => (
+              <button key={v.id} type="button" aria-pressed={v.id === view.id} onClick={() => setViewId(v.id)}>
+                {v.label}
+              </button>
+            ))}
+          </div>
         </div>
       )}
-      <ol className="mt-3 divide-y divide-line">
+      {/* The columns, as a stats table heads them */}
+      <div aria-hidden className="flex items-center gap-3 border-b border-line px-4 py-1.5 text-xs font-semibold text-muted sm:px-5">
+        <span className="w-7 text-center">#</span>
+        <span className="flex-1">{subjects[rows[0]?.r.kind ?? "player"]}</span>
+        <span className="text-right">{board.unit}</span>
+      </div>
+      <ol className="divide-y divide-line">
         {rows.map(({ r, tag }, i) => (
           <li key={`${tag ?? view.id}-${i}`}>
             <RowLine row={r} names={books.names} full={books.full} tag={tag} still={still} />
@@ -169,11 +159,15 @@ export function BoardCard({
         ))}
       </ol>
       {/* On the landing page the rest waits for an account */}
-      {!found && still && view.rows.length > top && <p className="mt-2 px-2 text-sm font-semibold text-muted">Sign up for the full list of {view.rows.length}.</p>}
+      {!found && still && view.rows.length > top && (
+        <p className="border-t border-line px-4 py-2.5 text-sm font-semibold text-muted sm:px-5">Sign up for the full list of {view.rows.length}.</p>
+      )}
       {!found && !still && view.rows.length > top && (
-        <button type="button" onClick={() => setOpen(!open)} className="mt-2 cursor-pointer px-2 text-sm font-semibold text-court underline-offset-4 hover:underline">
-          {open ? `Show the top ${top}` : `Show all ${view.rows.length}`}
-        </button>
+        <div className="border-t border-line px-4 py-2.5 sm:px-5">
+          <button type="button" onClick={() => setOpen(!open)} className="tag">
+            {open ? `Show the top ${top}` : `Show all ${view.rows.length}`}
+          </button>
+        </div>
       )}
     </section>
   );
@@ -231,76 +225,64 @@ export function RecordsView({ books }: { books: RecordBooks }) {
 
   return (
     <div className="space-y-8">
-      {/* Find a player, and which tour */}
-      <div className="rounded-3xl border border-line bg-surface p-4 shadow-xl shadow-court/5 sm:p-6">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <label htmlFor="find-a-player" className="font-display text-lg font-bold">
-            Find a player <span className="font-sans text-sm font-normal text-muted">· in every list below</span>
+      {/* Find a player */}
+      <div className="panel">
+        <div className="panel-head">
+          <label htmlFor="find-a-player" className="panel-title">
+            Find a player
           </label>
-          <div className="flex rounded-full bg-background p-1 ring-1 ring-line" role="group" aria-label="Tour">
-            {tours.map((t) => (
-              <Link
-                key={t.tour}
-                href={`${t.href}${typed ? "" : `#${chapter}`}`}
-                aria-current={t.tour === books.tour ? "page" : undefined}
-                className={`rounded-full px-4 py-1.5 text-sm font-bold transition ${t.tour === books.tour ? "bg-court text-court-ink shadow-sm" : "text-court hover:bg-court/10"}`}
-              >
-                {t.label}
-              </Link>
-            ))}
+          <span className="panel-meta">In every one of the {here.label.toLowerCase()}&apos;s {books.boards.length} lists</span>
+        </div>
+        <div className="panel-body">
+          <div className="relative">
+            <SearchIcon className="left-3.5" />
+            <input
+              id="find-a-player"
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search a player"
+              autoComplete="off"
+              spellCheck={false}
+              className="field py-2.5 pl-10 text-lg"
+            />
           </div>
-        </div>
-        <div className="relative mt-3">
-          <svg viewBox="0 0 20 20" aria-hidden className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 fill-none stroke-current stroke-2 text-muted" strokeLinecap="round">
-            <circle cx="8.5" cy="8.5" r="5.5" />
-            <path d="m13 13 4 4" />
-          </svg>
-          <input
-            id="find-a-player"
-            type="search"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search a player"
-            autoComplete="off"
-            spellCheck={false}
-            className="w-full rounded-full border-2 border-line bg-background py-3 pl-12 pr-4 text-lg font-medium placeholder:text-muted/70 focus:border-court focus:outline-none focus:ring-4 focus:ring-court/15"
-          />
-        </div>
-        {!typed ? (
-          <p className="mt-3 flex flex-wrap items-center gap-2 text-sm text-muted">
-            See where a player shows up, for example:
-            {here.examples.map((q) => (
-              <button key={q} type="button" onClick={() => setQuery(q)} className="cursor-pointer rounded-full border border-line px-2.5 py-0.5 font-semibold text-court transition hover:border-court hover:bg-court/5">
-                {q}
+          {!typed ? (
+            <p className="mt-3 flex flex-wrap items-center gap-2 text-sm text-muted">
+              See where a player shows up, for example:
+              {here.examples.map((q) => (
+                <button key={q} type="button" onClick={() => setQuery(q)} className="tag">
+                  {q}
+                </button>
+              ))}
+            </p>
+          ) : inRows.length ? (
+            <div className="mt-3 flex flex-wrap items-center gap-2 text-sm text-muted" aria-live="polite">
+              {inRows.length === 1 ? (
+                <span>
+                  <span className="font-semibold text-foreground">{books.full[inRows[0]]}</span> is in {found.length === 1 ? "1 list" : `${found.length} lists`}.
+                </span>
+              ) : (
+                <>
+                  <span>{inRows.length} players. Pick one:</span>
+                  {inRows.slice(0, 8).map((k) => (
+                    <button key={k} type="button" onClick={() => setQuery(books.full[k])} className="tag pl-0.5">
+                      <Avatar name={books.names[k]} size="h-5 w-5 text-[10px]" />
+                      {books.full[k]}
+                    </button>
+                  ))}
+                </>
+              )}
+              <button type="button" onClick={() => setQuery("")} className="cursor-pointer font-semibold text-court underline-offset-4 hover:underline">
+                Clear
               </button>
-            ))}
-          </p>
-        ) : inRows.length ? (
-          <div className="mt-3 flex flex-wrap items-center gap-2 text-sm text-muted" aria-live="polite">
-            {inRows.length === 1 ? (
-              <span>
-                <span className="font-semibold text-foreground">{books.full[inRows[0]]}</span> is in {found.length === 1 ? "1 list" : `${found.length} lists`}.
-              </span>
-            ) : (
-              <>
-                <span>{inRows.length} players. Pick one:</span>
-                {inRows.slice(0, 8).map((k) => (
-                  <button key={k} type="button" onClick={() => setQuery(books.full[k])} className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-line py-0.5 pl-0.5 pr-2.5 font-semibold text-court transition hover:border-court hover:bg-court/5">
-                    <Avatar name={books.names[k]} size="h-6 w-6 text-[10px]" />
-                    {books.full[k]}
-                  </button>
-                ))}
-              </>
-            )}
-            <button type="button" onClick={() => setQuery("")} className="cursor-pointer font-semibold text-court underline-offset-4 hover:underline">
-              Clear
-            </button>
-          </div>
-        ) : (
-          <p className="mt-3 rounded-2xl bg-background px-4 py-3 text-sm text-muted" aria-live="polite">
-            No one called &ldquo;{typed}&rdquo; is in the {here.label.toLowerCase()}&apos;s lists. Each list keeps its top 20, so a player has to rank there to show up.
-          </p>
-        )}
+            </div>
+          ) : (
+            <p className="well mt-3 px-4 py-3 text-sm text-muted" aria-live="polite">
+              No one called &ldquo;{typed}&rdquo; is in the {here.label.toLowerCase()}&apos;s lists. Each list keeps its top 20, so a player has to rank there to show up.
+            </p>
+          )}
+        </div>
       </div>
 
       {typed ? (
@@ -314,43 +296,34 @@ export function RecordsView({ books }: { books: RecordBooks }) {
         )
       ) : (
         <>
-          {/* The chapters, as tiles */}
+          {/* The chapters, as tiles: a photo over a strip with the name, the open one's strip in ink */}
           <div className="grid grid-cols-3 gap-2 sm:grid-cols-6 sm:gap-3">
-            {chapters.map((c, i) => (
+            {chapters.map((c) => (
               <button
                 key={c.id}
                 type="button"
                 aria-pressed={chapter === c.id}
                 onClick={() => setChapter(c.id)}
-                style={{ animationDelay: `${i * 50}ms` }}
-                className={`rise-in group relative flex aspect-[4/3] cursor-pointer flex-col justify-end overflow-hidden rounded-2xl text-left text-white shadow-sm transition duration-200 hover:-translate-y-1 hover:shadow-md ${
-                  chapter === c.id ? "-translate-y-1 shadow-md ring-4 ring-ball" : "ring-1 ring-black/10"
+                className={`group flex cursor-pointer flex-col overflow-hidden rounded-md border bg-surface text-left transition-colors ${
+                  chapter === c.id ? "border-foreground" : "border-line hover:border-foreground/45"
                 }`}
               >
-                <Image
-                  src={chapterPhotos[c.id].src}
-                  alt={chapterPhotos[c.id].alt}
-                  fill
-                  placeholder="blur"
-                  sizes="(min-width: 640px) 12rem, 33vw"
-                  className={`object-cover transition-transform duration-500 group-hover:scale-105 ${chapterPhotos[c.id].position}`}
-                />
-                {/* A shade at the foot of the photo, so the words read on any picture */}
-                <span aria-hidden className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/15 to-transparent" />
-                <span className="relative px-2.5 pb-2 sm:px-3 sm:pb-2.5">
+                <span className="relative block aspect-[16/10] w-full">
+                  <Image src={chapterPhotos[c.id].src} alt={chapterPhotos[c.id].alt} fill placeholder="blur" sizes="(min-width: 640px) 12rem, 33vw" className={`object-cover ${chapterPhotos[c.id].position}`} />
+                </span>
+                <span className={`block px-2.5 py-1.5 transition-colors sm:px-3 ${chapter === c.id ? "bg-foreground text-white" : ""}`}>
                   <span className="block font-display text-sm font-bold leading-tight sm:text-base">{c.title}</span>
-                  <span className="block text-[11px] text-white/80">{books.boards.filter((b) => b.chapter === c.id).length} lists</span>
+                  <span className={`block text-[11px] tabular-nums ${chapter === c.id ? "text-white/70" : "text-muted"}`}>
+                    {books.boards.filter((b) => b.chapter === c.id).length} lists
+                  </span>
                 </span>
               </button>
             ))}
           </div>
 
           <section aria-labelledby="chapter-title" key={chapter} className="fade-in">
-            <h2 id="chapter-title" className="font-display text-2xl font-bold tracking-tight">
-              {current.title}
-            </h2>
-            <p className="text-muted">{current.blurb} Every line opens its match in Explore.</p>
-            <div className="mt-4 grid items-start gap-5 lg:grid-cols-2">
+            <SectionHead id="chapter-title" title={current.title} body={`${current.blurb} Every line opens its match in Explore.`} />
+            <div className="grid items-start gap-5 lg:grid-cols-2">
               {shown.map((b) => (
                 <BoardCard key={`${b.id}`} board={b} books={books} />
               ))}

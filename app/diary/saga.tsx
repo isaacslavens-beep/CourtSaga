@@ -195,7 +195,7 @@ function Shelf({ shelf, bookId, counts, progress, onOpen }: { shelf: ShelfBook[]
             type="button"
             aria-label={dir < 0 ? "Earlier books" : "More books"}
             onClick={() => strip.current?.scrollBy({ left: dir * strip.current.clientWidth * 0.7, behavior: "smooth" })}
-            className={`absolute top-[6.5rem] z-10 hidden h-10 w-10 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full bg-surface text-foreground shadow-lg ring-1 ring-black/10 transition hover:scale-110 sm:flex ${dir < 0 ? "-left-3" : "-right-3"}`}
+            className={`absolute top-[6.5rem] z-10 hidden h-10 w-10 -translate-y-1/2 cursor-pointer items-center justify-center rounded-md bg-surface text-foreground shadow-md ring-1 ring-black/15 transition-colors hover:bg-sunk sm:flex ${dir < 0 ? "-left-3" : "-right-3"}`}
           >
             <svg viewBox="0 0 16 16" aria-hidden className="h-4 w-4 fill-none stroke-current stroke-2" strokeLinecap="round" strokeLinejoin="round">
               <path d={dir < 0 ? "M10 3 5 8l5 5" : "M6 3l5 5-5 5"} />
@@ -222,7 +222,7 @@ function Paper({ side, number, head, children }: { side: "left" | "right"; numbe
       <p className={`relative truncate text-[0.7rem] font-semibold uppercase tracking-[0.22em] text-muted ${left ? "" : "lg:text-right"}`}>{head || "\u00a0"}</p>
       {/* Every page is the same size on wider screens: a long one scrolls within itself */}
       <div className="relative isolate mt-7 flex flex-1 lg:mt-4 flex-col [scrollbar-width:thin] lg:-mx-3 lg:min-h-0 lg:overflow-y-auto lg:overflow-x-hidden lg:px-3 lg:pt-3">{children}</div>
-      {number !== null && <p className={`relative mt-8 font-mono text-xs text-muted ${left ? "" : "text-right"}`}>{number}</p>}
+      {number !== null && <p className={`relative mt-8 tabular-nums text-xs text-muted ${left ? "" : "text-right"}`}>{number}</p>}
     </div>
   );
 }
@@ -259,7 +259,7 @@ function PageLink({ page, onClick }: { page: number | undefined; onClick?: () =>
 }
 
 function Tag({ children }: { children: ReactNode }) {
-  return <span className="whitespace-nowrap rounded-full bg-[color-mix(in_srgb,var(--tint-a)_14%,transparent)] px-2 py-0.5 text-xs font-semibold">{children}</span>;
+  return <span className="whitespace-nowrap rounded-[3px] bg-[color-mix(in_srgb,var(--tint-a)_14%,transparent)] px-1.5 py-0.5 text-xs font-semibold">{children}</span>;
 }
 
 /** The fan's words, set as a pull quote, always saying which match they're about */
@@ -331,7 +331,7 @@ function TitlePage({ book, contents, catchUp, onJump }: { book: BookData; conten
                 <span className="w-12 shrink-0 text-sm tabular-nums text-muted">{c.label}</span>
                 <span className="min-w-0 font-medium group-hover:underline group-hover:underline-offset-4">{c.title}</span>
                 <span aria-hidden className="mx-1 flex-1 translate-y-[-0.2rem] border-b border-dotted border-black/20" />
-                <span className="font-mono text-sm tabular-nums text-muted">{c.page}</span>
+                <span className="text-sm tabular-nums text-muted">{c.page}</span>
               </button>
             </li>
           ))}
@@ -492,7 +492,7 @@ function MatchLine({ entry, pages, compact, isEpigraph, flash, onEdit }: { entry
           <span>
             <span className="font-semibold">{meet.winner}</span> beat {entry.loser}
           </span>
-          {meet.score && <span className="font-mono text-xs">{scoreText(meet.score)}</span>}
+          {meet.score && <span className="tabular-nums text-xs">{scoreText(meet.score)}</span>}
           {ending && <span className="text-xs">· {ending}</span>}
           {entry.marks.map((t) => (
             <Tag key={t}>{t}</Tag>
@@ -537,21 +537,21 @@ function MatchLine({ entry, pages, compact, isEpigraph, flash, onEdit }: { entry
       </div>
       <p className="mt-1 text-sm">
         <span className="font-semibold">{m.winner}</span> <span className="text-muted">beat {m.loser}</span>{" "}
-        <span className="whitespace-nowrap font-mono text-xs text-muted">{scoreText(m.score)}</span>
+        <span className="whitespace-nowrap tabular-nums text-xs text-muted">{scoreText(m.score)}</span>
       </p>
       {entry.detail && <p className="mt-0.5 text-sm text-muted">{entry.detail}</p>}
       <div className="mt-2 flex flex-wrap items-center gap-1.5">
         {/* Watched, or starred to remember without watching */}
         {watched(fan) ? (
-          <span className="whitespace-nowrap rounded-full bg-[var(--ink)] px-2 py-0.5 text-xs font-semibold text-white">Watched {watchedHow(fan.watchedOn)}</span>
+          <span className="whitespace-nowrap rounded-[3px] bg-[var(--ink)] px-1.5 py-0.5 text-xs font-semibold text-white">Watched {watchedHow(fan.watchedOn)}</span>
         ) : (
-          <span className="whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-semibold text-muted ring-1 ring-line">☆ Starred, not watched</span>
+          <span className="whitespace-nowrap rounded-[3px] px-1.5 py-0.5 text-xs font-semibold text-muted ring-1 ring-inset ring-line">☆ Starred, not watched</span>
         )}
         {entry.marks.map((t) => (
           <Tag key={t}>{t}</Tag>
         ))}
         {side && (
-          <span className={`whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-semibold ${side === m.winner ? "bg-grass/15 text-grass" : "bg-fault/15 text-fault"}`}>
+          <span className={`whitespace-nowrap rounded-[3px] px-1.5 py-0.5 text-xs font-semibold ${side === m.winner ? "bg-grass/15 text-grass" : "bg-fault/15 text-fault"}`}>
             {side === m.winner ? "✓" : "✗"} Backed {side}
           </span>
         )}
@@ -646,7 +646,7 @@ function Afterword({ book, next, coda }: { book: BookData; next: { title: string
         <button
           type="button"
           onClick={next.open}
-          className="mt-4 cursor-pointer rounded-full bg-[var(--ink)] px-5 py-2.5 font-semibold text-white shadow-md transition hover:brightness-125"
+          className="btn mt-4 bg-[var(--ink)] text-white hover:brightness-125"
         >
           Read next: {next.title} →
         </button>
@@ -747,7 +747,7 @@ export function SagaSection({ only }: { only?: string[] } = {}) {
 
   if (!shelf.length) {
     return (
-      <p className="rounded-2xl border-2 border-dashed border-line p-8 text-center text-lg font-medium text-muted">
+      <p className="rounded-md border border-dashed border-line-strong bg-surface p-8 text-center text-lg font-medium text-muted">
         Star {SAGA_MIN_MATCHES} matches to start your saga.
       </p>
     );
@@ -940,7 +940,7 @@ export function SagaSection({ only }: { only?: string[] } = {}) {
   const cover = (
     <button type="button" onClick={() => go(0)} aria-label={`Open ${book.title}`} className="cover-peek relative flex h-full min-h-[26rem] w-full cursor-pointer flex-col text-left lg:min-h-[40rem]">
       {coverArt}
-      <span aria-hidden className="nudge absolute right-5 top-5 rounded-full bg-white/90 px-3.5 py-1.5 text-sm font-semibold text-[#0e1520] shadow-lg">
+      <span aria-hidden className="nudge absolute right-5 top-5 rounded bg-white px-3 py-1.5 text-sm font-semibold text-[#0e1520] shadow-md">
         Open the book ›
       </span>
     </button>
@@ -987,7 +987,7 @@ export function SagaSection({ only }: { only?: string[] } = {}) {
             ? "Where it stands"
             : `Chapter ${roman(shown - 1)} of ${roman(book.chapters.length)}`;
   const readHere = read[shelfBook.id] ?? [];
-  const toolButton = "inline-flex cursor-pointer items-center gap-1.5 rounded-full px-3 py-1 font-semibold text-muted transition hover:bg-black/5 hover:text-foreground";
+  const toolButton = "inline-flex cursor-pointer items-center gap-1.5 rounded px-3 py-1 font-semibold text-muted transition hover:bg-black/5 hover:text-foreground";
 
   return (
     <div>
@@ -995,7 +995,7 @@ export function SagaSection({ only }: { only?: string[] } = {}) {
       {/* How the saga grows. Not on someone else's shared saga. */}
       {mode !== "shared" && (
         <p className="mt-3 flex items-start gap-2.5 text-sm text-muted sm:items-center">
-          <span aria-hidden className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-ball text-xs font-bold text-[#0b0d12]">
+          <span aria-hidden className="step h-5 w-5 text-xs">
             +
           </span>
           <span>

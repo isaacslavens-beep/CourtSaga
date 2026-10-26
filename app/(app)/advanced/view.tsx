@@ -3,11 +3,13 @@ import { Suspense } from "react";
 import { advancedModels } from "@/lib/models";
 import type { Tour } from "../../diary/library";
 import { AdvancedView } from "../../diary/models-ui";
+import { TourSwitch } from "../../tour-switch";
+import { PageBar } from "../../ui";
 import { OpeningDiary } from "../loading-page";
 
-/* Advanced, for one tour: the models (app/diary/models.ts) on Roland Garros's clay, under a plain heading, as
-   the content speaks for itself. Nothing here depends on who's looking, so the page is built ahead of time and
-   rebuilt as the data changes. */
+/* Advanced, for one tour: the models (app/diary/models.ts), under a plain heading, as the content speaks for
+   itself. Nothing here depends on who's looking, so the page is built ahead of time and rebuilt as the data
+   changes. */
 
 // The models' formulas are set in a maths face, loaded only here
 const mathFace = STIX_Two_Text({ subsets: ["latin"], style: ["normal", "italic"], variable: "--font-math", preload: false });
@@ -16,8 +18,11 @@ export const advancedDescription = "Play with models fitted to every tour-level 
 
 export function AdvancedPage({ tour }: { tour: Tour }) {
   return (
-    <div className={`court-rg flex flex-1 flex-col ${mathFace.variable}`}>
-      <section className="court-page flex-1 pb-16 pt-6 sm:pt-8">
+    <div className={`flex flex-1 flex-col ${mathFace.variable}`}>
+      <PageBar n={3} title="Advanced Analytics">
+        <TourSwitch tour={tour} men="/advanced" women="/advanced/women" />
+      </PageBar>
+      <section className="flex-1 pb-16 pt-6 sm:pt-8">
         <div className="mx-auto w-full max-w-6xl px-4 sm:px-8">
           <Suspense fallback={<OpeningDiary />}>
             <Models tour={tour} />
@@ -31,6 +36,6 @@ export function AdvancedPage({ tour }: { tour: Tour }) {
 async function Models({ tour }: { tour: Tour }) {
   // A build without the database still builds: the page says the models aren't available
   const models = await advancedModels(tour).catch(() => null);
-  if (!models) return <p className="rounded-2xl bg-fault/10 px-4 py-3 font-medium text-fault">The models aren&apos;t available right now. Try again in a little while.</p>;
+  if (!models) return <p className="rounded border border-fault/30 bg-fault/5 px-4 py-3 font-medium text-fault">The models aren&apos;t available right now. Try again in a little while.</p>;
   return <AdvancedView books={models} />;
 }

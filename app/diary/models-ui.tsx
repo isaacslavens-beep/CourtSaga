@@ -1,13 +1,12 @@
 "use client";
 
 import Image, { type StaticImageData } from "next/image";
-import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import ratingsPhoto from "@/public/photos/alcaraz-nadal-paris-2024.jpg";
 import servePhoto from "@/public/photos/djokovic-serve-roland-garros.jpg";
 import pressurePhoto from "@/public/photos/djokovic-wimbledon-centre-court.jpg";
 import agesPhoto from "@/public/photos/venus-williams-us-open.jpg";
-import { PageTitle } from "../page-title";
+import { SearchIcon, SectionHead } from "../ui";
 import { Avatar, chartStyles } from "./fun";
 import {
   ageEras,
@@ -74,8 +73,8 @@ const panels: { id: PanelId; title: string; blurb: string; photo: StaticImageDat
 ];
 
 const tours = [
-  { tour: "atp", label: "Men", href: "/advanced" },
-  { tour: "wta", label: "Women", href: "/advanced/women" },
+  { tour: "atp", label: "Men" },
+  { tour: "wta", label: "Women" },
 ] as const;
 
 // The open panel lives in the address (#serve), as Statistics' chapters do
@@ -96,19 +95,17 @@ const setHash = (hash: string) => {
 /* ---------- Pieces every panel uses ---------- */
 
 function Card({ children, className = "" }: { children: ReactNode; className?: string }) {
-  return <div className={`min-w-0 rounded-3xl border border-line bg-surface p-4 shadow-sm sm:p-6 ${className}`}>{children}</div>;
+  return <div className={`panel p-4 sm:p-5 ${className}`}>{children}</div>;
 }
 
-const chip = (on: boolean) =>
-  `cursor-pointer rounded-full border-2 px-3 py-1 text-sm font-semibold transition ${on ? "border-court bg-court text-court-ink" : "border-line bg-surface text-court hover:border-court"}`;
-
+/** A choice of a few, its name above it */
 function Chips<T extends string | number>({ label, options, value, onChange }: { label: string; options: { id: T; label: string }[]; value: T; onChange: (v: T) => void }) {
   return (
     <div>
-      <p className="text-xs font-semibold uppercase tracking-wide text-muted">{label}</p>
-      <div className="mt-1.5 flex flex-wrap gap-2" role="group" aria-label={label}>
+      <p className="text-xs font-semibold text-muted">{label}</p>
+      <div className="seg mt-1" role="group" aria-label={label}>
         {options.map((o) => (
-          <button key={String(o.id)} type="button" aria-pressed={o.id === value} onClick={() => onChange(o.id)} className={chip(o.id === value)}>
+          <button key={String(o.id)} type="button" aria-pressed={o.id === value} onClick={() => onChange(o.id)}>
             {o.label}
           </button>
         ))}
@@ -122,7 +119,7 @@ function Slider({ label, value, shown, min, max, step = 1, onChange, hint }: { l
     <label className="block">
       <span className="flex items-baseline justify-between gap-3">
         <span className="text-sm font-semibold">{label}</span>
-        <span className="font-mono text-base font-semibold tabular-nums">{shown}</span>
+        <span className="stat text-lg">{shown}</span>
       </span>
       <input type="range" min={min} max={max} step={step} value={value} onChange={(e) => onChange(Number(e.target.value))} className="mt-1 w-full cursor-pointer accent-court" />
       {hint && <span className="block text-xs text-muted">{hint}</span>}
@@ -135,7 +132,7 @@ function Answer({ value, label, sub }: { value: string; label: string; sub?: Rea
   return (
     <div aria-live="polite">
       <p className="flex flex-wrap items-baseline gap-x-3">
-        <span className="font-display text-5xl font-bold tracking-tight tabular-nums sm:text-6xl">{value}</span>
+        <span className="stat text-6xl leading-none sm:text-7xl">{value}</span>
         <span className="text-lg font-semibold text-muted">{label}</span>
       </p>
       {sub && <p className="mt-1 text-muted">{sub}</p>}
@@ -147,14 +144,14 @@ function Answer({ value, label, sub }: { value: string; label: string; sub?: Rea
 function Meter({ value, label }: { value: number; label: string }) {
   return (
     <div className="mt-3 max-w-xl" role="img" aria-label={`${label}: ${pct1(value)}`}>
-      <div className="relative h-3 overflow-hidden rounded-full bg-line/60">
-        <div className="absolute inset-y-0 left-0 rounded-r-full transition-[width] duration-300" style={{ width: `${value * 100}%`, background: BLUE }} />
+      <div className="relative h-3 overflow-hidden rounded-[2px] bg-line/60">
+        <div className="absolute inset-y-0 left-0 transition-[width] duration-300" style={{ width: `${value * 100}%`, background: BLUE }} />
         {[25, 75].map((t) => (
           <span key={t} className="absolute inset-y-0 w-0.5 bg-surface" style={{ left: `${t}%` }} />
         ))}
         <span className="absolute inset-y-0 left-1/2 w-0.5 bg-foreground/50" />
       </div>
-      <div className="mt-1 flex justify-between font-mono text-[10.5px] text-muted">
+      <div className="mt-1 flex justify-between text-[11px] tabular-nums text-muted">
         <span>0%</span>
         <span>50%</span>
         <span>100%</span>
@@ -166,21 +163,24 @@ function Meter({ value, label }: { value: number; label: string }) {
 /** What a model was built from and how good it is, beside it */
 function Behind({ children }: { children: ReactNode }) {
   return (
-    <Card className="bg-background/60">
-      <h3 className="font-display text-lg font-bold">Behind the numbers</h3>
-      <div className="mt-3 space-y-4 text-sm leading-relaxed text-muted [&_strong]:font-semibold [&_strong]:text-foreground">{children}</div>
-    </Card>
+    <section className="panel [--accent:var(--line-strong)]">
+      <header className="panel-head">
+        <h3 className="panel-title">Behind the numbers</h3>
+        <span className="panel-meta">How it was fitted, and how well</span>
+      </header>
+      <div className="panel-body space-y-4 text-sm leading-relaxed text-muted [&_strong]:font-semibold [&_strong]:text-foreground">{children}</div>
+    </section>
   );
 }
 
 /** A model's key figures, set like a table's summary line; hover one for what it means */
 function Stats({ items }: { items: { label: string; value: string; hint?: string }[] }) {
   return (
-    <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-2xl bg-line ring-1 ring-line">
+    <dl className="grid grid-cols-2 gap-px overflow-hidden rounded bg-line ring-1 ring-line">
       {items.map((i) => (
         <div key={i.label} className={`bg-surface px-3 py-2.5 ${i.hint ? "cursor-help" : ""}`} title={i.hint}>
-          <dt className="text-[10.5px] font-semibold uppercase tracking-wider text-muted">{i.label}</dt>
-          <dd className="mt-0.5 font-mono text-lg font-semibold tabular-nums text-foreground">{i.value}</dd>
+          <dt className="text-xs font-medium text-muted">{i.label}</dt>
+          <dd className="stat mt-0.5 text-xl leading-tight text-foreground">{i.value}</dd>
         </div>
       ))}
     </dl>
@@ -206,7 +206,7 @@ const Eq = ({ children }: { children: ReactNode }) => <span className="whitespac
 /** Formulas set as mathematics, each Eq on a line of its own when they don't fit side by side, with what each symbol means under them */
 function Formula({ children, where }: { children: ReactNode; where?: ReactNode }) {
   return (
-    <div className="rounded-xl bg-surface px-3 py-3 ring-1 ring-line">
+    <div className="rounded border border-line bg-surface px-3 py-3">
       <p className="flex flex-wrap items-center justify-center gap-x-7 gap-y-2 overflow-x-auto py-1 text-[16px] text-foreground" style={{ fontFamily: "var(--font-math), 'Cambria Math', 'Times New Roman', serif" }}>
         {children}
       </p>
@@ -227,14 +227,7 @@ function matching(keys: string[], full: Record<string, string>, names: Record<st
   });
 }
 
-const searchInput =
-  "w-full rounded-full border-2 border-line bg-background py-2.5 pl-11 pr-4 font-medium placeholder:text-muted/70 focus:border-court focus:outline-none focus:ring-4 focus:ring-court/15";
-const SearchIcon = () => (
-  <svg viewBox="0 0 20 20" aria-hidden className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 fill-none stroke-current stroke-2 text-muted" strokeLinecap="round">
-    <circle cx="8.5" cy="8.5" r="5.5" />
-    <path d="m13 13 4 4" />
-  </svg>
-);
+const searchInput = "field py-2 pl-10";
 
 /** Find a player among `keys`: type, then pick from what matches */
 function PlayerPicker({
@@ -259,9 +252,9 @@ function PlayerPicker({
   if (value && !query)
     return (
       <div>
-        <p className="text-xs font-semibold uppercase tracking-wide text-muted">{label}</p>
-        <div className="mt-1.5 flex items-center gap-2">
-          <span className="inline-flex min-w-0 items-center gap-2 rounded-full border border-line bg-background py-1 pl-1 pr-3 font-semibold">
+        <p className="text-xs font-semibold text-muted">{label}</p>
+        <div className="mt-1 flex items-center gap-2">
+          <span className="inline-flex min-w-0 items-center gap-2 rounded border border-line-strong bg-surface py-1 pl-1 pr-3 font-semibold">
             <Avatar name={books.names[value]} size="h-7 w-7 text-xs" />
             <span className="truncate" title={books.full[value]}>
               {books.names[value]}
@@ -276,9 +269,9 @@ function PlayerPicker({
     );
   return (
     <div>
-      <label className="text-xs font-semibold uppercase tracking-wide text-muted">
+      <label className="text-xs font-semibold text-muted">
         {label}
-        <span className="relative mt-1.5 block font-normal normal-case tracking-normal">
+        <span className="relative mt-1 block font-normal text-foreground">
           <SearchIcon />
           <input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder={placeholder} autoComplete="off" spellCheck={false} className={searchInput} />
         </span>
@@ -294,9 +287,9 @@ function PlayerPicker({
                   onChange(k);
                   setQuery("");
                 }}
-                className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-line py-0.5 pl-0.5 pr-2.5 font-semibold text-court transition hover:border-court hover:bg-court/5"
+                className="tag pl-0.5"
               >
-                <Avatar name={books.names[k]} size="h-6 w-6 text-[10px]" />
+                <Avatar name={books.names[k]} size="h-5 w-5 text-[10px]" />
                 {books.full[k]}
               </button>
             ))
@@ -314,9 +307,9 @@ function PlayerPicker({
 const BLUE = "var(--p-alcaraz)";
 const ORANGE = "var(--p-sinner)";
 const INK = "var(--foreground)";
-// Numbers on a chart in the mono face; axis titles in small capitals
-const tickText = "fill-muted font-mono text-[10.5px] tabular-nums";
-const axisTitle = "fill-muted text-[10px] font-semibold uppercase tracking-[0.12em]";
+// Numbers on a chart with every digit the same width; axis titles a little heavier
+const tickText = "fill-muted text-[11px] tabular-nums";
+const axisTitle = "fill-muted text-[11px] font-semibold";
 
 function useWidth() {
   const ref = useRef<HTMLDivElement>(null);
@@ -458,7 +451,7 @@ function Plot({
       </svg>
       {shown && (
         <div
-          className="pointer-events-none absolute z-10 w-max max-w-[17rem] rounded-xl bg-surface px-3 py-2 text-xs leading-snug shadow-lg ring-1 ring-line [&_.n]:font-mono [&_.n]:tabular-nums"
+          className="pointer-events-none absolute z-10 w-max max-w-[17rem] rounded border border-line-strong bg-surface px-3 py-2 text-xs leading-snug shadow-md [&_.n]:font-semibold [&_.n]:tabular-nums"
           style={{ top, ...(at > width / 2 ? { right: width - at + 12 } : { left: at + 12 }) }}
         >
           {shown.body}
@@ -479,8 +472,8 @@ function Callout({ x, y, text, s, above = true }: { x: number; y: number; text: 
   return (
     <g pointerEvents="none">
       <line x1={x} x2={x} y1={up ? y - 7 : y + 7} y2={up ? boxY + h : boxY} stroke={INK} strokeOpacity={0.45} />
-      <rect x={px(boxX)} y={px(boxY)} width={px(w)} height={h} rx={6} fill="var(--surface)" stroke={INK} strokeOpacity={0.3} />
-      <text x={px(boxX + w / 2)} y={px(boxY + h / 2)} dy="0.34em" textAnchor="middle" className="fill-foreground font-mono text-[11px] font-semibold tabular-nums">
+      <rect x={px(boxX)} y={px(boxY)} width={px(w)} height={h} rx={2} fill="var(--surface)" stroke={INK} strokeOpacity={0.35} />
+      <text x={px(boxX + w / 2)} y={px(boxY + h / 2)} dy="0.34em" textAnchor="middle" className="fill-foreground text-[11px] font-semibold tabular-nums">
         {text}
       </text>
     </g>
@@ -501,13 +494,13 @@ function Legend({ items }: { items: { label: string; color: string; kind?: "line
           {i.kind === "dot" ? (
             <span className="h-2.5 w-2.5 rounded-full" style={{ background: i.color }} />
           ) : i.kind === "band" ? (
-            <span className="h-2.5 w-4 rounded-sm opacity-25" style={{ background: i.color }} />
+            <span className="h-2.5 w-4 opacity-25" style={{ background: i.color }} />
           ) : i.kind === "bar" ? (
-            <span className="h-2.5 w-2.5 rounded-sm" style={{ background: i.color }} />
+            <span className="h-2.5 w-2.5" style={{ background: i.color }} />
           ) : i.kind === "dash" ? (
             <span className="w-4 border-t-2 border-dashed" style={{ borderColor: i.color }} />
           ) : (
-            <span className="h-0.5 w-4 rounded-full" style={{ background: i.color }} />
+            <span className="h-0.5 w-4" style={{ background: i.color }} />
           )}
           {i.label}
         </li>
@@ -520,10 +513,10 @@ function Legend({ items }: { items: { label: string; color: string; kind?: "line
 function Figure({ n, title, sub, legend, note, children }: { n?: string; title: string; sub?: ReactNode; legend?: ReactNode; note?: ReactNode; children: ReactNode }) {
   return (
     <figure className="min-w-0">
-      <figcaption className="mb-2">
+      <figcaption className="mb-2 border-t border-line pt-2">
         <p className="flex items-baseline gap-2">
-          {n && <span className="shrink-0 font-mono text-[10.5px] font-semibold uppercase tracking-wider text-court">Fig. {n}</span>}
-          <span className="text-sm font-semibold text-foreground">{title}</span>
+          {n && <span className="shrink-0 rounded-[3px] bg-sunk px-1.5 py-px text-[11px] font-bold tabular-nums text-muted ring-1 ring-inset ring-line">Fig. {n}</span>}
+          <span className="font-display text-base font-bold text-foreground">{title}</span>
         </p>
         {sub && <p className="text-xs text-muted">{sub}</p>}
         {legend && <div className="mt-1.5">{legend}</div>}
@@ -654,7 +647,7 @@ function Coefficients({ n, title, rows, unit, digits = 3 }: { n: string; title: 
                 <line x1={a} x2={a} y1={y - 4} y2={y + 4} stroke={BLUE} strokeWidth={1.5} />
                 <line x1={b} x2={b} y1={y - 4} y2={y + 4} stroke={BLUE} strokeWidth={1.5} />
                 <rect x={sx(r.value) - 4} y={y - 4} width={8} height={8} fill={BLUE} stroke="var(--surface)" strokeWidth={1.5} transform={`rotate(45 ${sx(r.value)} ${y})`} />
-                <text x={width} y={y} dy="0.34em" textAnchor="end" className="fill-foreground font-mono text-[11px] tabular-nums">
+                <text x={width} y={y} dy="0.34em" textAnchor="end" className="fill-foreground tabular-nums text-[11px]">
                   {fixed(r.value, digits)}
                   <tspan className="fill-muted"> ±{(1.96 * r.se).toFixed(digits)}</tspan>
                 </text>
@@ -734,16 +727,16 @@ function RatingsPanel({ books }: { books: AdvancedBooks }) {
     const row = rowOf(p);
     const rows = p ? byPlayer.get(p.key) ?? [] : [];
     return (
-      <div className="min-w-0 rounded-2xl border border-line p-3 sm:p-4">
+      <div className="well min-w-0 p-3 sm:p-4">
         <PlayerPicker label={label} keys={keys} books={books} value={p?.key ?? null} onChange={(k) => set(k ? { key: k, season: bestSeason(k) } : null)} placeholder="Find a player" color={p ? colorOf(p.key) : undefined} />
         {p && row && (
           <>
-            <label className="mt-3 block text-xs font-semibold uppercase tracking-wide text-muted">
+            <label className="mt-3 block text-xs font-semibold text-muted">
               Season
               <select
                 value={p.season}
                 onChange={(ev) => set({ key: p.key, season: Number(ev.target.value) })}
-                className="mt-1 block w-full cursor-pointer rounded-full border-2 border-line bg-background px-3 py-1.5 text-base font-semibold normal-case tracking-normal text-foreground focus:border-court focus:outline-none"
+                className="field mt-1 block cursor-pointer py-1.5 text-base font-semibold text-foreground"
               >
                 {rows.map((r) => (
                   <option key={r[S.season]} value={r[S.season]}>
@@ -753,7 +746,7 @@ function RatingsPanel({ books }: { books: AdvancedBooks }) {
               </select>
             </label>
             <p className="mt-3 flex items-baseline gap-2">
-              <span className="font-mono text-3xl font-semibold tabular-nums">{Math.round(ratingOf(row))}</span>
+              <span className="stat text-4xl leading-none">{Math.round(ratingOf(row))}</span>
               <span className="text-sm text-muted">rating{court === "all" ? "" : ` on ${court}`}</span>
             </p>
             <p className="text-xs text-muted">
@@ -787,20 +780,20 @@ function RatingsPanel({ books }: { books: AdvancedBooks }) {
             <div className="mt-6" aria-live="polite">
               <p className="flex flex-wrap items-baseline justify-between gap-2 font-semibold">
                 <span>
-                  {books.names[a.key]} {a.season} <span className="font-display text-3xl font-bold tabular-nums">{pct(chance)}</span>
+                  {books.names[a.key]} {a.season} <span className="stat text-4xl">{pct(chance)}</span>
                 </span>
                 <span>
-                  <span className="font-display text-3xl font-bold tabular-nums">{pct(1 - chance)}</span> {books.names[b.key]} {b.season}
+                  <span className="stat text-4xl">{pct(1 - chance)}</span> {books.names[b.key]} {b.season}
                 </span>
               </p>
-              <div className="relative mt-2 flex h-4 gap-0.5 overflow-hidden rounded-full">
-                <span className="rounded-l-full transition-[width] duration-300" style={{ width: `${chance * 100}%`, background: colorOf(a.key) }} />
-                <span className="flex-1 rounded-r-full" style={{ background: colorOf(b.key) }} />
+              <div className="relative mt-2 flex h-4 gap-0.5 overflow-hidden rounded-[2px]">
+                <span className="transition-[width] duration-300" style={{ width: `${chance * 100}%`, background: colorOf(a.key) }} />
+                <span className="flex-1" style={{ background: colorOf(b.key) }} />
                 <span className="absolute inset-y-0 left-1/2 w-0.5 -translate-x-1/2 bg-surface/80" />
               </div>
               <p className="mt-2 text-muted">
                 The chance of winning one match{onCourt(court)}
-                {bo5 ? `, best of ${bestOf}` : ""}, each at the end of that season: a gap of <span className="font-mono tabular-nums">{signed(Math.round(gap))}</span> rating points.
+                {bo5 ? `, best of ${bestOf}` : ""}, each at the end of that season: a gap of <span className="tabular-nums">{signed(Math.round(gap))}</span> rating points.
               </p>
             </div>
           )}
@@ -1063,21 +1056,21 @@ function TopTen({ books }: { books: AdvancedBooks }) {
   }
   const row = "grid grid-cols-[1.75rem_1.75rem_5.5rem_minmax(0,1fr)_3rem] items-center gap-3 sm:grid-cols-[1.75rem_1.75rem_9rem_minmax(0,1fr)_3rem]";
   return (
-    <Card className="shadow-xl shadow-court/5">
+    <Card>
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h2 className="font-display text-2xl font-bold tracking-tight sm:text-3xl">The top 10 at any moment</h2>
+          <h2 className="font-display text-2xl font-bold sm:text-[1.75rem]">The top 10 at any moment</h2>
           <p className="text-sm text-muted">
             Every month since {e.months[0]?.slice(0, 4)}, by Elo rating at the month&apos;s end, for anyone with a match in the year before and 20 matches in all (10 on the surface).
           </p>
           <details className="group mt-3 max-w-3xl">
-            <summary className="inline-flex cursor-pointer list-none items-center gap-1.5 rounded-full text-sm font-semibold text-court underline-offset-4 hover:underline [&::-webkit-details-marker]:hidden">
+            <summary className="inline-flex cursor-pointer list-none items-center gap-1.5 text-sm font-semibold text-court underline-offset-4 hover:underline [&::-webkit-details-marker]:hidden">
               <span aria-hidden className="inline-block transition-transform group-open:rotate-90">
                 ›
               </span>
               How Elo is calculated
             </summary>
-            <div className="mt-3 space-y-3 rounded-2xl bg-background px-4 py-4 text-sm leading-relaxed text-muted [&_strong]:font-semibold [&_strong]:text-foreground">
+            <div className="well mt-3 space-y-3 px-4 py-4 text-sm leading-relaxed text-muted [&_strong]:font-semibold [&_strong]:text-foreground">
               <p>
                 <strong>Elo</strong> is a rating built from results alone, one match at a time, in the order they were played. Everyone starts at <strong>1,500</strong>. After each completed match the
                 winner takes points from the loser: a lot for beating someone rated far higher, a little for beating someone rated far lower. Walkovers and retirements don&apos;t count. Neither does the score: a
@@ -1108,7 +1101,7 @@ function TopTen({ books }: { books: AdvancedBooks }) {
           }
         >
           <p className={`mb-2 flex items-center gap-2 text-sm font-semibold text-court transition-opacity duration-500 ${moved ? "opacity-60" : ""}`}>
-            <span aria-hidden className="inline-flex h-6 shrink-0 items-center whitespace-nowrap rounded-full bg-court/10 px-2 font-mono text-xs">
+            <span aria-hidden className="inline-flex h-6 shrink-0 items-center whitespace-nowrap rounded-[3px] bg-court/10 px-2 text-xs">
               ‹ ›
             </span>
             Drag or swipe along the chart to see the top 10 in any month
@@ -1190,9 +1183,9 @@ function TopTen({ books }: { books: AdvancedBooks }) {
       <div className="mt-4">
         <Slider label="Month" value={month} shown={monthLabel(e.months[month])} min={0} max={e.months.length - 1} onChange={travel} />
       </div>
-      <div className={`${row} mt-4 border-b-2 border-foreground/20 pb-1 text-[10.5px] font-semibold uppercase tracking-wider text-muted`}>
+      <div className={`${row} mt-4 border-b-2 border-foreground pb-1 text-xs font-semibold text-muted`}>
         <span className="col-span-3">Player</span>
-        <span className="relative h-4 font-mono font-normal normal-case tracking-normal">
+        <span className="relative h-4 font-normal tabular-nums">
           {scale.map((t, i) => (
             <span key={t} className={`absolute -translate-x-1/2 ${i > 0 && i < scale.length - 1 ? "hidden sm:inline" : ""}`} style={{ left: `${((t - lo) / (hi - lo)) * 100}%` }}>
               {num(t)}
@@ -1206,7 +1199,7 @@ function TopTen({ books }: { books: AdvancedBooks }) {
           const k = books.people[p];
           return (
             <li key={k} className={`${row} py-2`}>
-              <span className={`flex h-7 w-7 items-center justify-center rounded-full font-mono text-sm font-semibold tabular-nums ${i === 0 ? "bg-ball text-[#0b0d12] ring-1 ring-black/10" : "text-muted"}`}>{i + 1}</span>
+              <span className={`rank ${i === 0 ? "rank-first" : ""}`}>{i + 1}</span>
               <Avatar name={books.names[k]} size="h-7 w-7 text-[10px]" />
               <span className="truncate text-sm font-semibold" title={books.full[k]}>
                 {books.names[k]}
@@ -1219,7 +1212,7 @@ function TopTen({ books }: { books: AdvancedBooks }) {
                 <span className="absolute inset-x-0 top-1/2 h-px bg-line" />
                 <span className="absolute top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full ring-2 ring-surface" style={{ left: `${((r - lo) / (hi - lo)) * 100}%`, background: i === 0 ? INK : BLUE }} />
               </span>
-              <span className="text-right font-mono text-sm font-semibold tabular-nums">{num(r)}</span>
+              <span className="stat text-right text-lg">{num(r)}</span>
             </li>
           );
         })}
@@ -1274,7 +1267,7 @@ function ServePanel({ books }: { books: AdvancedBooks }) {
                   <span className="h-3 rounded-r-sm bg-line/50">
                     <span className="block h-3 rounded-r-sm transition-[width] duration-300" style={{ width: `${(Math.max(0, l.gain) / topGain) * 100}%`, background: BLUE }} />
                   </span>
-                  <span className="w-20 text-right font-mono tabular-nums">{signed(l.gain * 100, 2)} pts</span>
+                  <span className="w-20 text-right tabular-nums">{signed(l.gain * 100, 2)} pts</span>
                 </li>
               ))}
             </ul>
@@ -1570,7 +1563,7 @@ export function PressurePanel({ books, brief = false }: { books: PressureBooks; 
             </p>
           )}
         </div>
-        <div className="mt-4 rounded-2xl bg-background px-4 py-3 text-sm text-muted">
+        <div className="well mt-4 px-4 py-3 text-sm text-muted">
           <strong className="text-foreground">What the edge means.</strong> For every match, take how well a player played in it ({words.base}) and work out how many of its {words.chances} the
           typical tour player, playing exactly that well, would have {words.won}. The edge is what the player really {words.won} minus that, per 100 {words.chances}: +3 means 3 more out of every 100,
           −3 means 3 fewer, ±0 exactly as expected.
@@ -1601,7 +1594,7 @@ export function PressurePanel({ books, brief = false }: { books: PressureBooks; 
               shown && hover ? (
                 <>
                   <strong className="text-foreground">{books.full[hover]}</strong>: {words.won} {num(shown.r[P.won])} of {num(shown.r[P.n])} ({pct1(shown.share)}), expected {pct1(shown.expected)},{" "}
-                  <span className="font-mono">{signed(shown.edge, 1)}</span> per 100
+                  <span className="tabular-nums">{signed(shown.edge, 1)}</span> per 100
                 </>
               ) : (
                 <>Above the diagonal: winning more of the {words.chances} than the rest of their play predicts. Below: fewer. The dotted line on a picked player is the edge.</>
@@ -1673,10 +1666,10 @@ export function PressurePanel({ books, brief = false }: { books: PressureBooks; 
                 <input type="search" value={find} onChange={(e) => setFind(e.target.value)} placeholder="Find a player" autoComplete="off" spellCheck={false} className={searchInput} aria-label="Find a player in the list" />
               </div>
             </div>
-            <div className="mt-3 grid grid-cols-[minmax(0,7rem)_minmax(0,1fr)_4.5rem] items-end gap-3 border-b-2 border-foreground/20 pb-1 text-[10.5px] font-semibold uppercase tracking-wider text-muted sm:grid-cols-[minmax(0,10rem)_4rem_minmax(0,1fr)_4.5rem]">
+            <div className="mt-3 grid grid-cols-[minmax(0,7rem)_minmax(0,1fr)_4.5rem] items-end gap-3 border-b-2 border-foreground pb-1 text-xs font-semibold text-muted sm:grid-cols-[minmax(0,10rem)_4rem_minmax(0,1fr)_4.5rem]">
               <span>Player</span>
               <span className="hidden text-right sm:block">Chances</span>
-              <span className="relative h-4 font-mono font-normal normal-case tracking-normal">
+              <span className="relative h-4 font-normal tabular-nums">
                 {[-scale, 0, scale].map((t) => (
                   <span key={t} className={`absolute ${t === -scale ? "" : t === scale ? "-translate-x-full" : "-translate-x-1/2"}`} style={{ left: at(t) }}>
                     {t ? signed(t) : "0"}
@@ -1696,13 +1689,13 @@ export function PressurePanel({ books, brief = false }: { books: PressureBooks; 
                   >
                     {books.names[x.k]}
                   </button>
-                  <span className="hidden text-right font-mono text-xs tabular-nums text-muted sm:block">{num(x.r[P.n])}</span>
+                  <span className="hidden text-right tabular-nums text-xs text-muted sm:block">{num(x.r[P.n])}</span>
                   <span className="relative h-5">
                     <span className="absolute inset-y-0 w-px bg-foreground/50" style={{ left: at(0) }} />
                     <span className="absolute top-1/2 h-0.5 -translate-y-1/2 rounded-full" style={{ left: at(x.edge - x.half), width: `calc(${at(x.edge + x.half)} - ${at(x.edge - x.half)})`, background: BLUE, opacity: 0.55 }} />
                     <span className="absolute top-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full ring-2 ring-surface" style={{ left: at(x.edge), background: picked.includes(x.k) ? colorOf(x.k) : BLUE }} />
                   </span>
-                  <span className="text-right font-mono text-sm font-semibold tabular-nums">{signed(x.edge, 1)}</span>
+                  <span className="text-right tabular-nums text-sm font-semibold">{signed(x.edge, 1)}</span>
                 </li>
               ))}
             </ol>
@@ -1718,8 +1711,8 @@ export function PressurePanel({ books, brief = false }: { books: PressureBooks; 
             legend={<Legend items={[{ label: "A player", color: BLUE, kind: "dot" }, { label: "Best straight line", color: ORANGE }]} />}
             note={
               <>
-                <span className="font-mono">r = {fixed(fit.halves.r, 2)}</span> (95% interval {fixed(fit.halves.lo, 2)} to {fixed(fit.halves.hi, 2)}): one half of a career says {lasting(fit.halves.r)} about the
-                other. For comparison, {words.base} itself gives <span className="font-mono">r = {fit.halves.baseR.toFixed(2)}</span>. A real skill makes a tilted cloud; luck makes a round one.
+                <span className="tabular-nums">r = {fixed(fit.halves.r, 2)}</span> (95% interval {fixed(fit.halves.lo, 2)} to {fixed(fit.halves.hi, 2)}): one half of a career says {lasting(fit.halves.r)} about the
+                other. For comparison, {words.base} itself gives <span className="tabular-nums">r = {fit.halves.baseR.toFixed(2)}</span>. A real skill makes a tilted cloud; luck makes a round one.
               </>
             }
           >
@@ -1766,7 +1759,7 @@ export function PressurePanel({ books, brief = false }: { books: PressureBooks; 
       <Behind>
         <Stats
           items={[
-            { label: words.chances, value: num(fit.n) },
+            { label: words.chances[0].toUpperCase() + words.chances.slice(1), value: num(fit.n) },
             { label: "Players listed", value: num(rows.length), hint: `With ${fit.min}+ ${words.chances}` },
             { label: measure === "converted" ? "Returner won" : measure === "saved" ? "Server saved" : "Seasons", value: measure === "saved" || measure === "converted" ? pct1(fit.rate) : `${fit.years[0]}–${fit.years[1]}` },
             { label: "Even v odd, r", value: fixed(fit.halves.r, 2), hint: "How well a player's edge in even seasons matches the edge in odd seasons: 0 is none, 1 is perfect" },
@@ -2081,58 +2074,35 @@ export function AdvancedView({ books }: { books: AdvancedBooks }) {
 
   return (
     <div className="space-y-8">
-      <div className="space-y-3">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <PageTitle n={3}>Advanced Analytics</PageTitle>
-          <div className="flex rounded-full bg-surface p-1 shadow-sm ring-1 ring-line" role="group" aria-label="Tour">
-            {tours.map((t) => (
-              <Link
-                key={t.tour}
-                href={`${t.href}#${panel}`}
-                aria-current={t.tour === books.tour ? "page" : undefined}
-                className={`rounded-full px-4 py-1.5 text-sm font-bold transition ${t.tour === books.tour ? "bg-court text-court-ink shadow-sm" : "text-court hover:bg-court/10"}`}
-              >
-                {t.label}
-              </Link>
-            ))}
-          </div>
-        </div>
-        <TopTen key={books.tour} books={books} />
-      </div>
+      <TopTen key={books.tour} books={books} />
 
-      <div className="rounded-3xl border border-line bg-surface p-4 shadow-sm sm:p-6">
-        <p className="font-display text-lg font-bold">
-          Pick a model <span className="font-sans text-sm font-normal text-muted">· four ways to play with the numbers</span>
-        </p>
-        <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
+      <section aria-labelledby="models-title">
+        <SectionHead id="models-title" title="Pick a model" body="Four ways to play with the numbers." />
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
           {panels.map((p, i) => (
             <button
               key={p.id}
               type="button"
               aria-pressed={panel === p.id}
               onClick={() => setHash(`#${p.id}`)}
-              style={{ animationDelay: `${i * 50}ms` }}
-              className={`rise-in group relative flex aspect-[4/3] cursor-pointer flex-col justify-end overflow-hidden rounded-2xl text-left text-white shadow-sm transition duration-200 hover:-translate-y-1 hover:shadow-md ${
-                panel === p.id ? "-translate-y-1 shadow-md ring-4 ring-ball" : "ring-1 ring-black/10"
+              className={`group flex cursor-pointer flex-col overflow-hidden rounded-md border bg-surface text-left transition-colors ${
+                panel === p.id ? "border-foreground" : "border-line hover:border-foreground/45"
               }`}
             >
-              <Image src={p.photo} alt={p.alt} fill placeholder="blur" sizes="(min-width: 1152px) 17rem, (min-width: 640px) 25vw, 50vw" quality={90} className={`object-cover transition-transform duration-500 group-hover:scale-105 ${p.position}`} />
-              <span aria-hidden className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/15 to-transparent" />
-              <span className="relative px-2.5 pb-2 sm:px-3 sm:pb-2.5">
-                <span className="block font-mono text-[10px] font-semibold text-white/75">{i + 1}</span>
+              <span className="relative block aspect-[16/9] w-full">
+                <Image src={p.photo} alt={p.alt} fill placeholder="blur" sizes="(min-width: 1152px) 17rem, (min-width: 640px) 25vw, 50vw" quality={90} className={`object-cover ${p.position}`} />
+              </span>
+              <span className={`flex items-center gap-2 px-2.5 py-2 transition-colors sm:px-3 ${panel === p.id ? "bg-foreground text-white" : ""}`}>
+                <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-[3px] text-[11px] font-bold tabular-nums ${panel === p.id ? "bg-ball text-foreground" : "bg-sunk text-muted ring-1 ring-inset ring-line"}`}>{i + 1}</span>
                 <span className="block font-display text-sm font-bold leading-tight sm:text-base">{p.title}</span>
               </span>
             </button>
           ))}
         </div>
-      </div>
+      </section>
 
       <section aria-labelledby="panel-title" key={`${books.tour}-${panel}`} className="fade-in">
-        <h2 id="panel-title" className="font-display text-2xl font-bold tracking-tight">
-          <span className="mr-2 font-mono text-base font-semibold text-muted">{panels.indexOf(current) + 1}</span>
-          {current.title}
-        </h2>
-        <p className="mb-4 text-muted">{current.blurb}</p>
+        <SectionHead id="panel-title" n={panels.indexOf(current) + 1} title={current.title} body={current.blurb} />
         {panel === "ratings" && <RatingsPanel books={books} />}
         {panel === "serve" && <ServePanel books={books} />}
         {panel === "pressure" && <PressurePanel books={books} />}

@@ -7,7 +7,7 @@ import { SagaSection } from "../../diary/saga";
 import { LogProvider } from "../../diary/store";
 import { OpeningDiary } from "../../(app)/loading-page";
 import { SagaHeader } from "../../saga-header";
-import { SharedFrame } from "./frame";
+import { Room, SharedFrame } from "./frame";
 
 /* Someone's saga, opened from a shared link: read-only, and only the saga. Shared links are kept
    out of search engines; only people who are given one can open it. */
@@ -27,7 +27,9 @@ export default function SharedSagaPage({ params }: PageProps<"/s/[slug]">) {
         fallback={
           <>
             <SagaHeader kicker="A saga, shared" title="A saga" body="Someone's tennis, read back." />
-            <OpeningDiary />
+            <Room>
+              <OpeningDiary />
+            </Room>
           </>
         }
       >
@@ -49,9 +51,9 @@ async function Shared({ params }: Pick<PageProps<"/s/[slug]">, "params">) {
   return (
     <>
       <SagaHeader kicker="A saga, shared" title={`${owner.name}'s saga`} body={body} lines={coverLines(diary)} />
-      <div className="mt-10">
+      <Room>
         {diary.order.length < SAGA_MIN_MATCHES ? (
-          <p className="rounded-2xl border-2 border-dashed border-line p-8 text-center text-lg font-medium text-muted">
+          <p className="rounded-md border border-dashed border-line-strong bg-surface p-8 text-center text-lg font-medium text-muted">
             This saga starts once {owner.name} has starred {SAGA_MIN_MATCHES} matches.
           </p>
         ) : (
@@ -59,7 +61,7 @@ async function Shared({ params }: Pick<PageProps<"/s/[slug]">, "params">) {
             <SagaSection />
           </LogProvider>
         )}
-      </div>
+      </Room>
     </>
   );
 }

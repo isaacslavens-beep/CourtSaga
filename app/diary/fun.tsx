@@ -1,7 +1,7 @@
 "use client";
 
 import Image, { type StaticImageData } from "next/image";
-import { useState, type CSSProperties, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import alcarazHead from "@/public/players/alcaraz.png";
 import djokovicHead from "@/public/players/djokovic.png";
 import federerHead from "@/public/players/federer.png";
@@ -144,9 +144,7 @@ export function BallRating({
       aria-label={value ? `Your rating: ${value} out of 5` : "Not rated"}
       onMouseLeave={() => setHover(null)}
       style={nudge ? { animationDelay: nudgeDelay } : undefined}
-      className={`inline-flex items-center gap-0.5 rounded-full bg-surface px-1.5 py-1 shadow-sm ring-1 ring-line transition hover:ring-ball ${
-        nudge ? "nudge" : ""
-      }`}
+      className={`inline-flex items-center gap-0.5 rounded bg-surface px-1 py-0.5 ring-1 ring-line transition hover:ring-foreground/40 ${nudge ? "nudge" : ""}`}
     >
       {[1, 2, 3, 4, 5].map((n) => (
         <button
@@ -168,34 +166,6 @@ export function BallRating({
             <TennisBall filled={n <= shown} className={ballSizes[size]} />
           </span>
         </button>
-      ))}
-    </span>
-  );
-}
-
-/** A small celebratory burst of tennis balls. Bump `trigger` to fire it again. */
-export function Burst({ trigger }: { trigger: number }) {
-  if (!trigger) return null;
-  const spots = [
-    [-46, -30],
-    [46, -30],
-    [-58, 6],
-    [58, 6],
-    [-30, 36],
-    [30, 36],
-    [0, -48],
-    [0, 46],
-  ];
-  return (
-    <span key={trigger} aria-hidden className="pointer-events-none absolute left-1/2 top-1/2">
-      {spots.map(([dx, dy], i) => (
-        <span
-          key={i}
-          className="burst-ball absolute left-0 top-0"
-          style={{ "--dx": `${dx}px`, "--dy": `${dy}px`, animationDelay: `${i * 18}ms` } as CSSProperties}
-        >
-          <TennisBall filled className="h-3.5 w-3.5" />
-        </span>
       ))}
     </span>
   );
@@ -276,53 +246,6 @@ export const IconArrowUp = ({ className }: { className?: string }) => (
 
 export const watchIcons = { Live: IconLive, TV: IconTV, Stream: IconStream } as const;
 
-/* ---------- Moving on to the next section ---------- */
-
-/**
- * A full-width bar at the foot of a demo, coloured so it's hard to miss: the section's court colour with a
- * nudging ball, then ball yellow once you've changed something.
- */
-export function NextStep({
-  active,
-  idle,
-  done,
-  onClick,
-}: {
-  active: boolean;
-  idle: ReactNode;
-  done: ReactNode;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`group flex w-full cursor-pointer items-center justify-between gap-4 border-t px-5 py-4 text-left font-semibold transition sm:px-8 ${
-        active ? "border-ball bg-ball text-[#0b0d12] hover:brightness-105" : "border-court bg-court text-court-ink hover:brightness-110"
-      }`}
-    >
-      <span key={active ? "done" : "idle"} className={`min-w-0 ${active ? "sticker-in" : ""}`}>
-        {active ? done : idle}
-      </span>
-      <span
-        aria-hidden
-        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full shadow-md shadow-black/20 transition-transform group-hover:scale-110 ${
-          active ? "bg-[#0b0d12] text-ball" : "bg-ball text-[#0b0d12]"
-        }`}
-      >
-        <svg
-          viewBox="0 0 16 16"
-          className={`h-5 w-5 fill-none stroke-current stroke-[2.5] ${active ? "motion-safe:animate-bounce" : "nudge"}`}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <path d="M8 3v10M4 9l4 4 4-4" />
-        </svg>
-      </span>
-    </button>
-  );
-}
-
 /* ---------- Collection symbols ---------- */
 
 const collectionPaths: Record<string, ReactNode> = {
@@ -355,7 +278,7 @@ export function CollectionIcon({ id, className = "h-6 w-6" }: { id: string; clas
   return <Icon className={className}>{path}</Icon>;
 }
 
-/** A round arrow to turn a page or scroll a strip. The forward one is filled; a disabled one hides. */
+/** A square arrow to turn a page or scroll a strip. The forward one is filled; a disabled one hides. */
 export function PageArrow({
   dir,
   label,
@@ -378,8 +301,8 @@ export function PageArrow({
       disabled={disabled}
       aria-label={label}
       title={label}
-      className={`z-10 flex shrink-0 cursor-pointer items-center justify-center rounded-full shadow-xl shadow-black/40 transition-[scale,opacity] hover:scale-110 active:scale-95 disabled:pointer-events-none disabled:opacity-0 ${
-        dir > 0 ? "bg-foreground text-background" : "bg-surface text-foreground ring-1 ring-foreground/20"
+      className={`z-10 flex shrink-0 cursor-pointer items-center justify-center rounded-md shadow-md shadow-black/25 transition-[background-color,opacity] disabled:pointer-events-none disabled:opacity-0 ${
+        dir > 0 ? "bg-foreground text-white hover:bg-court" : "bg-surface text-foreground ring-1 ring-foreground/20 hover:bg-sunk"
       } ${nudge ? "nudge" : ""} ${className}`}
     >
       <svg viewBox="0 0 16 16" aria-hidden className="h-1/2 w-1/2 fill-none stroke-current stroke-2" strokeLinecap="round" strokeLinejoin="round">
