@@ -11,7 +11,24 @@ const safeNext = (next: string | null) => (next && next.startsWith("/") && !next
 
 const text = (form: FormData, name: string) => String(form.get(name) ?? "").trim();
 
-export function SignUpForm() {
+/** In the sign-up dialog: what to do once signed in, and the other form to switch to in place of a link */
+type InPlace = { onDone?: () => Promise<void>; onSwitch?: () => void };
+
+/** The link to the other form, or a button that swaps the dialog over to it */
+function Other({ href, onSwitch, children }: { href: string; onSwitch?: () => void; children: string }) {
+  const style = "cursor-pointer font-semibold text-court underline-offset-4 hover:underline";
+  return onSwitch ? (
+    <button type="button" onClick={onSwitch} className={style}>
+      {children}
+    </button>
+  ) : (
+    <Link href={href} className={style}>
+      {children}
+    </Link>
+  );
+}
+
+export function SignUpForm({ onDone, onSwitch }: InPlace = {}) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -27,6 +44,7 @@ export function SignUpForm() {
       setPending(false);
       return;
     }
+    if (onDone) return onDone();
     router.replace("/explore");
     router.refresh();
   }
@@ -40,15 +58,15 @@ export function SignUpForm() {
       <SubmitButton pending={pending}>{pending ? "Signing up…" : "Sign up"}</SubmitButton>
       <p className="text-center text-muted">
         Already signed up?{" "}
-        <Link href="/login" className="font-semibold text-court underline-offset-4 hover:underline">
+        <Other href="/login" onSwitch={onSwitch}>
           Log in
-        </Link>
+        </Other>
       </p>
     </form>
   );
 }
 
-export function LogInForm() {
+export function LogInForm({ onDone, onSwitch }: InPlace = {}) {
   const router = useRouter();
   const next = safeNext(useSearchParams().get("next"));
   const [pending, setPending] = useState(false);
@@ -65,6 +83,7 @@ export function LogInForm() {
       setPending(false);
       return;
     }
+    if (onDone) return onDone();
     router.replace(next);
     router.refresh();
   }
@@ -77,9 +96,9 @@ export function LogInForm() {
       <SubmitButton pending={pending}>{pending ? "Logging in…" : "Log in"}</SubmitButton>
       <p className="text-center text-muted">
         New here?{" "}
-        <Link href="/signup" className="font-semibold text-court underline-offset-4 hover:underline">
+        <Other href="/signup" onSwitch={onSwitch}>
           Sign up
-        </Link>
+        </Other>
       </p>
     </form>
   );

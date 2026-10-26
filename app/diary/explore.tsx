@@ -10,6 +10,7 @@ import { Avatar, BallRating, BallScore, CollectionIcon, CourtArt, chartStyles } 
 import { bigEventOf, bigEvents, diaryPages, finished, parseScore, roundName, scoreText, setWinner, toMatches, watched, watchedHow, type Match, type MatchRow, type Round, type WatchMode } from "./library";
 import { highlightVideos } from "./media";
 import { MatchFinder } from "./finder";
+import { JoinDialog } from "./join";
 import { Scoreboard } from "./scoreboard";
 import { useLog } from "./store";
 import type { Bracket, BracketSlot, DrawVisual, EventVisual, Fact, H2HVisual, Part, SeasonVisual, StatsVisual, Story, Thread } from "./story";
@@ -17,8 +18,8 @@ import type { Surface } from "./library";
 import { ShapeChart, type Glance } from "./saga-ui";
 
 /* Exploring one match at a time: the story around it from the whole record (see story.ts), with every
-   match it mentions one click away. Signed in, each match is its own address (/explore?m=…), so the
-   back button walks back along the trail; on the landing page the demo fetches stories as you go. */
+   match it mentions one click away. Each match is its own address (/explore?m=…), so the back button
+   walks back along the trail. */
 
 type Follow = (id: string) => void;
 
@@ -760,26 +761,27 @@ const starModes: { mode: WatchMode; label: string }[] = [
 /**
  * Your take on a match, at the top of its story: one click stars it, then say if you watched it, rate it,
  * say who you were backing and write a note. Everything saves as you go. At the foot of the story (`ask`),
- * the star button comes with a question, and a starred match shows what you said.
+ * the star button comes with a question, and a starred match shows what you said. Signed out (`guest`),
+ * the star asks for a free account first, and stars the match once there is one.
  */
-function YourTake({ story, ask = false }: { story: Story; ask?: boolean }) {
+function YourTake({ story, ask = false, guest = false }: { story: Story; ask?: boolean; guest?: boolean }) {
   const { entries, matches, add, update, remove, saving } = useLog();
   const page = usePages();
+  const [joining, setJoining] = useState(false);
   const fan = entries[story.id];
   const m = matches[story.id];
   const played = story.date.slice(0, 7);
   const here = page(story.id);
 
   if (!fan) {
+    const fresh = { watchedOn: null, watchedDate: played, rating: null, cheering: null, pick: null, note: "" };
     const button = (
-      <button
-        type="button"
-        disabled={!m}
-        onClick={() => add(story.id, { watchedOn: null, watchedDate: played, rating: null, cheering: null, pick: null, note: "" })}
-        className="btn btn-primary btn-lg shrink-0"
-      >
-        <span aria-hidden>☆</span> Star this match
-      </button>
+      <>
+        <button type="button" disabled={!m} onClick={() => (guest ? setJoining(true) : add(story.id, fresh))} className="btn btn-primary btn-lg shrink-0">
+          <span aria-hidden>☆</span> Star this match
+        </button>
+        {joining && <JoinDialog id={story.id} entry={fresh} onClose={() => setJoining(false)} />}
+      </>
     );
     if (ask)
       return (
@@ -927,28 +929,7 @@ function ShareLink({ story }: { story: Story }) {
   );
 }
 
-/** Signed out, on a shared match: what an account adds here */
-function GuestTake() {
-  return (
-    <div className="panel flex flex-col items-start gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-5" style={{ "--accent": "var(--ball)" } as CSSProperties}>
-      <p className="text-muted">
-        <span className="font-display text-lg font-bold text-foreground">Remember this one?</span> Sign up free to star it, rate it, note it, and keep it in your saga.
-      </p>
-      <StarDemo />
-    </div>
-  );
-}
-
-/** In the landing's demo, the star button leads to signing up */
-function StarDemo() {
-  return (
-    <Link href="/signup" className="btn btn-primary btn-lg shrink-0">
-      <span aria-hidden>☆</span> Star this match
-    </Link>
-  );
-}
-
-/* ---------- Ways in, for a signed-in fan with no match open ---------- */
+/* ---------- Ways in, with no match open ---------- */
 
 // What to call both players of a list of matches, so two Williamses are told apart
 const namesOf = (rows: MatchRow[]) => {
@@ -1292,7 +1273,7 @@ function Crumbs({ story, follow }: { story: Story; follow: Follow }) {
   );
 }
 
-/* ---------- Signed in ---------- */
+/* ---------- Explore ---------- */
 
 export function ExploreSection({
   story,
@@ -1306,7 +1287,7 @@ export function ExploreSection({
   missing: boolean;
   slam: string | null;
   seasons: [number, number] | null;
-  guest?: boolean; // signed out, from a shared link: no starring, a way to sign up instead
+  guest?: boolean; // signed out: the star asks for an account first
   start: StartData;
 }) {
   // The Slam picked on the start page, which Surprise me then keeps to
@@ -1316,8 +1297,7 @@ export function ExploreSection({
   const page = usePages();
   const starOf = useStarState();
   const top = useRef<HTMLDivElement>(null);
-  // Signed out, a shared link shows that match and nowhere else to go
-  const follow = (id: string) => (guest ? undefined : start(() => router.push(`/explore?m=${encodeURIComponent(id)}`, { scroll: false })));
+  const follow = (id: string) => start(() => router.push(`/explore?m=${encodeURIComponent(id)}`, { scroll: false }));
   const first = useRef(true);
 
   // A new story: bring its top into view
@@ -1331,34 +1311,29 @@ export function ExploreSection({
 
   return (
     <div className="space-y-6">
-      {!guest && <MatchFinder seasons={seasons} onPick={(row) => follow(row.id)} inside={<SurpriseSmall slam={story ? slam : picked} />} />}
+      <MatchFinder seasons={seasons} onPick={(row) => follow(row.id)} inside={<SurpriseSmall slam={story ? slam : picked} />} />
       <div ref={top} className="scroll-mt-6">
         {missing && <p className="mb-6 rounded border border-fault/30 bg-fault/5 px-4 py-3 font-medium text-fault">That match isn&apos;t in the record.</p>}
         {story ? (
           <>
             {/* Back to where Explore starts */}
-            {!guest && (
-              <>
-                <Link href="/explore" className="mb-4 inline-block text-sm font-semibold text-court underline-offset-4 hover:underline">
-                  ← All Slams
-                </Link>
-                <Crumbs story={story} follow={follow} />
-              </>
-            )}
+            <Link href="/explore" className="mb-4 inline-block text-sm font-semibold text-court underline-offset-4 hover:underline">
+              ← All Slams
+            </Link>
+            <Crumbs story={story} follow={follow} />
             <StoryView
               story={story}
               follow={follow}
               pending={pending}
               page={page}
               star={<ShareLink story={story} />}
-              take={guest ? <GuestTake /> : <YourTake story={story} />}
+              take={<YourTake story={story} guest={guest} />}
               starOf={starOf}
-              still={guest}
             />
             {/* At the foot of the story: keep this match, or try another */}
             <div className="mt-12 flex flex-col items-center gap-8">
-              {guest ? <StarDemo /> : <YourTake story={story} ask />}
-              {!guest && <SurpriseMe again slam={slam} />}
+              <YourTake story={story} ask guest={guest} />
+              <SurpriseMe again slam={slam} />
             </div>
           </>
         ) : (

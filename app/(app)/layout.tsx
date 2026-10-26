@@ -3,15 +3,16 @@ import { Logo } from "../ui";
 import { AppNav } from "./nav";
 import { SignedIn } from "./signed-in";
 
-/* A signed-in fan's pages: Explore, Statistics, Advanced and the saga, under one bar with the parts as
-   tabs, and who's signed in at the foot. Each page checks the session itself. */
+/* The site's pages: home, Explore, Statistics, Advanced and the saga, under one bar with the parts as
+   tabs, and who's signed in (or the ways in) at the foot. Open to anyone; starring and the saga check
+   the session themselves. */
 export default function DiaryLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex flex-1 flex-col">
       <header className="bg-header text-white">
         <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center gap-x-3 px-4 sm:h-14 sm:flex-nowrap sm:px-8">
           <div className="order-1 flex h-12 items-center sm:h-auto">
-            <Logo href="/explore" />
+            <Logo />
           </div>
           <AppNav />
         </div>

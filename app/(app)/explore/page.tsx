@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
+import { connection } from "next/server";
 import { Suspense } from "react";
 import { getSession } from "@/lib/auth";
 import { bigFinals, findMatch, findMatches, latestPage, loadDiary, seasonRange, type DiaryData } from "@/lib/diary";
@@ -23,7 +24,7 @@ export async function generateMetadata({ searchParams }: PageProps<"/explore">):
   return { title: `${title} · CourtSaga`, description, openGraph: { title, description } };
 }
 
-// Signed out, a shared match still opens: the story without the diary
+// Signed out, Explore opens the same: the stories without a diary
 const noDiary: DiaryData = { rows: [], entries: {}, order: [], version: "guest" };
 
 export default function ExplorePage({ searchParams }: PageProps<"/explore">) {
@@ -45,12 +46,12 @@ async function Exploring({ searchParams }: Pick<PageProps<"/explore">, "searchPa
   const session = await getSession();
   const user = session?.user ?? null;
   const { m, slam } = await searchParams;
-  // Signed out, Explore only opens a match someone shared
-  if (!user && (typeof m !== "string" || m === "random")) redirect("/login?next=%2Fexplore");
   // A Slam or a big event picked on the start page, which Surprise me keeps to
   const known: string[] = [...slams, ...bigEvents.map((b) => b.key)];
   const atSlam = typeof slam === "string" && known.includes(slam) ? slam : undefined;
   if (m === "random") {
+    // A fresh pick on every request, signed in or not
+    await connection();
     const id = await randomStoryId(atSlam);
     // A surprise from one Slam keeps to it: the next "Surprise me" picks there too
     redirect(id ? `/explore?m=${encodeURIComponent(id)}${atSlam ? `&slam=${encodeURIComponent(atSlam)}` : ""}` : "/explore");

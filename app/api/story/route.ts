@@ -1,6 +1,6 @@
 import { matchStory } from "@/lib/story";
 
-// The story around a match, for the landing page's demo to follow links with: GET /api/story?id=…
+// The story around a match: GET /api/story?id=…
 // With &teaser=1, only its first line, for a card to show when pointed at. The match data is public,
 // so this is too.
 export async function GET(request: Request) {
