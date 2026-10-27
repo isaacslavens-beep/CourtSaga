@@ -3,13 +3,13 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState, useSyncExternalStore, useTransition } from "react";
 import { difficulties, topics, type Difficulty, type TopicId } from "../../diary/quiz";
-import type { QuizPick } from "@/lib/quiz";
+import type { QuizEvent, QuizPick } from "@/lib/quiz";
 import { SearchIcon, Segmented } from "../../ui";
 import { startQuiz, type QuizRequest } from "./actions";
 import { settingsQuery } from "./shared";
 
-/* Making a quiz: which tour, how hard, about what, from which years, and how long; or all about one
-   player. The same settings give a new quiz every time. The last settings are remembered in the
+/* Making a quiz: which tour, how hard, about what (categories and tournaments), from which years, and
+   how long; or all about one player. The same settings give a new quiz every time. The last settings are remembered in the
    browser; a link can carry them too (a results page's "New quiz, same settings"). */
 
 type Tours = "atp" | "wta" | "both";
@@ -18,7 +18,7 @@ const SAVED = "courtsaga-quiz-settings";
 
 const fold = (s: string) => s.normalize("NFKD").replace(/[̀-ͯ]/g, "").toLowerCase();
 
-type Initial = { tours: Tours; difficulty: Difficulty; topics: TopicId[]; from: number; to: number; count: (typeof counts)[number]; player: QuizPick | null };
+type Initial = { tours: Tours; difficulty: Difficulty; topics: TopicId[]; events: string[]; from: number; to: number; count: (typeof counts)[number]; player: QuizPick | null };
 
 const subscribeSaved = (on: () => void) => {
   window.addEventListener("storage", on);
@@ -32,7 +32,9 @@ const readSaved = () => {
   }
 };
 
-export function QuizMaker({ players, from, to }: { players: QuizPick[]; from: number; to: number }) {
+type Choices = { players: QuizPick[]; tournaments: QuizEvent[]; from: number; to: number };
+
+export function QuizMaker({ players, tournaments, from, to }: Choices) {
   const params = useSearchParams();
   const stored = useSyncExternalStore(subscribeSaved, readSaved, () => null);
   // Settings from the link, or else the ones used last time, or else the usual
@@ -53,20 +55,24 @@ export function QuizMaker({ players, from, to }: { players: QuizPick[]; from: nu
       difficulty: difficulties.some((x) => x.id === d) ? (d as Difficulty) : "medium",
       tours: t === "atp" || t === "wta" || t === "both" ? t : "both",
       topics: ts?.length ? ts : topics.map((x) => x.id),
+      // The tournaments, as the data names them: a choice is on if all of its names are
+      events: (get("ev") ?? "").split("|").filter((e) => tournaments.some((t) => t.events.includes(e))),
       from: f >= from && f <= to ? f : from,
       to: l >= from && l <= to ? l : to,
       count: counts.includes(n as never) ? (n as (typeof counts)[number]) : 10,
       player: p ? (players.find((x) => x.key === p) ?? null) : null,
     };
-  }, [params, stored, players, from, to]);
-  return <Maker key={JSON.stringify({ ...initial, player: initial.player?.key })} initial={initial} players={players} from={from} to={to} />;
+  }, [params, stored, players, tournaments, from, to]);
+  return <Maker key={JSON.stringify({ ...initial, player: initial.player?.key })} initial={initial} players={players} tournaments={tournaments} from={from} to={to} />;
 }
 
-function Maker({ initial, players, from, to }: { initial: Initial; players: QuizPick[]; from: number; to: number }) {
+function Maker({ initial, players, tournaments, from, to }: Choices & { initial: Initial }) {
   const router = useRouter();
   const [tours, setTours] = useState<Tours>(initial.tours);
   const [difficulty, setDifficulty] = useState<Difficulty>(initial.difficulty);
   const [chosen, setChosen] = useState<TopicId[]>(initial.topics);
+  const [picked, setPicked] = useState<string[]>(tournaments.filter((t) => t.events.every((e) => initial.events.includes(e))).map((t) => t.key));
+  const [eventQuery, setEventQuery] = useState("");
   const [first, setFirst] = useState(initial.from);
   const [last, setLast] = useState(initial.to);
   const [count, setCount] = useState<(typeof counts)[number]>(initial.count);
@@ -79,6 +85,13 @@ function Maker({ initial, players, from, to }: { initial: Initial; players: Quiz
   const typed = fold(query.trim());
   const found = typed ? players.filter((p) => (tours === "both" || p.tour === tours) && fold(p.name).includes(typed)).slice(0, 6) : [];
 
+  // Only the tournaments the chosen tour plays
+  const playing = (t: QuizEvent) => (player ? t.tours.includes(player.tour) : tours === "both" || t.tours.includes(tours));
+  const offered = tournaments.filter(playing);
+  const chosenEvents = offered.filter((t) => picked.includes(t.key));
+  const typedEvent = fold(eventQuery.trim());
+  const foundEvents = typedEvent ? offered.filter((t) => !picked.includes(t.key) && fold(t.label).includes(typedEvent)).slice(0, 6) : [];
+  const pickEvent = (key: string) => setPicked((cur) => (cur.includes(key) ? cur.filter((k) => k !== key) : [...cur, key]));
   const toggle = (id: TopicId) => setChosen((cur) => (cur.includes(id) ? (cur.length > 1 ? cur.filter((x) => x !== id) : cur) : [...cur, id]));
 
   const go = () =>
@@ -91,6 +104,7 @@ function Maker({ initial, players, from, to }: { initial: Initial; players: Quiz
         from: Math.min(first, last),
         to: Math.max(first, last),
         player: player?.key ?? null,
+        events: chosenEvents.flatMap((t) => t.events),
         count,
       };
       try {
@@ -140,29 +154,91 @@ function Maker({ initial, players, from, to }: { initial: Initial; players: Quiz
             )}
           </div>
 
-          <div>
-            <span className={label}>About</span>
-            <div className="flex flex-wrap gap-2" role="group" aria-label="Topics">
-              {topics.map((t) => {
-                const on = chosen.includes(t.id);
-                return (
-                  <button
-                    key={t.id}
-                    type="button"
-                    aria-pressed={on}
-                    onClick={() => toggle(t.id)}
-                    className={`flex min-w-0 flex-col rounded border px-3 py-2 text-left transition-colors ${on ? "border-foreground bg-foreground text-white" : "border-line-strong bg-surface text-foreground hover:border-foreground"}`}
-                  >
-                    <span className="text-sm font-bold">
-                      {on ? "✓ " : ""}
-                      {t.label}
-                    </span>
-                    <span className={`text-xs ${on ? "text-white/75" : "text-muted"}`}>{t.blurb}</span>
-                  </button>
-                );
-              })}
+          <fieldset className="space-y-5">
+            <legend className="mb-3 text-sm font-semibold">About</legend>
+            <div>
+              <span className="mb-2 block text-sm text-muted">Statistical categories</span>
+              <div className="flex flex-wrap gap-2" role="group" aria-label="Statistical categories">
+                {topics.map((t) => {
+                  const on = chosen.includes(t.id);
+                  return (
+                    <button
+                      key={t.id}
+                      type="button"
+                      aria-pressed={on}
+                      onClick={() => toggle(t.id)}
+                      className={`flex min-w-0 flex-col rounded border px-3 py-2 text-left transition-colors ${on ? "border-foreground bg-foreground text-white" : "border-line-strong bg-surface text-foreground hover:border-foreground"}`}
+                    >
+                      <span className="text-sm font-bold">
+                        {on ? "✓ " : ""}
+                        {t.label}
+                      </span>
+                      <span className={`text-xs ${on ? "text-white/75" : "text-muted"}`}>{t.blurb}</span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-          </div>
+
+            <div>
+              <span className="mb-2 block text-sm text-muted">
+                Tournaments: {chosenEvents.length ? `only ${chosenEvents.length === 1 ? "this one" : `these ${chosenEvents.length}`}` : "any, or pick some"}
+                {chosenEvents.length > 0 && (
+                  <>
+                    {" "}
+                    ·{" "}
+                    <button type="button" onClick={() => setPicked([])} className="cursor-pointer font-semibold text-court underline-offset-4 hover:underline">
+                      Any tournament
+                    </button>
+                  </>
+                )}
+              </span>
+              <div className="flex flex-wrap gap-1.5" role="group" aria-label="Tournaments">
+                {offered
+                  .filter((t) => t.group !== "other" || picked.includes(t.key))
+                  .map((t) => {
+                    const on = picked.includes(t.key);
+                    return (
+                      <button
+                        key={t.key}
+                        type="button"
+                        aria-pressed={on}
+                        onClick={() => pickEvent(t.key)}
+                        className={`rounded border px-2.5 py-1 text-sm font-semibold transition-colors ${on ? "border-foreground bg-foreground text-white" : "border-line-strong bg-surface hover:border-foreground"} ${t.group === "slam" && !on ? "text-foreground" : ""}`}
+                      >
+                        {on ? "✓ " : ""}
+                        {t.label}
+                      </button>
+                    );
+                  })}
+              </div>
+              <div className="relative mt-2 max-w-md">
+                <SearchIcon />
+                <input value={eventQuery} onChange={(e) => setEventQuery(e.target.value)} placeholder="Another tournament: Halle, Dubai, Acapulco…" className="field pl-10" aria-label="Search for a tournament" />
+                {foundEvents.length > 0 && (
+                  <ul className="mt-1 overflow-hidden rounded border border-line bg-surface">
+                    {foundEvents.map((t) => (
+                      <li key={t.key}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            pickEvent(t.key);
+                            setEventQuery("");
+                          }}
+                          className="flex w-full cursor-pointer items-baseline justify-between gap-3 border-b border-line px-3 py-2 text-left last:border-b-0 hover:bg-sunk"
+                        >
+                          <span className="font-semibold">{t.label}</span>
+                          <span className="shrink-0 text-xs text-muted">{t.questions} questions</span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {typedEvent && !foundEvents.length && <p className="mt-2 text-sm text-muted">No tournament with questions by that name.</p>}
+              </div>
+              {chosenEvents.length > 0 && <p className="mt-2 text-sm text-muted">With tournaments picked, only questions about them come up: champions, finals, upsets and oddities there.</p>}
+            </div>
+          </fieldset>
 
           <div className="flex flex-wrap gap-x-8 gap-y-6">
             <div>

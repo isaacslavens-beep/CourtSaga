@@ -7,7 +7,7 @@ import { loadQuiz, quizPlayers, standing, type KeptQuiz } from "@/lib/quiz";
 import { levelNames, type Level, type QuizSettings } from "../../../diary/quiz";
 import { Chevron, PageBar, StatBox } from "../../../ui";
 import { OpeningDiary } from "../../loading-page";
-import { describe, difficultyName, LevelTag } from "../parts";
+import { describe, difficultyName, LevelTag, QuizCredit } from "../parts";
 import { asked, OWNER_COOKIE, settingsQuery, type QuizAnswer, type StoredQuestion } from "../shared";
 import { PlayQuiz } from "./play";
 import { ShareResults, TakeSame } from "./share";
@@ -68,6 +68,7 @@ async function Run({ params }: Pick<PageProps<"/quiz/[id]">, "params">) {
               Make a quiz of your own
             </Link>
           </div>
+          <QuizCredit />
         </section>
       </>
     );
@@ -205,6 +206,7 @@ async function Results({ quiz, mine, about, settings }: { quiz: KeptQuiz; mine: 
             )}
           </aside>
         </div>
+        <QuizCredit />
       </section>
     </>
   );

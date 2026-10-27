@@ -8,7 +8,7 @@ import { getDb } from "@/db";
 import { quizzes } from "@/db/schema";
 import { getSession } from "@/lib/auth";
 import { questionBank } from "@/lib/quiz";
-import { check, drawQuiz, nameForms, type QuestionBank } from "../../diary/quiz";
+import { check, drawQuiz, type QuestionBank } from "../../diary/quiz";
 import { OWNER_COOKIE, type QuizAnswer, type StoredQuestion, type Turn } from "./shared";
 
 // Taking a quiz. A quiz is drawn and kept on the server with its answers, and each answer is checked
@@ -22,6 +22,7 @@ const settings = z.strictObject({
   from: z.number().int().min(1990).max(2100),
   to: z.number().int().min(1990).max(2100),
   player: z.string().max(40).nullable(),
+  events: z.array(z.string().max(80)).max(200),
   count: z.union([z.literal(5), z.literal(10), z.literal(15), z.literal(20)]),
 });
 export type QuizRequest = z.infer<typeof settings>;
@@ -54,12 +55,8 @@ export async function startQuiz(input: QuizRequest): Promise<{ id: string } | { 
   // Questions this browser was asked in its last few quizzes come up again only once the rest run out
   const recent = await db.select({ questions: quizzes.questions }).from(quizzes).where(eq(quizzes.owner, me!)).orderBy(desc(quizzes.createdAt)).limit(8);
   const avoid = new Set(recent.flatMap((r) => (r.questions as StoredQuestion[]).map((q) => q.id)));
-  const drawn = drawQuiz(banks, { ...s, player: s.player || null }, avoid);
-  if (!drawn.length) return { error: "No questions fit those settings. Try more topics, more years or another player." };
-  const questions: StoredQuestion[] = drawn.map((q) => ({
-    ...q,
-    forms: q.answer.kind === "name" ? nameForms(banks.find((b) => b.tour === q.tour)!.players, q.answer.key) : null,
-  }));
+  const questions: StoredQuestion[] = drawQuiz(banks, { ...s, player: s.player || null }, avoid);
+  if (!questions.length) return { error: "No questions fit those settings. Try more categories, tournaments or years, or another player." };
   const user = await whoIs();
   const id = newId();
   await db.insert(quizzes).values({ id, owner: me!, userId: user?.id ?? null, name: user?.name ?? null, difficulty: s.difficulty, settings: s, questions });
@@ -68,8 +65,11 @@ export async function startQuiz(input: QuizRequest): Promise<{ id: string } | { 
   return { id };
 }
 
-/** Answer the next question of a quiz this browser is taking. Typed "" means "don't know". */
-export async function answerQuestion(id: string, index: number, typed: string): Promise<Turn> {
+/**
+ * Answer the next question of a quiz this browser is taking: a year or a number as typed, a player as
+ * picked from the list (`player`, with the name shown). Nothing typed means "don't know".
+ */
+export async function answerQuestion(id: string, index: number, typed: string, player: string | null = null): Promise<Turn> {
   const text = String(typed).slice(0, 80);
   const me = await owner(false);
   const db = getDb();
@@ -80,9 +80,8 @@ export async function answerQuestion(id: string, index: number, typed: string): 
     const answers = quiz.answers as QuizAnswer[];
     if (quiz.finishedAt || index !== answers.length || !questions[index]) return { status: "closed" };
     const q = questions[index];
-    const verdict = check(q.answer, q.forms, text);
-    if (verdict === "again" && text.trim()) return { status: "again", hint: `More than one ${q.forms?.shared ? title(q.forms.shared) : "player"} played. Add the first name.` };
-    const right = verdict === "right";
+    if (q.answer.kind === "name" && text.trim() && !player) return { status: "again", hint: "Pick a player from the list, or choose Don't know." };
+    const right = q.answer.kind === "name" ? !!text.trim() && player === q.answer.key : check(q.answer, text);
     const next = [...answers, { typed: text.trim(), right }];
     const done = next.length === questions.length;
     await tx
@@ -92,8 +91,6 @@ export async function answerQuestion(id: string, index: number, typed: string): 
     return { status: "answered", right, answer: q.answer.kind === "name" ? q.answer.text : String(q.answer.value), fact: q.fact, go: q.go, done };
   });
 }
-
-const title = (s: string) => s.replace(/\b\w/g, (c) => c.toUpperCase());
 
 /** Put a name on finished results, so the page says whose they are */
 export async function nameResults(id: string, name: string) {

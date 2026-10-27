@@ -54,6 +54,7 @@ export type Question = {
   go: string | null; // a match to open in Explore
   about: string[]; // the players it's about or answered by, for a quiz on one player
   season: number | null; // the season it's about, or null for a whole career or record
+  events: string[]; // the tournament it's about, as the data names it, or none
 };
 
 export type BankPlayer = { key: string; name: string; short: string; matches: number };
@@ -120,6 +121,9 @@ function fameOf(c: Career | undefined): 0 | 1 | 2 | 3 {
 
 /* ---------- The bank ---------- */
 
+// The rules whose questions are about one tournament: a quiz on chosen tournaments draws only on these
+const tournamentRules = new Set(["slam-champion", "slam-runner-up", "final-year", "slam-once", "slam-event-count", "slam-event-last", "slam-upset", "champion", "slam-aces", "slam-longest", "slam-qualifier"]);
+
 export function buildQuestions({ tour, matches, players, last, books }: QuizInput): QuestionBank {
   const played = matches.filter((m) => !exhibitions.has(m.event) && m.tier !== "team" && m.tier !== "other").sort(chron);
   const from = played[0]?.season ?? 2003;
@@ -128,10 +132,13 @@ export function buildQuestions({ tour, matches, players, last, books }: QuizInpu
   const name = (key: string) => players[key]?.name ?? key;
   const out: Question[] = [];
   const seen = new Set<string>();
-  const add = (q: Omit<Question, "tour"> & { tour?: Tour }) => {
+  const byId = new Map(played.map((m) => [m.id, m]));
+  const add = (q: Omit<Question, "tour" | "events"> & { tour?: Tour }) => {
     if (seen.has(q.id)) return;
     seen.add(q.id);
-    out.push({ ...q, id: `${tour}:${q.id}`, tour });
+    // A question about one tournament is about the event of its match; a career, a rivalry or a record isn't
+    const at = tournamentRules.has(q.rule) && q.go ? byId.get(q.go)?.event : undefined;
+    out.push({ ...q, id: `${tour}:${q.id}`, tour, events: at ? [at] : [] });
   };
 
   // Careers, in one pass
@@ -674,8 +681,8 @@ const boardPrompts: Record<string, { ask: (view: string, other: string) => strin
   "long-shots": { ask: (v) => (v === "Slams" ? "Who was the lowest-ranked player to win a Slam?" : "Who was the lowest-ranked player to win a 1000, a tour finals or the Olympics?") },
 };
 
-function boardQuestions(books: RecordBooks, tw: string, from: number): Omit<Question, "tour" | "level">[] {
-  const out: Omit<Question, "tour" | "level">[] = [];
+function boardQuestions(books: RecordBooks, tw: string, from: number): Omit<Question, "tour" | "level" | "events">[] {
+  const out: Omit<Question, "tour" | "level" | "events">[] = [];
   for (const b of books.boards) {
     const p = boardPrompts[b.id];
     if (!p) continue;
@@ -711,6 +718,7 @@ export type QuizSettings = {
   from: number;
   to: number;
   player: string | null; // a player key, for a quiz all about one player
+  events: string[]; // tournaments, as the data names them, for a quiz on those alone; none for any
   count: number;
 };
 
@@ -732,7 +740,8 @@ export function drawQuiz(banks: QuestionBank[], settings: QuizSettings, avoid: S
         settings.tours.includes(q.tour) &&
         settings.topics.includes(q.topic) &&
         (q.season === null ? whole || !!settings.player : q.season >= settings.from && q.season <= settings.to) &&
-        (!settings.player || (q.about.includes(settings.player) && !answeredBy(q, settings.player))),
+        (!settings.player || (q.about.includes(settings.player) && !answeredBy(q, settings.player))) &&
+        (!settings.events.length || q.events.some((e) => settings.events.includes(e))),
     );
   const byLevel = new Map<Level, Question[]>([1, 2, 3, 4].map((l) => [l as Level, pool.filter((q) => q.level === l)]));
   const weights = mix[settings.difficulty];
@@ -800,38 +809,24 @@ function distance(a: string, b: string) {
 // A typo or two, more for longer names
 const close = (typed: string, form: string) => typed === form || distance(typed.replace(/ /g, ""), form.replace(/ /g, "")) <= (form.length >= 9 ? 2 : form.length >= 5 ? 1 : 0);
 
-/** What a name answer will take: the full name, the surname if no one else of note has it, and initial plus surname */
-export type NameForms = { full: string; forms: string[]; shared: string | null };
-
-export function nameForms(bank: BankPlayer[], key: string): NameForms {
-  const p = bank.find((x) => x.key === key);
-  const full = p?.name ?? key;
-  const short = fold(p?.short ?? full);
-  const known = bank.filter((x) => x.key !== key && x.matches >= 10);
-  const others = known.filter((x) => fold(x.short) === short);
-  const first = fold(full).split(" ")[0];
-  const forms = [fold(full), `${first[0]} ${short}`];
-  if (!others.length) forms.push(short);
-  // One word of a surname of several ("Riske" for Riske Amritraj, "Potro" for del Potro), if it's no one else's
-  const words = short.split(" ").filter((w) => w.length >= 4);
-  if (words.length > 1 || short.includes(" "))
-    for (const w of words) if (!known.some((x) => fold(x.short).split(" ").includes(w))) forms.push(w);
-  return { full, forms: [...new Set(forms.filter((f) => f.length > 1))], shared: others.length ? short : null };
+/** A number or a year, typed. A name is picked from a list (findPlayers), so it's checked by who was picked. */
+export function check(answer: Answer, typed: string) {
+  const n = Number(fold(typed).replace(/ /g, ""));
+  return answer.kind !== "name" && typed.trim() !== "" && Number.isFinite(n) && n === answer.value;
 }
 
-export type Verdict = "right" | "wrong" | "again"; // again: a surname shared with another player; ask for more
-
-export function check(answer: Answer, forms: NameForms | null, typed: string): Verdict {
-  const t = fold(typed);
-  if (!t) return "wrong";
-  if (answer.kind !== "name") {
-    const n = Number(t.replace(/ /g, ""));
-    return Number.isFinite(n) && n === answer.value ? "right" : "wrong";
+/**
+ * The players a typed name could be, best first: every word typed starts a word of the name ("rog fed"),
+ * or failing that, it's a typo or two from one ("djokovich"). Among equals, whoever played more.
+ */
+export function findPlayers(players: BankPlayer[], typed: string, limit = 8): BankPlayer[] {
+  const words = fold(typed).split(" ").filter(Boolean);
+  if (!words.length) return [];
+  const scored: { p: BankPlayer; score: number }[] = [];
+  for (const p of players) {
+    const name = fold(p.name).split(" ");
+    if (words.every((w) => name.some((n) => n.startsWith(w)))) scored.push({ p, score: 2 });
+    else if (words.length === 1 && words[0].length >= 4 && name.some((n) => close(words[0], n))) scored.push({ p, score: 1 });
   }
-  if (!forms) return "wrong";
-  if (forms.forms.includes(t)) return "right";
-  // A surname others share is only ever a start, however close the typing
-  if (forms.shared && close(t, forms.shared) && !(t.endsWith(forms.shared) && t.length > forms.shared.length)) return "again";
-  // An initial and a surname has to be exact: "v williams" is one letter from "s williams"
-  return forms.forms.some((f) => !/^[a-z] /.test(f) && close(t, f)) ? "right" : "wrong";
+  return scored.sort((x, y) => y.score - x.score || y.p.matches - x.p.matches).slice(0, limit).map((x) => x.p);
 }

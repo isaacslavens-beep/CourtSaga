@@ -4,6 +4,7 @@ import { quizPlayers } from "@/lib/quiz";
 import { PageBar } from "../../ui";
 import { OpeningDiary } from "../loading-page";
 import { QuizMaker } from "./maker";
+import { QuizCredit } from "./parts";
 
 /* The quiz: pick how hard and what about, then type the answers. Nothing here depends on who's looking,
    so the page is built ahead of time; each quiz is drawn when it starts. */
@@ -25,6 +26,7 @@ export default function QuizPage() {
           <Suspense fallback={<OpeningDiary />}>
             <Maker />
           </Suspense>
+          <QuizCredit />
         </div>
       </section>
     </div>
@@ -35,5 +37,5 @@ async function Maker() {
   // A build without the database still builds: the page says the quiz isn't available
   const data = await quizPlayers().catch(() => null);
   if (!data) return <p className="rounded border border-fault/30 bg-fault/5 px-4 py-3 font-medium text-fault">The quiz isn&apos;t available right now. Try again in a little while.</p>;
-  return <QuizMaker players={data.players} from={data.from} to={data.to} />;
+  return <QuizMaker players={data.players} tournaments={data.tournaments} from={data.from} to={data.to} />;
 }
