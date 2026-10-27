@@ -25,16 +25,10 @@ const headline = (q: KeptQuiz) => `Results: ${q.name ? `${q.name}, ` : ""}${scor
 
 export async function generateMetadata({ params }: PageProps<"/quiz/[id]">): Promise<Metadata> {
   const quiz = await loadQuiz((await params).id).catch(() => null);
+  // A link preview reads "Results: Isaac, 6/10" under the card
   const title = quiz?.finishedAt ? headline(quiz) : "Quiz · CourtSaga";
-  // What a link preview says under the card, which already shows the score
-  const preview = "Quiz | Results Committee";
-  return {
-    title,
-    description: preview,
-    robots: { index: false, follow: false },
-    openGraph: { title: preview, description: preview, siteName: "CourtSaga", type: "website" },
-    twitter: { card: "summary_large_image", title: preview, description: preview },
-  };
+  const description = "Quiz | Results Committee";
+  return { title, description, robots: { index: false, follow: false }, openGraph: { title, description, siteName: "CourtSaga", type: "website" } };
 }
 
 export default function QuizRun({ params, searchParams }: PageProps<"/quiz/[id]">) {
