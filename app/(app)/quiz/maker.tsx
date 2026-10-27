@@ -49,7 +49,7 @@ function Maker({ initial }: { initial: Tours }) {
         </div>
         <div className="panel-body space-y-6">
           <p className="max-w-xl text-[0.9375rem] leading-snug">
-            {QUIZ_LENGTH} questions, many on who won and who lost the finals of the big tournaments: the Slams, the 1000s, the tour finals and the Olympics. Four are a click: which of two champions leads their rivalry, or which of the four Slams. One asks who won the most in a year, and one asks for a year or a number. Some are famous, some are obscure.
+            {QUIZ_LENGTH} questions on the big finals and rivalries, famous and obscure.
           </p>
           <div>
             <span className="mb-2 block text-sm font-semibold">Tour</span>
