@@ -15,7 +15,7 @@ export type StoredQuestion = Question;
 export type QuizAnswer = { typed: string; right: boolean };
 
 /** A question as the player sees it before answering: no answer, nothing that gives it away */
-export type AskedQuestion = Pick<Question, "prompt" | "level" | "topic" | "tour" | "choices"> & { kind: Question["answer"]["kind"]; event: string | null };
+export type AskedQuestion = Pick<Question, "prompt" | "level" | "topic" | "tour" | "choices" | "choose"> & { kind: Question["answer"]["kind"]; event: string | null };
 
 /** What answering a question gives back */
 export type Turn =
@@ -30,6 +30,7 @@ export const asked = (q: StoredQuestion): AskedQuestion => ({
   tour: q.tour,
   kind: q.answer.kind,
   choices: q.choices,
+  choose: q.choose,
   event: q.events?.[0] ?? null,
 });
 

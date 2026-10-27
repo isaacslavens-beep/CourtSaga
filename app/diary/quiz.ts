@@ -40,7 +40,8 @@ export type Question = {
   about: string[]; // the players it's about or answered by, for a quiz on one player
   season: number | null; // the season it's about, or null for a whole career or record
   events: string[]; // the tournament it's about, as the data names it, or none
-  choices?: { key: string; name: string; short: string }[]; // an either-or question's two players, picked with a click
+  choices?: { key: string; name: string; short: string }[]; // the players or Slams a click picks between
+  choose?: "player" | "slam"; // what those choices are: two players, or the four Slams as logos
 };
 
 export type BankPlayer = { key: string; name: string; short: string; matches: number };
@@ -111,6 +112,9 @@ function fameOf(c: Career | undefined): 0 | 1 | 2 | 3 {
 }
 
 /* ---------- The bank ---------- */
+
+const slamEvents = ["Australian Open", "Roland Garros", "Wimbledon", "US Open"];
+const slamChoices = slamEvents.map((e) => ({ key: e, name: e, short: e }));
 
 // The rules whose questions are about one tournament: a quiz on chosen tournaments draws only on these
 const tournamentRules = new Set(["slam-champion", "slam-runner-up", "final-year", "slam-once", "slam-event-count", "slam-event-last", "slam-upset", "champion", "big-champion", "big-runner-up", "slam-aces", "slam-longest", "slam-qualifier"]);
@@ -301,6 +305,30 @@ export function buildQuestions({ tour, matches, players, last, books }: QuizInpu
             season: ms[ms.length - 1].season,
           });
       }
+    }
+    // Which Slam: picked from the four logos. A player already on tour when the data starts is asked
+    // "since" then, so the counts hold. Not tied to one event, so the question isn't coloured by it.
+    {
+      const pick = (id: string, prompt: string, event: string, level: Level, fact: string, go: string) =>
+        add({ id, rule: "slam-pick", topic: "slams", level, prompt, answer: { kind: "name", key: event, text: event }, fact, go, about: [key], season: null, choices: slamChoices, choose: "slam" });
+      const counts = [...byEvent].map(([event, ms]) => ({ event, n: ms.length, ms }));
+      const wonIt = active(key) ? `has ${name(key)} won` : `did ${name(key)} win`;
+      for (const { event, n, ms } of counts)
+        if (n >= 2 && counts.filter((x) => x.n === n).length === 1)
+          pick(
+            `slam-pick:count:${key}:${event}`,
+            `At which Grand Slam ${wonIt} the title ${n === 2 ? "twice" : `${n} times`}${since(key)}?`,
+            event,
+            (Math.min(4, (f === 3 ? 1 : 3) + (n <= 3 ? 1 : 0)) as Level),
+            `${event}: ${ms.map((m) => m.season).join(", ")}.`,
+            ms[ms.length - 1].id,
+          );
+      if (counts.length === 3) {
+        const missing = slamEvents.find((e) => !byEvent.has(e))!;
+        pick(`slam-pick:missing:${key}`, `Which is the only Grand Slam ${name(key)} ${active(key) ? "hasn't won" : "never won"}${since(key)}?`, missing, f === 3 ? 2 : 3, `${name(key)} won the other three: ${counts.map((x) => x.event).join(", ")}.`, won[won.length - 1].id);
+      }
+      if (counts.length === 1 && won.length >= 2)
+        pick(`slam-pick:only:${key}`, `${name(key)} ${active(key) ? "has won" : "won"} ${won.length} Grand Slam titles${since(key)}, all at the same one. Which?`, counts[0].event, f === 3 ? 2 : 3, `${counts[0].event}: ${won.map((m) => m.season).join(", ")}.`, won[won.length - 1].id);
     }
   }
   // Upsets: a legend beaten before the semifinals of a Slam by someone less known
@@ -512,6 +540,7 @@ export function buildQuestions({ tour, matches, players, last, books }: QuizInpu
       about: [a, b],
       season: null,
       choices: [a, b].map((key) => ({ key, name: name(key), short: players[key]?.short ?? name(key) })),
+      choose: "player",
     });
   }
   for (const [k, ms] of pairs) {
@@ -742,15 +771,17 @@ function boardQuestions(books: RecordBooks, tw: string, from: number): Omit<Ques
 
 /* ---------- Drawing a quiz ---------- */
 
-// Every quiz is the same shape: ten questions. Six ask who won or lost the final of a big tournament (a
-// Slam, a 1000, the tour finals, the Olympics); two are either-or, answered with a click (which of two Slam
-// champions leads their head-to-head); one is odder (who won the most titles or matches in a year); one asks
-// for a year or a count of titles.
+// Every quiz is the same shape: ten questions. Four ask who won or lost the final of a big tournament (a
+// Slam, a 1000, the tour finals, the Olympics); four are answered with a click: two either-or (which of two
+// Slam champions leads their head-to-head) and two picked from the four Slams' logos; one is odder (who won
+// the most titles or matches in a year); one asks for a year or a count of titles.
 // The levels are picked for you, the same mix every time, so every quiz has the famous and the obscure.
 export const QUIZ_LENGTH = 10;
 const finalRules = new Set(["slam-champion", "slam-runner-up", "big-champion", "big-runner-up"]);
 const choiceRules = new Set(["h2h-leader"]);
 const CHOICE_QUESTIONS = 2;
+const slamRules = new Set(["slam-pick"]);
+const SLAM_QUESTIONS = 2;
 const oddRules = new Set(["season-titles", "season-wins"]);
 const numberRules = new Set(["final-year", "slam-once", "slam-count", "slam-event-count", "title-count"]);
 const levelMix: Record<Level, number> = { 1: 0.3, 2: 0.35, 3: 0.25, 4: 0.1 };
@@ -798,7 +829,7 @@ export function drawQuiz(banks: QuestionBank[], tours: Tour[], avoid: Set<string
     }
     return out;
   };
-  const odd = [...take(choiceRules, CHOICE_QUESTIONS), ...take(oddRules, 1)];
+  const odd = [...take(choiceRules, CHOICE_QUESTIONS), ...take(slamRules, SLAM_QUESTIONS), ...take(oddRules, 1)];
   const all = [...odd, ...take(numberRules, 1), ...take(finalRules, QUIZ_LENGTH - 1 - odd.length)];
   for (let i = all.length - 1; i > 0; i--) {
     const j = Math.floor(random() * (i + 1));

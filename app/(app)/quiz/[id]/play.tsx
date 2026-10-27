@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 import type { CSSProperties } from "react";
 import { Avatar } from "../../../diary/fun";
+import { SlamLogo } from "../../../match-ui";
 import { Chevron, PageBar, StatBox } from "../../../ui";
 import { answerQuestion } from "../actions";
 import { eventColour, QuizCredit, topicName, tourName } from "../parts";
@@ -12,7 +13,8 @@ import type { AskedQuestion, QuizAnswer, Turn } from "../shared";
 
 /* Taking a quiz: one question at a time, typed, checked on the server, then what the answer was and the
    match behind it. A player's name is picked from a list as it's typed, so a misspelling can't cost the
-   point; a year or a number is just typed, and an either-or question is a click on one of its two players.
+   point; a year or a number is just typed, and an either-or question is a click on one of its two players (or
+   one of the four Slams' logos), with no "don't know": one of them is right.
    A question about a big tournament wears its colour. A quiz left halfway carries on where it stopped. */
 
 type Shown = Extract<Turn, { status: "answered" }>;
@@ -144,35 +146,51 @@ export function PlayQuiz({ id, questions, answered, about }: { id: string; quest
 
               {!shown && q.choices ? (
                 <div className="mt-5">
-                  <p className="mb-2 text-sm font-semibold text-muted">Click a player</p>
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    {q.choices.map((c) => (
-                      <button
-                        key={c.key}
-                        type="button"
-                        disabled={pending}
-                        onClick={() => {
-                          setTyped(c.name);
-                          send(c.name, c.key);
-                        }}
-                        className="group flex cursor-pointer items-center gap-3 rounded border-2 border-line bg-surface px-4 py-3 text-left transition-colors hover:border-foreground hover:bg-sunk focus-visible:border-foreground disabled:cursor-wait"
-                      >
-                        <Avatar name={c.short ?? c.name} size="h-10 w-10 text-sm" />
-                        <span className="flex-1 font-display text-lg font-bold leading-tight">{c.name}</span>
-                        <Chevron className="h-3.5 w-3.5 text-muted transition-colors group-hover:text-foreground" />
-                      </button>
-                    ))}
-                  </div>
+                  <p className="mb-2 text-sm font-semibold text-muted">{q.choose === "slam" ? "Click a Slam" : "Click a player"}</p>
+                  {q.choose === "slam" ? (
+                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                      {q.choices.map((c) => (
+                        <button
+                          key={c.key}
+                          type="button"
+                          disabled={pending}
+                          onClick={() => {
+                            setTyped(c.name);
+                            send(c.name, c.key);
+                          }}
+                          className="flex cursor-pointer flex-col items-center gap-2 rounded border-2 border-line bg-surface px-3 py-4 text-center transition-colors hover:border-foreground hover:bg-sunk focus-visible:border-foreground disabled:cursor-wait"
+                        >
+                          <SlamLogo event={c.name} size="h-14 w-14" />
+                          <span className="text-sm font-bold leading-tight">{c.name}</span>
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      {q.choices.map((c) => (
+                        <button
+                          key={c.key}
+                          type="button"
+                          disabled={pending}
+                          onClick={() => {
+                            setTyped(c.name);
+                            send(c.name, c.key);
+                          }}
+                          className="group flex cursor-pointer items-center gap-3 rounded border-2 border-line bg-surface px-4 py-3 text-left transition-colors hover:border-foreground hover:bg-sunk focus-visible:border-foreground disabled:cursor-wait"
+                        >
+                          <Avatar name={c.short ?? c.name} size="h-10 w-10 text-sm" />
+                          <span className="flex-1 font-display text-lg font-bold leading-tight">{c.name}</span>
+                          <Chevron className="h-3.5 w-3.5 text-muted transition-colors group-hover:text-foreground" />
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {pending && <p className="mt-2 text-sm text-muted">Checking…</p>}
                   {failed && (
                     <p role="alert" className="mt-2 font-medium text-fault">
                       That didn&apos;t go through. Try again.
                     </p>
                   )}
-                  <div className="mt-4">
-                    <button type="button" disabled={pending} onClick={() => send("")} className="btn btn-secondary">
-                      {pending ? "Checking…" : "Don't know"}
-                    </button>
-                  </div>
                 </div>
               ) : !shown ? (
                 <form
