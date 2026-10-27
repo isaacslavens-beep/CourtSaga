@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import { cookies, headers } from "next/headers";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { Suspense } from "react";
-import { loadQuiz, standing, type KeptQuiz } from "@/lib/quiz";
+import { loadQuiz, standing, takenBy, type KeptQuiz } from "@/lib/quiz";
 import { levelNames, type Level } from "../../../diary/quiz";
 import type { Tour } from "../../../diary/library";
 import { Chevron, PageBar, StatBox } from "../../../ui";
@@ -26,11 +26,18 @@ const headline = (q: KeptQuiz) => `Results: ${q.name ? `${q.name}, ` : ""}${scor
 export async function generateMetadata({ params }: PageProps<"/quiz/[id]">): Promise<Metadata> {
   const quiz = await loadQuiz((await params).id).catch(() => null);
   const title = quiz?.finishedAt ? headline(quiz) : "Quiz · CourtSaga";
-  const description = "A tennis quiz from every tour-level match since 2003. Typed answers only: think you can beat it?";
-  return { title, description, robots: { index: false, follow: false }, openGraph: { title, description, siteName: "CourtSaga", type: "website" } };
+  // What a link preview says under the card, which already shows the score
+  const preview = "Quiz | Results Committee";
+  return {
+    title,
+    description: preview,
+    robots: { index: false, follow: false },
+    openGraph: { title: preview, description: preview, siteName: "CourtSaga", type: "website" },
+    twitter: { card: "summary_large_image", title: preview, description: preview },
+  };
 }
 
-export default function QuizRun({ params }: PageProps<"/quiz/[id]">) {
+export default function QuizRun({ params, searchParams }: PageProps<"/quiz/[id]">) {
   return (
     <div className="flex flex-1 flex-col">
       <Suspense
@@ -41,14 +48,14 @@ export default function QuizRun({ params }: PageProps<"/quiz/[id]">) {
           </>
         }
       >
-        <Run params={params} />
+        <Run params={params} searchParams={searchParams} />
       </Suspense>
     </div>
   );
 }
 
-async function Run({ params }: Pick<PageProps<"/quiz/[id]">, "params">) {
-  const [{ id }, jar] = await Promise.all([params, cookies()]);
+async function Run({ params, searchParams }: PageProps<"/quiz/[id]">) {
+  const [{ id }, { answers }, jar] = await Promise.all([params, searchParams, cookies()]);
   const quiz = await loadQuiz(id);
   if (!quiz) notFound();
   const mine = jar.get(OWNER_COOKIE)?.value === quiz.owner;
@@ -73,7 +80,50 @@ async function Run({ params }: Pick<PageProps<"/quiz/[id]">, "params">) {
       </>
     );
   }
+  // Someone else's results from a shared link: the same questions to take first, and the answers only once
+  // they're taken (or asked for)
+  if (!mine && answers === undefined) {
+    const own = await takenBy(jar.get(OWNER_COOKIE)?.value, quiz.id);
+    if (!own) return <Challenge quiz={quiz} about={about} />;
+    if (!own.finishedAt) redirect(`/quiz/${own.id}`);
+  }
   return <Results quiz={quiz} mine={mine} about={about} settings={settings} />;
+}
+
+/** A shared quiz before it's been taken: the score to beat, and the same questions, with no answers shown */
+function Challenge({ quiz, about }: { quiz: KeptQuiz; about: string }) {
+  const n = (quiz.questions as unknown[]).length;
+  return (
+    <>
+      <PageBar n={5} title={`Results: ${score(quiz)}`}>
+        <span className="text-sm text-muted">
+          {quiz.name && <strong className="font-semibold text-foreground">{quiz.name} · </strong>}
+          {about}
+        </span>
+      </PageBar>
+      <section className="mx-auto w-full max-w-3xl flex-1 px-4 pb-16 pt-8 sm:px-8">
+        <div className="panel">
+          <div className="panel-head">
+            <h2 className="panel-title">Can you beat {score(quiz)}?</h2>
+            <span className="panel-meta">The same {n} questions</span>
+          </div>
+          <div className="panel-body space-y-4">
+            <p className="text-[0.9375rem] leading-snug">
+              {quiz.name ? `${quiz.name} got ${quiz.correct ?? 0} of ${n}.` : `This quiz scored ${quiz.correct ?? 0} of ${n}.`} Take the same questions first: the answers show once
+              they&apos;re done, side by side with this score. No account needed.
+            </p>
+            <div className="flex flex-wrap items-center gap-4">
+              <TakeSame id={quiz.id} />
+              <Link href={`/quiz/${quiz.id}?answers`} className="text-sm font-semibold text-muted underline-offset-4 hover:text-foreground hover:underline">
+                Just show the answers
+              </Link>
+            </div>
+          </div>
+        </div>
+        <QuizCredit />
+      </section>
+    </>
+  );
 }
 
 async function Results({ quiz, mine, about, settings }: { quiz: KeptQuiz; mine: boolean; about: string; settings: Kept }) {
@@ -168,7 +218,7 @@ async function Results({ quiz, mine, about, settings }: { quiz: KeptQuiz; mine: 
                 </div>
                 <div className="panel-body grid grid-cols-2 gap-2">
                   <StatBox label={quiz.name ?? "This quiz"} value={score(quiz)} />
-                  <Link href={`/quiz/${rivalDone.id}`} className="block">
+                  <Link href={`/quiz/${rivalDone.id}?answers`} className="block">
                     <StatBox label={rivalDone.name ?? "The original"} value={score(rivalDone)} className="hover:border-foreground" />
                   </Link>
                 </div>

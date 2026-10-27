@@ -37,6 +37,17 @@ export async function loadQuiz(id: string): Promise<KeptQuiz | null> {
   return quiz ?? null;
 }
 
+/** The quiz this browser took with the same questions as `id`, if it took them: its own go at a shared quiz */
+export async function takenBy(owner: string | undefined, id: string): Promise<KeptQuiz | null> {
+  if (!owner) return null;
+  const [quiz] = await getDb()
+    .select()
+    .from(quizzes)
+    .where(and(eq(quizzes.owner, owner), sql`${quizzes.settings}->>'challenge' = ${id}`))
+    .limit(1);
+  return quiz ?? null;
+}
+
 /**
  * How a finished quiz did against every other finished quiz at the same difficulty (since quizzes stopped
  * having one, the mix every quiz has), by the share of questions right: the share of them it beat, or null while there are too few to say.
