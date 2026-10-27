@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Chevron } from "../ui";
 
-// The site's four parts, as on the nav: what each is for, and the way in
+// The site's five parts, as on the nav: what each is for, and the way in
 const parts = [
   {
     href: "/explore",
@@ -31,9 +31,16 @@ const parts = [
     body: "Star matches in Explore, rate them and note them, and read them back as books in a saga to share.",
     go: "Open the saga",
   },
+  {
+    href: "/quiz",
+    label: "Quiz",
+    ask: "Think you know your tennis?",
+    body: "A new quiz every time, easy to extreme: type the champions, the years and the records, then share the score.",
+    go: "Take a quiz",
+  },
 ];
 
-/** Home: how the site works in a line, and the four parts to pick from */
+/** Home: how the site works in a line, and the five parts to pick from */
 export default function Home() {
   return (
     <div className="flex flex-1 flex-col">
@@ -47,7 +54,7 @@ export default function Home() {
       </div>
 
       <section aria-label="Where to start" className="flex-1 pb-16 pt-8 sm:pt-10">
-        <ol className="mx-auto grid w-full max-w-6xl gap-4 px-4 sm:grid-cols-2 sm:px-8 lg:grid-cols-4">
+        <ol className="mx-auto grid w-full max-w-6xl gap-4 px-4 sm:grid-cols-2 sm:px-8 lg:grid-cols-5">
           {parts.map((p, i) => (
             <li key={p.href}>
               <Link href={p.href} className="panel group flex h-full flex-col p-4 transition-colors hover:border-x-foreground/45 hover:border-b-foreground/45 sm:p-5">
@@ -57,8 +64,8 @@ export default function Home() {
                 </span>
                 <span className="mt-3 font-display text-[1.375rem] font-bold leading-tight">{p.ask}</span>
                 <span className="mt-2 flex-1 leading-snug text-muted">{p.body}</span>
-                <span className="mt-4 flex items-center gap-1 font-semibold text-court">
-                  {p.go} <Chevron className="h-3 w-3 transition-transform group-hover:translate-x-0.5" />
+                <span className="mt-4 font-semibold text-court">
+                  {p.go} <Chevron className="inline h-3 w-3 align-[-0.05em] transition-transform group-hover:translate-x-0.5" />
                 </span>
               </Link>
             </li>

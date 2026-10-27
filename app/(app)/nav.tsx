@@ -9,14 +9,19 @@ const steps = [
   { href: "/statistics", n: 2, label: "Statistics" },
   { href: "/advanced", n: 3, label: "Advanced" },
   { href: "/saga", n: 4, label: "Saga" },
+  { href: "/quiz", n: 5, label: "Quiz" },
 ];
 
 /** The parts as tabs along the header, the open one underlined in ball yellow: on a phone a row of their own under the logo */
 export function AppNav() {
-  const path = usePathname();
+  return <Tabs path={usePathname()} />;
+}
+
+/** The tabs with the open one marked: the path is "" while a page whose address is only known when it's opened (a quiz) is on its way */
+export function Tabs({ path }: { path: string }) {
   const on = (href: string) => path === href || path.startsWith(`${href}/`);
   return (
-    <nav aria-label="Explore, statistics, advanced and saga" className="order-3 -mb-px flex w-full self-stretch sm:order-2 sm:ml-auto sm:w-auto">
+    <nav aria-label="Explore, statistics, advanced, saga and quiz" className="order-3 -mb-px flex w-full self-stretch sm:order-2 sm:ml-auto sm:w-auto">
       {steps.map((s) => (
         <Link
           key={s.href}

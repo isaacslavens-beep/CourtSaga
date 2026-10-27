@@ -5,12 +5,13 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "vercel-build": "tsx scripts/migrate.ts && next build",
+    "vercel-build": "tsx scripts/migrate.ts && tsx scripts/quiz-bank.ts && next build",
     "start": "next start",
     "lint": "eslint",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx scripts/migrate.ts",
-    "import:matches": "tsx scripts/import-matches.ts"
+    "import:matches": "tsx scripts/import-matches.ts",
+    "quiz:bank": "tsx scripts/quiz-bank.ts"
   },
   "dependencies": {
     "@vercel/analytics": "^2.0.1",

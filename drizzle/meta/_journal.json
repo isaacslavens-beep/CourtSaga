@@ -50,6 +50,13 @@
       "when": 1792791714812,
       "tag": "0006_unwatched-stars-take-match-month",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1793127810271,
+      "tag": "0007_quizzes",
+      "breakpoints": true
     }
   ]
 }

@@ -1,8 +1,8 @@
 // The database: accounts (Better Auth's tables), the match data scripts/import-matches.ts loads, and
-// each fan's diary. Migrations in drizzle/ are generated from this file with `npm run db:generate`.
+// each fan's diary, and the quizzes. Migrations in drizzle/ are generated from this file with `npm run db:generate`.
 
 import { sql } from "drizzle-orm";
-import { bigint, boolean, check, customType, date, foreignKey, index, integer, pgTable, primaryKey, real, smallint, text, timestamp } from "drizzle-orm/pg-core";
+import { bigint, boolean, check, customType, date, foreignKey, index, integer, jsonb, pgTable, primaryKey, real, smallint, text, timestamp } from "drizzle-orm/pg-core";
 
 const tsvector = customType<{ data: string }>({ dataType: () => "tsvector" });
 
@@ -213,3 +213,25 @@ export const sagaShares = pgTable("saga_shares", {
   slug: text("slug").notNull().unique(),
   createdAt: createdAt(),
 });
+
+/* ---------- Quizzes: each one drawn at random, answered one question at a time, then a results page ---------- */
+
+// Anyone can take one, signed in or not. The browser that starts a quiz (a cookie) is the only one that
+// can answer it; once it's finished, anyone with the link can see the results.
+export const quizzes = pgTable(
+  "quizzes",
+  {
+    id: text("id").primaryKey(), // random: the results page's address
+    owner: text("owner").notNull(), // the browser's quiz cookie
+    userId: text("user_id").references(() => user.id, { onDelete: "set null" }),
+    name: text("name"), // the name on the results, if there is one
+    difficulty: text("difficulty").notNull(), // easy | medium | hard | extreme
+    settings: jsonb("settings").notNull(), // as chosen: tours, topics, years, player, how many
+    questions: jsonb("questions").notNull(), // the questions as asked, with their answers
+    answers: jsonb("answers").notNull().default(sql`'[]'::jsonb`), // what was typed, in order, and whether it was right
+    correct: smallint("correct"), // once finished
+    createdAt: createdAt(),
+    finishedAt: timestamp("finished_at", { withTimezone: true }),
+  },
+  (t) => [index("quizzes_owner_idx").on(t.owner, t.createdAt), index("quizzes_finished_idx").on(t.difficulty, t.finishedAt)],
+);

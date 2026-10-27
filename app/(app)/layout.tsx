@@ -1,6 +1,7 @@
+import { Suspense } from "react";
 import { DataCredit } from "../credits";
 import { Logo } from "../ui";
-import { AppNav } from "./nav";
+import { AppNav, Tabs } from "./nav";
 import { SignedIn } from "./signed-in";
 
 /* The site's pages: home, Explore, Statistics, Advanced and the saga, under one bar with the parts as
@@ -14,7 +15,9 @@ export default function DiaryLayout({ children }: { children: React.ReactNode })
           <div className="order-1 flex h-12 items-center sm:h-auto">
             <Logo />
           </div>
-          <AppNav />
+          <Suspense fallback={<Tabs path="" />}>
+            <AppNav />
+          </Suspense>
         </div>
       </header>
       <main className="flex flex-1 flex-col">{children}</main>
