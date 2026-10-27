@@ -1,4 +1,4 @@
-import { difficulties, levelNames, topics, type Level, type QuizSettings, type TopicId } from "../../diary/quiz";
+import { levelNames, topics, type Level, type TopicId } from "../../diary/quiz";
 import type { Tour } from "../../diary/library";
 
 /* The small pieces the quiz's pages share: how hard a question is, what it's about, and a quiz's settings in words */
@@ -17,16 +17,11 @@ export function QuizCredit() {
 
 export const topicName = (id: TopicId) => topics.find((t) => t.id === id)?.label ?? id;
 export const tourName = (t: Tour) => (t === "atp" ? "Men" : "Women");
-export const difficultyName = (d: string) => difficulties.find((x) => x.id === d)?.label ?? d;
+// Quizzes from before 27 Oct 2026's simplification had a difficulty of their own; since then it's a mix ("auto")
+const difficulties: Record<string, string> = { easy: "Easy", medium: "Medium", hard: "Hard", extreme: "Extreme" };
+export const difficultyName = (d: string) => difficulties[d] ?? null;
 
-/** A quiz's settings as one line: "Wimbledon · Hard · Men · 2010–2026 · Grand Slams, Records" */
-export function describe(s: Pick<QuizSettings, "difficulty" | "tours" | "topics" | "from" | "to"> & { events?: string[] }, player: string | null) {
-  const events = [...new Set(s.events ?? [])];
-  return [
-    ...(events.length ? [events.length > 3 ? `${events.slice(0, 3).join(", ")} and ${events.length - 3} more` : events.join(", ")] : []),
-    difficultyName(s.difficulty),
-    player ? `All about ${player}` : s.tours.length === 2 ? "Men and women" : tourName(s.tours[0]),
-    s.from === s.to ? String(s.from) : `${s.from}–${s.to}`,
-    s.topics.length === topics.length ? "Every category" : s.topics.map(topicName).join(", "),
-  ].join(" · ");
+/** A quiz in words: "Hard · Men", or just "Men and women" */
+export function describe(s: { tours: Tour[] }, difficulty: string) {
+  return [difficultyName(difficulty), s.tours.length === 2 ? "Men and women" : tourName(s.tours[0])].filter(Boolean).join(" · ");
 }

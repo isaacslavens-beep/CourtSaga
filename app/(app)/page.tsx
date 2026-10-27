@@ -35,7 +35,7 @@ const parts = [
     href: "/quiz",
     label: "Quiz",
     ask: "Think you know your tennis?",
-    body: "A new quiz every time, easy to extreme: type the champions, the years and the records, then share the score.",
+    body: "Ten questions on who won and who lost the big finals, a new set every time. Then share the score.",
     go: "Take a quiz",
   },
 ];

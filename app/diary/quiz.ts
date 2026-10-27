@@ -15,21 +15,6 @@ export type QuizInput = { tour: Tour; matches: RecordMatch[]; players: Record<st
 export type Level = 1 | 2 | 3 | 4;
 export const levelNames: Record<Level, string> = { 1: "Easy", 2: "Medium", 3: "Hard", 4: "Extreme" };
 
-export type Difficulty = "easy" | "medium" | "hard" | "extreme";
-export const difficulties: { id: Difficulty; label: string; blurb: string }[] = [
-  { id: "easy", label: "Easy", blurb: "Mostly the big names and the big finals." },
-  { id: "medium", label: "Medium", blurb: "The big finals, plus the matches and years that need a good memory." },
-  { id: "hard", label: "Hard", blurb: "Upsets, head-to-heads and records, with a few deep cuts." },
-  { id: "extreme", label: "Extreme", blurb: "Mostly the obscure: small titles, ace counts, qualifiers' runs." },
-];
-// The share of each level in a quiz of each difficulty: every quiz mixes the common with the obscure
-const mix: Record<Difficulty, Record<Level, number>> = {
-  easy: { 1: 0.7, 2: 0.3, 3: 0, 4: 0 },
-  medium: { 1: 0.25, 2: 0.5, 3: 0.25, 4: 0 },
-  hard: { 1: 0.05, 2: 0.25, 3: 0.5, 4: 0.2 },
-  extreme: { 1: 0, 2: 0.1, 3: 0.3, 4: 0.6 },
-};
-
 export type TopicId = "slams" | "titles" | "rivalries" | "careers" | "records" | "oddities";
 export const topics: { id: TopicId; label: string; blurb: string }[] = [
   { id: "slams", label: "Grand Slams", blurb: "Champions, finals, years and upsets" },
@@ -91,7 +76,12 @@ function at(event: string) {
 /** "Wimbledon", "the Australian Open" */
 const the = (event: string) => at(event).slice(3);
 /** "the 2008 Wimbledon final" reads better than "the Wimbledon 2008 final" */
-const theFinal = (m: RecordMatch) => (m.event === "Olympics" ? `the ${m.season} Olympic final` : `the ${m.season} ${m.event === "Canada" ? "Canadian Open" : m.event} final`);
+const theFinal = (m: RecordMatch) =>
+  m.event === "Olympics"
+    ? `the ${m.season} Olympic final`
+    : /Finals$|Trophy$|Champions$/.test(m.event)
+      ? `the final of the ${m.season} ${m.event}`
+      : `the ${m.season} ${m.event === "Canada" ? "Canadian Open" : m.event} final`;
 const flipped = (score: string) => score.replace(/(\[?)(\d+)-(\d+)/g, "$1$3-$2");
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
@@ -122,7 +112,7 @@ function fameOf(c: Career | undefined): 0 | 1 | 2 | 3 {
 /* ---------- The bank ---------- */
 
 // The rules whose questions are about one tournament: a quiz on chosen tournaments draws only on these
-const tournamentRules = new Set(["slam-champion", "slam-runner-up", "final-year", "slam-once", "slam-event-count", "slam-event-last", "slam-upset", "champion", "slam-aces", "slam-longest", "slam-qualifier"]);
+const tournamentRules = new Set(["slam-champion", "slam-runner-up", "final-year", "slam-once", "slam-event-count", "slam-event-last", "slam-upset", "champion", "big-champion", "big-runner-up", "slam-aces", "slam-longest", "slam-qualifier"]);
 
 export function buildQuestions({ tour, matches, players, last, books }: QuizInput): QuestionBank {
   const played = matches.filter((m) => !exhibitions.has(m.event) && m.tier !== "team" && m.tier !== "other").sort(chron);
@@ -335,10 +325,27 @@ export function buildQuestions({ tour, matches, players, last, books }: QuizInpu
   for (const m of finals.filter((f) => f.tier !== "slam" && !/\d$/.test(f.event))) {
     const fw = fame(m.w);
     const big = m.tier === "finals" || m.tier === "olympics";
+    // The 1000s, the tour finals and the Olympics are the big tournaments after the Slams
+    const major = big || m.tier === "1000";
     const level: Level = big ? (fw === 3 ? 2 : 3) : m.tier === "1000" ? (fw === 3 ? 3 : 4) : m.tier === "500" && fw === 3 ? 3 : 4;
+    if (major) {
+      const fl = fame(m.l);
+      add({
+        id: `big-runner-up:${m.id}`,
+        rule: "big-runner-up",
+        topic: "titles",
+        level: (big ? (fl === 3 ? 2 : 3) : fl === 3 ? 3 : 4) as Level,
+        prompt: m.event === "Olympics" ? `Who did ${name(m.w)} beat for ${tw} singles gold at the ${m.season} Olympics?` : `Who did ${name(m.w)} beat in ${theFinal(m)}?`,
+        answer: { kind: "name", key: m.l, text: name(m.l) },
+        fact: `${name(m.w)} won ${m.score}.`,
+        go: m.id,
+        about: [m.w, m.l],
+        season: m.season,
+      });
+    }
     add({
       id: `champion:${m.id}`,
-      rule: "champion",
+      rule: major ? "big-champion" : "champion",
       topic: "titles",
       level,
       prompt: m.event === "Olympics" ? `Who won ${tw} singles gold at the ${m.season} Olympics?` : `Who won the ${tw} title ${at(m.event)} in ${m.season}?`,
@@ -711,81 +718,62 @@ function boardQuestions(books: RecordBooks, tw: string, from: number): Omit<Ques
 
 /* ---------- Drawing a quiz ---------- */
 
-export type QuizSettings = {
-  tours: Tour[];
-  difficulty: Difficulty;
-  topics: TopicId[];
-  from: number;
-  to: number;
-  player: string | null; // a player key, for a quiz all about one player
-  events: string[]; // tournaments, as the data names them, for a quiz on those alone; none for any
-  count: number;
-};
-
-/** A question whose answer is the player a quiz is all about gives itself away */
-export const answeredBy = (q: Question, player: string) => q.answer.kind === "name" && q.answer.key === player;
+// Every quiz is the same shape: ten questions, nine asking who won or lost the final of a big tournament
+// (a Slam, a 1000, the tour finals, the Olympics) and one asking for a year or a count of titles. The
+// levels are picked for you, the same mix every time, so every quiz has the famous and the obscure.
+export const QUIZ_LENGTH = 10;
+const finalRules = new Set(["slam-champion", "slam-runner-up", "big-champion", "big-runner-up"]);
+const numberRules = new Set(["final-year", "slam-once", "slam-count", "slam-event-count", "title-count"]);
+const levelMix: Record<Level, number> = { 1: 0.3, 2: 0.35, 3: 0.25, 4: 0.1 };
 
 /**
- * A quiz drawn at random from the banks: each question's level by the difficulty's mix, then any question
- * at that level that fits the settings. No rule more than a quarter of the time, no match or answer twice
- * running, and questions in `avoid` (asked recently) only once the rest run out. Fewer than asked for if
- * that's all there is.
+ * A quiz drawn at random from the banks of the tours asked for: each question's level by the mix, then
+ * any question at that level. No match or player's name twice, and questions in `avoid` (asked
+ * recently) only once the rest run out. The numeric question goes in at a random place.
  */
-export function drawQuiz(banks: QuestionBank[], settings: QuizSettings, avoid: Set<string>, random = Math.random): Question[] {
-  const whole = banks.every((b) => settings.from <= b.from && settings.to >= b.to);
-  const pool = banks
-    .flatMap((b) => b.questions)
-    .filter(
-      (q) =>
-        settings.tours.includes(q.tour) &&
-        settings.topics.includes(q.topic) &&
-        (q.season === null ? whole || !!settings.player : q.season >= settings.from && q.season <= settings.to) &&
-        (!settings.player || (q.about.includes(settings.player) && !answeredBy(q, settings.player))) &&
-        (!settings.events.length || q.events.some((e) => settings.events.includes(e))),
-    );
-  const byLevel = new Map<Level, Question[]>([1, 2, 3, 4].map((l) => [l as Level, pool.filter((q) => q.level === l)]));
-  const weights = mix[settings.difficulty];
+export function drawQuiz(banks: QuestionBank[], tours: Tour[], avoid: Set<string>, random = Math.random): Question[] {
+  const pool = banks.flatMap((b) => b.questions).filter((q) => tours.includes(q.tour));
   const picked: Question[] = [];
-  const cap = Math.max(2, Math.ceil(settings.count / 4));
-  const rules = new Map<string, number>();
-  const answers = new Map<string, number>();
-  const goes = new Set<string>();
-  const fits = (q: Question, strict: boolean) =>
-    !picked.includes(q) &&
-    (rules.get(q.rule) ?? 0) < cap &&
-    (!q.go || !goes.has(q.go)) &&
-    (q.answer.kind !== "name" || settings.player || (answers.get(q.answer.key) ?? 0) < 2) &&
-    (!strict || !avoid.has(q.id));
-
-  for (let i = 0; i < settings.count; i++) {
-    // The level for this question, then the nearest level that still has a question to give
-    let r = random();
-    let level: Level = 4;
-    for (const l of [1, 2, 3, 4] as Level[]) {
-      if ((r -= weights[l]) < 0) {
-        level = l;
-        break;
-      }
-    }
-    const order = ([1, 2, 3, 4] as Level[]).sort((a, b) => Math.abs(a - level) - Math.abs(b - level) || (weights[b] ?? 0) - (weights[a] ?? 0));
-    let q: Question | undefined;
-    for (const strict of [true, false]) {
-      for (const l of order) {
-        const options = byLevel.get(l)!.filter((x) => fits(x, strict));
-        if (options.length) {
-          q = options[Math.floor(random() * options.length)];
+  const take = (rules: Set<string>, count: number) => {
+    const byLevel = new Map<Level, Question[]>(([1, 2, 3, 4] as Level[]).map((l) => [l, pool.filter((q) => q.level === l && rules.has(q.rule))]));
+    const fits = (q: Question, strict: boolean) =>
+      !picked.includes(q) &&
+      !picked.some((p) => (q.go && p.go === q.go) || (q.answer.kind === "name" && p.answer.kind === "name" && p.answer.key === q.answer.key)) &&
+      (!strict || !avoid.has(q.id));
+    const out: Question[] = [];
+    for (let i = 0; i < count; i++) {
+      // The level for this question, then the nearest level that still has a question to give
+      let r = random();
+      let level: Level = 4;
+      for (const l of [1, 2, 3, 4] as Level[]) {
+        if ((r -= levelMix[l]) < 0) {
+          level = l;
           break;
         }
       }
-      if (q) break;
+      const order = ([1, 2, 3, 4] as Level[]).sort((a, b) => Math.abs(a - level) - Math.abs(b - level) || levelMix[b] - levelMix[a]);
+      let q: Question | undefined;
+      for (const strict of [true, false]) {
+        for (const l of order) {
+          const options = byLevel.get(l)!.filter((x) => fits(x, strict));
+          if (options.length) {
+            q = options[Math.floor(random() * options.length)];
+            break;
+          }
+        }
+        if (q) break;
+      }
+      if (!q) break;
+      picked.push(q);
+      out.push(q);
     }
-    if (!q) break;
-    picked.push(q);
-    rules.set(q.rule, (rules.get(q.rule) ?? 0) + 1);
-    if (q.answer.kind === "name") answers.set(q.answer.key, (answers.get(q.answer.key) ?? 0) + 1);
-    if (q.go) goes.add(q.go);
-  }
-  return picked;
+    return out;
+  };
+  const finals = take(finalRules, QUIZ_LENGTH - 1);
+  const [number] = take(numberRules, 1);
+  if (!number) return finals;
+  const at = Math.floor(random() * (finals.length + 1));
+  return [...finals.slice(0, at), number, ...finals.slice(at)];
 }
 
 /* ---------- Checking an answer ---------- */

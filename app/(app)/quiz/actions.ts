@@ -15,16 +15,7 @@ import { OWNER_COOKIE, type QuizAnswer, type StoredQuestion, type Turn } from ".
 // here as it's typed, so a results page shows what was really known. Only the browser that started a
 // quiz can answer it.
 
-const settings = z.strictObject({
-  tours: z.array(z.enum(["atp", "wta"])).min(1).max(2),
-  difficulty: z.enum(["easy", "medium", "hard", "extreme"]),
-  topics: z.array(z.enum(["slams", "titles", "rivalries", "careers", "records", "oddities"])).min(1),
-  from: z.number().int().min(1990).max(2100),
-  to: z.number().int().min(1990).max(2100),
-  player: z.string().max(40).nullable(),
-  events: z.array(z.string().max(80)).max(200),
-  count: z.union([z.literal(5), z.literal(10), z.literal(15), z.literal(20)]),
-});
+const settings = z.strictObject({ tours: z.array(z.enum(["atp", "wta"])).min(1).max(2) });
 export type QuizRequest = z.infer<typeof settings>;
 
 /** This browser's quiz cookie, made the first time it's needed */
@@ -47,7 +38,6 @@ async function whoIs() {
 /** Draw a new quiz and keep it. Returns its id, or why there isn't one. */
 export async function startQuiz(input: QuizRequest): Promise<{ id: string } | { error: string }> {
   const s = settings.parse(input);
-  if (s.from > s.to) return { error: "The first year is after the last one." };
   const banks = (await Promise.all(s.tours.map((t) => questionBank(t)))).filter((b): b is QuestionBank => b !== null);
   if (!banks.length) return { error: "The quiz isn't available right now. Try again in a little while." };
   const db = getDb();
@@ -55,11 +45,11 @@ export async function startQuiz(input: QuizRequest): Promise<{ id: string } | { 
   // Questions this browser was asked in its last few quizzes come up again only once the rest run out
   const recent = await db.select({ questions: quizzes.questions }).from(quizzes).where(eq(quizzes.owner, me!)).orderBy(desc(quizzes.createdAt)).limit(8);
   const avoid = new Set(recent.flatMap((r) => (r.questions as StoredQuestion[]).map((q) => q.id)));
-  const questions: StoredQuestion[] = drawQuiz(banks, { ...s, player: s.player || null }, avoid);
-  if (!questions.length) return { error: "No questions fit those settings. Try more categories, tournaments or years, or another player." };
+  const questions: StoredQuestion[] = drawQuiz(banks, s.tours, avoid);
+  if (!questions.length) return { error: "The quiz isn't available right now. Try again in a little while." };
   const user = await whoIs();
   const id = newId();
-  await db.insert(quizzes).values({ id, owner: me!, userId: user?.id ?? null, name: user?.name ?? null, difficulty: s.difficulty, settings: s, questions });
+  await db.insert(quizzes).values({ id, owner: me!, userId: user?.id ?? null, name: user?.name ?? null, difficulty: "auto", settings: s, questions });
   // Quizzes left unfinished for a week are cleared away
   await db.delete(quizzes).where(and(isNull(quizzes.finishedAt), lt(quizzes.createdAt, sql`now() - interval '7 days'`)));
   return { id };

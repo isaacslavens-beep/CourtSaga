@@ -1,4 +1,5 @@
-import type { Question, QuizSettings } from "../../diary/quiz";
+import type { Tour } from "../../diary/library";
+import type { Question } from "../../diary/quiz";
 
 // What the quiz's server and its pages pass between them
 
@@ -21,15 +22,5 @@ export type Turn =
 
 export const asked = (q: StoredQuestion): AskedQuestion => ({ prompt: q.prompt, level: q.level, topic: q.topic, tour: q.tour, kind: q.answer.kind });
 
-/** Settings from a link, e.g. ?d=hard&t=atp&topics=slams,records&from=2010&to=2026&n=10&p=atp:N409&ev=Wimbledon */
-export const settingsQuery = (s: Pick<QuizSettings, "difficulty" | "tours" | "topics" | "from" | "to" | "count" | "player"> & { events?: string[] }) =>
-  new URLSearchParams({
-    d: s.difficulty,
-    t: s.tours.length === 2 ? "both" : s.tours[0],
-    topics: s.topics.join(","),
-    from: String(s.from),
-    to: String(s.to),
-    n: String(s.count),
-    ...(s.player && { p: s.player }),
-    ...(s.events?.length && { ev: s.events.join("|") }),
-  }).toString();
+/** A quiz's tours as a link to /quiz: "t=atp", "t=wta" or "t=both" */
+export const tourQuery = (tours: Tour[]) => `t=${tours.length === 2 ? "both" : tours[0]}`;

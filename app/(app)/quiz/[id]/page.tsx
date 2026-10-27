@@ -3,12 +3,13 @@ import { cookies, headers } from "next/headers";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
-import { loadQuiz, quizPlayers, standing, type KeptQuiz } from "@/lib/quiz";
-import { levelNames, type Level, type QuizSettings } from "../../../diary/quiz";
+import { loadQuiz, standing, type KeptQuiz } from "@/lib/quiz";
+import { levelNames, type Level } from "../../../diary/quiz";
+import type { Tour } from "../../../diary/library";
 import { Chevron, PageBar, StatBox } from "../../../ui";
 import { OpeningDiary } from "../../loading-page";
 import { describe, difficultyName, LevelTag, QuizCredit } from "../parts";
-import { asked, OWNER_COOKIE, settingsQuery, type QuizAnswer, type StoredQuestion } from "../shared";
+import { asked, OWNER_COOKIE, tourQuery, type QuizAnswer, type StoredQuestion } from "../shared";
 import { PlayQuiz } from "./play";
 import { ShareResults, TakeSame } from "./share";
 
@@ -16,10 +17,13 @@ import { ShareResults, TakeSame } from "./share";
    finished, the results for anyone with the link: the score, how it compares, and every question with
    what was typed and the answer. */
 
-type Kept = QuizSettings & { challenge?: string };
+type Kept = { tours: Tour[]; challenge?: string };
 
 const score = (q: KeptQuiz) => `${q.correct ?? 0}/${(q.questions as unknown[]).length}`;
-const headline = (q: KeptQuiz) => `${q.name ? `${q.name}: ` : ""}${score(q)} on a ${difficultyName(q.difficulty).toLowerCase()} tennis quiz`;
+const headline = (q: KeptQuiz) => {
+  const level = difficultyName(q.difficulty);
+  return `${q.name ? `${q.name}: ` : ""}${score(q)} on a ${level ? `${level.toLowerCase()} ` : ""}tennis quiz`;
+};
 
 export async function generateMetadata({ params }: PageProps<"/quiz/[id]">): Promise<Metadata> {
   const quiz = await loadQuiz((await params).id).catch(() => null);
@@ -51,9 +55,7 @@ async function Run({ params }: Pick<PageProps<"/quiz/[id]">, "params">) {
   if (!quiz) notFound();
   const mine = jar.get(OWNER_COOKIE)?.value === quiz.owner;
   const settings = quiz.settings as Kept;
-  const picks = await quizPlayers().catch(() => null);
-  const player = settings.player ? (picks?.players.find((p) => p.key === settings.player)?.name ?? null) : null;
-  const about = describe(settings, player);
+  const about = describe(settings, quiz.difficulty);
   const questions = quiz.questions as StoredQuestion[];
 
   if (!quiz.finishedAt) {
@@ -85,7 +87,7 @@ async function Results({ quiz, mine, about, settings }: { quiz: KeptQuiz; mine: 
   const byLevel = ([1, 2, 3, 4] as Level[])
     .map((l) => ({ l, n: questions.filter((q) => q.level === l).length, right: questions.filter((q, i) => q.level === l && answers[i]?.right).length }))
     .filter((x) => x.n);
-  const again = `/quiz?${settingsQuery(settings)}`;
+  const again = `/quiz?${tourQuery(settings.tours)}`;
   const rivalDone = rival?.finishedAt ? rival : null;
 
   return (
@@ -96,8 +98,8 @@ async function Results({ quiz, mine, about, settings }: { quiz: KeptQuiz; mine: 
         foot={
           <div className="flex flex-wrap gap-2">
             <StatBox label="Score" value={score(quiz)} className="min-w-24" />
-            <StatBox label="Difficulty" value={difficultyName(quiz.difficulty)} className="min-w-24" />
-            {better !== null && <StatBox label={`Better than, of ${difficultyName(quiz.difficulty).toLowerCase()} quizzes`} value={`${better}%`} className="min-w-24" />}
+            {difficultyName(quiz.difficulty) && <StatBox label="Difficulty" value={difficultyName(quiz.difficulty)} className="min-w-24" />}
+            {better !== null && <StatBox label={`Better than, of ${difficultyName(quiz.difficulty)?.toLowerCase() ?? "all"} quizzes`} value={`${better}%`} className="min-w-24" />}
             {byLevel.map((x) => (
               <StatBox key={x.l} label={levelNames[x.l]} value={`${x.right}/${x.n}`} className="min-w-20" />
             ))}
@@ -180,10 +182,7 @@ async function Results({ quiz, mine, about, settings }: { quiz: KeptQuiz; mine: 
                   <ShareResults id={quiz.id} origin={origin} name={quiz.name} text={headline(quiz)} />
                   <div className="flex flex-wrap gap-x-4 gap-y-2 border-t border-line pt-4 text-sm font-semibold">
                     <Link href={again} className="inline-flex items-center gap-1 text-court underline-offset-4 hover:underline">
-                      New quiz, same settings <Chevron />
-                    </Link>
-                    <Link href="/quiz" className="inline-flex items-center gap-1 text-court underline-offset-4 hover:underline">
-                      Change the settings <Chevron />
+                      Another quiz <Chevron />
                     </Link>
                   </div>
                 </div>
@@ -198,7 +197,7 @@ async function Results({ quiz, mine, about, settings }: { quiz: KeptQuiz; mine: 
                   <div className="flex flex-wrap items-center gap-3">
                     <TakeSame id={quiz.id} />
                     <Link href={again} className="btn btn-secondary">
-                      A new quiz like it
+                      A new quiz
                     </Link>
                   </div>
                 </div>
