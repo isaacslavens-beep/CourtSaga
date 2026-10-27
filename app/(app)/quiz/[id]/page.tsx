@@ -8,7 +8,7 @@ import { levelNames, type Level } from "../../../diary/quiz";
 import type { Tour } from "../../../diary/library";
 import { Chevron, PageBar, StatBox } from "../../../ui";
 import { OpeningDiary } from "../../loading-page";
-import { describe, difficultyName, LevelTag, QuizCredit } from "../parts";
+import { describe, difficultyName, eventColour, LevelTag, QuizCredit } from "../parts";
 import { asked, OWNER_COOKIE, tourQuery, type QuizAnswer, type StoredQuestion } from "../shared";
 import { PlayQuiz } from "./play";
 import { ShareResults, TakeSame } from "./share";
@@ -121,8 +121,9 @@ async function Results({ quiz, mine, about, settings }: { quiz: KeptQuiz; mine: 
               {questions.map((q, i) => {
                 const a = answers[i];
                 const answer = q.answer.kind === "name" ? q.answer.text : String(q.answer.value);
+                const colour = eventColour(q.events?.[0]);
                 return (
-                  <li key={q.id} className="flex gap-3 border-b border-line px-4 py-4 last:border-b-0 sm:px-5">
+                  <li key={q.id} className="flex gap-3 border-b border-line px-4 py-4 last:border-b-0 sm:px-5" style={colour ? { boxShadow: `inset 3px 0 0 ${colour}` } : undefined}>
                     <span className={`stat mt-0.5 w-7 shrink-0 text-lg ${a?.right ? "text-grass" : "text-fault"}`} aria-label={a?.right ? "Right" : "Wrong"}>
                       {a?.right ? "✓" : "✗"}
                     </span>

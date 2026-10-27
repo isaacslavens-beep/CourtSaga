@@ -40,6 +40,7 @@ export type Question = {
   about: string[]; // the players it's about or answered by, for a quiz on one player
   season: number | null; // the season it's about, or null for a whole career or record
   events: string[]; // the tournament it's about, as the data names it, or none
+  choices?: { key: string; name: string; short: string }[]; // an either-or question's two players, picked with a click
 };
 
 export type BankPlayer = { key: string; name: string; short: string; matches: number };
@@ -510,6 +511,7 @@ export function buildQuestions({ tour, matches, players, last, books }: QuizInpu
       go: ms[ms.length - 1].id,
       about: [a, b],
       season: null,
+      choices: [a, b].map((key) => ({ key, name: name(key), short: players[key]?.short ?? name(key) })),
     });
   }
   for (const [k, ms] of pairs) {
@@ -741,13 +743,15 @@ function boardQuestions(books: RecordBooks, tw: string, from: number): Omit<Ques
 /* ---------- Drawing a quiz ---------- */
 
 // Every quiz is the same shape: ten questions. Six ask who won or lost the final of a big tournament (a
-// Slam, a 1000, the tour finals, the Olympics); three are odder (who won the most titles or matches in a
-// year, who leads the head-to-head between two Slam champions); one asks for a year or a count of titles.
+// Slam, a 1000, the tour finals, the Olympics); two are either-or, answered with a click (which of two Slam
+// champions leads their head-to-head); one is odder (who won the most titles or matches in a year); one asks
+// for a year or a count of titles.
 // The levels are picked for you, the same mix every time, so every quiz has the famous and the obscure.
 export const QUIZ_LENGTH = 10;
 const finalRules = new Set(["slam-champion", "slam-runner-up", "big-champion", "big-runner-up"]);
-const oddRules = new Set(["season-titles", "season-wins", "h2h-leader"]);
-const ODD_QUESTIONS = 3;
+const choiceRules = new Set(["h2h-leader"]);
+const CHOICE_QUESTIONS = 2;
+const oddRules = new Set(["season-titles", "season-wins"]);
 const numberRules = new Set(["final-year", "slam-once", "slam-count", "slam-event-count", "title-count"]);
 const levelMix: Record<Level, number> = { 1: 0.3, 2: 0.35, 3: 0.25, 4: 0.1 };
 
@@ -794,7 +798,7 @@ export function drawQuiz(banks: QuestionBank[], tours: Tour[], avoid: Set<string
     }
     return out;
   };
-  const odd = take(oddRules, ODD_QUESTIONS);
+  const odd = [...take(choiceRules, CHOICE_QUESTIONS), ...take(oddRules, 1)];
   const all = [...odd, ...take(numberRules, 1), ...take(finalRules, QUIZ_LENGTH - 1 - odd.length)];
   for (let i = all.length - 1; i > 0; i--) {
     const j = Math.floor(random() * (i + 1));

@@ -12,7 +12,7 @@ export type StoredQuestion = Question;
 export type QuizAnswer = { typed: string; right: boolean };
 
 /** A question as the player sees it before answering: no answer, nothing that gives it away */
-export type AskedQuestion = Pick<Question, "prompt" | "level" | "topic" | "tour"> & { kind: Question["answer"]["kind"] };
+export type AskedQuestion = Pick<Question, "prompt" | "level" | "topic" | "tour" | "choices"> & { kind: Question["answer"]["kind"]; event: string | null };
 
 /** What answering a question gives back */
 export type Turn =
@@ -20,7 +20,15 @@ export type Turn =
   | { status: "again"; hint: string } // a name typed but no player picked from the list
   | { status: "closed" }; // not this browser's quiz, or already answered
 
-export const asked = (q: StoredQuestion): AskedQuestion => ({ prompt: q.prompt, level: q.level, topic: q.topic, tour: q.tour, kind: q.answer.kind });
+export const asked = (q: StoredQuestion): AskedQuestion => ({
+  prompt: q.prompt,
+  level: q.level,
+  topic: q.topic,
+  tour: q.tour,
+  kind: q.answer.kind,
+  choices: q.choices,
+  event: q.events?.[0] ?? null,
+});
 
 /** A quiz's tours as a link to /quiz: "t=atp", "t=wta" or "t=both" */
 export const tourQuery = (tours: Tour[]) => `t=${tours.length === 2 ? "both" : tours[0]}`;

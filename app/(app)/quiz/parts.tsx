@@ -15,6 +15,16 @@ export function QuizCredit() {
   return <p className="mt-10 text-center text-xs text-muted">Brought to you by Results Committee</p>;
 }
 
+// The big tournaments' colours, for a question about one: a panel's top rule and a faint wash, nothing louder
+const eventColours: [RegExp, string][] = [
+  [/^Wimbledon/, "#2e6b3f"],
+  [/^Roland Garros/, "#7a1f35"],
+  [/^Australian Open/, "#3a9ad9"],
+  [/^US Open/, "#1d3f94"],
+  [/^Olympics/, "#b08a2e"],
+];
+export const eventColour = (event: string | null | undefined) => (event ? (eventColours.find(([re]) => re.test(event))?.[1] ?? null) : null);
+
 export const topicName = (id: TopicId) => topics.find((t) => t.id === id)?.label ?? id;
 export const tourName = (t: Tour) => (t === "atp" ? "Men" : "Women");
 // Quizzes from before 27 Oct 2026's simplification had a difficulty of their own; since then it's a mix ("auto")

@@ -3,14 +3,17 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
+import type { CSSProperties } from "react";
+import { Avatar } from "../../../diary/fun";
 import { Chevron, PageBar, StatBox } from "../../../ui";
 import { answerQuestion } from "../actions";
-import { QuizCredit, topicName, tourName } from "../parts";
+import { eventColour, QuizCredit, topicName, tourName } from "../parts";
 import type { AskedQuestion, QuizAnswer, Turn } from "../shared";
 
 /* Taking a quiz: one question at a time, typed, checked on the server, then what the answer was and the
    match behind it. A player's name is picked from a list as it's typed, so a misspelling can't cost the
-   point; a year or a number is just typed. A quiz left halfway carries on where it stopped. */
+   point; a year or a number is just typed, and an either-or question is a click on one of its two players.
+   A question about a big tournament wears its colour. A quiz left halfway carries on where it stopped. */
 
 type Shown = Extract<Turn, { status: "answered" }>;
 type Option = { key: string; name: string };
@@ -42,7 +45,7 @@ export function PlayQuiz({ id, questions, answered, about }: { id: string; quest
   }, [shown, index]);
 
   // The players the name being typed could be, once typing pauses; a newer search cancels an older one
-  const wanted = q?.kind === "name" && !picked && !shown ? typed.trim() : "";
+  const wanted = q?.kind === "name" && !q.choices && !picked && !shown ? typed.trim() : "";
   useEffect(() => {
     if (!wanted) return;
     const controller = new AbortController();
@@ -98,6 +101,7 @@ export function PlayQuiz({ id, questions, answered, about }: { id: string; quest
   };
 
   if (!q) return null;
+  const colour = eventColour(q.event);
   return (
     <>
       <PageBar
@@ -126,8 +130,8 @@ export function PlayQuiz({ id, questions, answered, about }: { id: string; quest
             ))}
           </ol>
 
-          <div className="panel">
-            <div className="panel-head">
+          <div className="panel" style={colour ? ({ "--accent": colour } as CSSProperties) : undefined}>
+            <div className="panel-head" style={colour ? { background: `color-mix(in srgb, ${colour} 7%, var(--surface))` } : undefined}>
               <span className="panel-meta">
                 {topicName(q.topic)} · {tourName(q.tour)}
               </span>
@@ -138,7 +142,39 @@ export function PlayQuiz({ id, questions, answered, about }: { id: string; quest
             <div className="panel-body">
               <h2 className="font-display text-[1.5rem] font-bold leading-snug sm:text-[1.75rem]">{q.prompt}</h2>
 
-              {!shown ? (
+              {!shown && q.choices ? (
+                <div className="mt-5">
+                  <p className="mb-2 text-sm font-semibold text-muted">Click a player</p>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {q.choices.map((c) => (
+                      <button
+                        key={c.key}
+                        type="button"
+                        disabled={pending}
+                        onClick={() => {
+                          setTyped(c.name);
+                          send(c.name, c.key);
+                        }}
+                        className="group flex cursor-pointer items-center gap-3 rounded border-2 border-line bg-surface px-4 py-3 text-left transition-colors hover:border-foreground hover:bg-sunk focus-visible:border-foreground disabled:cursor-wait"
+                      >
+                        <Avatar name={c.short ?? c.name} size="h-10 w-10 text-sm" />
+                        <span className="flex-1 font-display text-lg font-bold leading-tight">{c.name}</span>
+                        <Chevron className="h-3.5 w-3.5 text-muted transition-colors group-hover:text-foreground" />
+                      </button>
+                    ))}
+                  </div>
+                  {failed && (
+                    <p role="alert" className="mt-2 font-medium text-fault">
+                      That didn&apos;t go through. Try again.
+                    </p>
+                  )}
+                  <div className="mt-4">
+                    <button type="button" disabled={pending} onClick={() => send("")} className="btn btn-secondary">
+                      {pending ? "Checking…" : "Don't know"}
+                    </button>
+                  </div>
+                </div>
+              ) : !shown ? (
                 <form
                   className="mt-5"
                   onSubmit={(e) => {
