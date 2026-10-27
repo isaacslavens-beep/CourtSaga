@@ -4,14 +4,14 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { getSession } from "@/lib/auth";
 import { coverLines, loadDiary, shareSlugOf } from "@/lib/diary";
-import { rivalryRecords } from "../../demos/rivalry-records";
-import { sampleEntries, sampleMatches, sampleOrder } from "../../demos/sample";
+import { sampleLog, sampleMatches } from "../../demos/sample";
+import { TournamentLabel } from "../../match-ui";
 import { SAGA_MIN_MATCHES } from "../../diary/books";
-import { toMatches, watched } from "../../diary/library";
+import { Avatar, BallScore } from "../../diary/fun";
+import { eventLabel, scoreText, toMatches, watched } from "../../diary/library";
 import { SagaSection } from "../../diary/saga";
 import { AllMatches } from "../../diary/saga-list";
 import { LogProvider } from "../../diary/store";
-import { SectionHead } from "../../ui";
 import { OpeningDiary } from "../loading-page";
 import { saver } from "../saver";
 import { SagaHero } from "./hero";
@@ -77,44 +77,78 @@ async function Saga({ searchParams }: Pick<PageProps<"/saga">, "searchParams">) 
   );
 }
 
-// The sample books' photos and where they're from
-const photoCredits = [
-  ["Rybakina, US Open 2026", "Just Women's Sports"],
-  ["Alcaraz, Australian Open 2026", "ATP Tour"],
-  ["Sinner at Wimbledon, 2025", "ATP Tour"],
-  ["Alcaraz and Djokovic, Australian Open 2026", "Olympics.com"],
-  ["Nadal and Federer, Australian Open 2009", "Tennis365"],
+// Two matches from the sample log, as a saga lists them once starred
+const examples = ["wim23", "uso22"].map((id) => ({ m: sampleMatches[id], fan: sampleLog[id] }));
+
+const steps = [
+  ["Star a match", "Find any match since 2003 in Explore and star it, then mark it watched if it was."],
+  ["Rate it and note it", "One to five balls, and a line on how it felt: where, who with, what stuck."],
+  [`At ${SAGA_MIN_MATCHES} matches, books`, "The saga sorts the matches into books: each rivalry followed, every final seen, each season, with the story of how they connect."],
 ];
 
-/** Signed out: the way to a saga of one's own, and three books from a sample fan's saga to open */
+/** Signed out: two sample matches the way a saga keeps them, and how starring builds one */
 function GuestSaga() {
   return (
     <>
       <SagaHero title="Your saga" lines={[]} players={[]} share={null} have={0} need={SAGA_MIN_MATCHES} />
       <section className="flex-1 pb-20 pt-8 sm:pt-10">
-        <div className="mx-auto w-full max-w-6xl space-y-10 px-4 sm:px-8">
-          <div className="panel flex flex-col items-start gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-5">
-            <p className="text-muted">
-              <span className="font-display text-lg font-bold text-foreground">Free, with an account.</span> Star matches in Explore and they become books like these.
-            </p>
-            <span className="flex shrink-0 items-center gap-4">
+        <div className="mx-auto grid w-full max-w-6xl gap-6 px-4 sm:px-8 lg:grid-cols-[minmax(0,1fr)_22rem]">
+          <div className="panel self-start">
+            <div className="panel-head">
+              <h2 className="panel-title">Two logged matches</h2>
+              <span className="panel-meta">A sample</span>
+            </div>
+            <ul className="divide-y divide-line">
+              {examples.map(({ m, fan }) => (
+                <li key={m.id} className="flex gap-3 px-4 py-4 sm:px-5">
+                  <span className="flex shrink-0 -space-x-2 max-sm:hidden">
+                    <Avatar name={m.winner} size="h-9 w-9 text-xs ring-2 ring-surface" />
+                    <Avatar name={m.loser} size="h-9 w-9 text-xs ring-2 ring-surface" />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <TournamentLabel event={eventLabel(m)} surface={m.surface} logo="h-5 w-5" className="text-sm" />
+                      <BallScore value={fan.rating} size="xs" />
+                    </div>
+                    <p className="mt-1 text-sm">
+                      <span className="font-semibold">{m.winner}</span> <span className="text-muted">beat {m.loser}</span>{" "}
+                      <span className="whitespace-nowrap text-xs tabular-nums text-muted">{scoreText(m.score)}</span>
+                    </p>
+                    <p className="mt-2 border-l-2 border-line pl-3 text-[0.9375rem] leading-snug">{fan.note}</p>
+                    <p className="mt-1 text-xs text-muted">
+                      Watched on {fan.watchedOn}
+                      {fan.cheering && ` · cheering for ${fan.cheering}`}
+                    </p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <aside className="panel self-start">
+            <div className="panel-head">
+              <h2 className="panel-title">How a saga builds</h2>
+            </div>
+            <ol className="panel-body space-y-4">
+              {steps.map(([title, body], i) => (
+                <li key={title} className="flex gap-3">
+                  <span className="step h-6 w-6 shrink-0 text-xs">{i + 1}</span>
+                  <p className="text-sm leading-snug text-muted">
+                    <strong className="block text-foreground">{title}</strong>
+                    {body}
+                  </p>
+                </li>
+              ))}
+            </ol>
+            <div className="flex flex-wrap items-center gap-4 border-t border-line px-4 py-3 sm:px-5">
+              <Link href="/signup" className="btn btn-primary">
+                Sign up, free
+              </Link>
               <Link href="/login?next=%2Fsaga" className="font-semibold text-court underline-offset-4 hover:underline">
                 Log in
               </Link>
-              <Link href="/signup" className="btn btn-primary">
-                Sign up
-              </Link>
-            </span>
-          </div>
-          <div>
-            <SectionHead title="A sample saga" body="Three books from a sample fan's saga. Open one and turn the pages." />
-            <LogProvider mode="shared" matches={sampleMatches} entries={sampleEntries} order={sampleOrder} records={rivalryRecords}>
-              <SagaSection only={["Alcaraz-Sinner", "Alcaraz-Djokovic", "finals"]} />
-            </LogProvider>
-            <p className="mt-6 text-xs leading-relaxed text-muted">
-              <span className="font-semibold">Photos:</span> {photoCredits.map(([photo, source]) => `${photo} (${source})`).join(" · ")}
-            </p>
-          </div>
+            </div>
+          </aside>
         </div>
       </section>
     </>
