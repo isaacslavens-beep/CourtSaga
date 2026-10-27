@@ -4,7 +4,7 @@ import type { Question, QuizSettings } from "../../diary/quiz";
 
 export const OWNER_COOKIE = "courtsaga-quiz";
 
-/** A question as it's kept (quizzes from before 28 Oct 2026 also kept what a typed name answer would take) */
+/** A question as it's kept (quizzes from before this change also kept what a typed name answer would take) */
 export type StoredQuestion = Question;
 
 /** What was typed for a question, and whether it was right */
