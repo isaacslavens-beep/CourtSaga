@@ -9,7 +9,7 @@ import { quizzes } from "@/db/schema";
 import { getSession } from "@/lib/auth";
 import { questionBank } from "@/lib/quiz";
 import { check, drawQuiz, type QuestionBank } from "../../diary/quiz";
-import { OWNER_COOKIE, type QuizAnswer, type StoredQuestion, type Turn } from "./shared";
+import { OWNER_COOKIE, SEEN_COOKIE, seenIds, type QuizAnswer, type StoredQuestion, type Turn } from "./shared";
 
 // Taking a quiz. A quiz is drawn and kept on the server with its answers, and each answer is checked
 // here as it's typed, so a results page shows what was really known. Only the browser that started a
@@ -98,6 +98,7 @@ export async function sameQuestions(id: string): Promise<{ id: string } | { erro
   const db = getDb();
   const [quiz] = await db.select().from(quizzes).where(eq(quizzes.id, String(id)));
   if (!quiz?.finishedAt) return { error: "That quiz can't be taken again." };
+  if (seenIds((await cookies()).get(SEEN_COOKIE)?.value).includes(quiz.id)) return { error: "The answers to that quiz have been seen here." };
   const me = await owner(true);
   const user = await whoIs();
   const fresh = newId();
@@ -111,4 +112,11 @@ export async function sameQuestions(id: string): Promise<{ id: string } | { erro
     questions: quiz.questions,
   });
   return { id: fresh };
+}
+
+/** See a shared quiz's answers without taking it, which rules out taking it from this browser after */
+export async function showAnswers(id: string) {
+  const jar = await cookies();
+  const seen = [...seenIds(jar.get(SEEN_COOKIE)?.value).filter((x) => x !== id), String(id).slice(0, 20)].slice(-60);
+  jar.set(SEEN_COOKIE, seen.join(" "), { httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production", maxAge: 60 * 60 * 24 * 400, path: "/" });
 }

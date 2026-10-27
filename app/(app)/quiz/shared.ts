@@ -4,6 +4,9 @@ import type { Question } from "../../diary/quiz";
 // What the quiz's server and its pages pass between them
 
 export const OWNER_COOKIE = "courtsaga-quiz";
+/** The shared quizzes this browser has seen the answers to, so it can't then take them: ids, space-separated */
+export const SEEN_COOKIE = "courtsaga-quiz-seen";
+export const seenIds = (value: string | undefined) => (value ?? "").split(" ").filter(Boolean);
 
 /** A question as it's kept (quizzes from before this change also kept what a typed name answer would take) */
 export type StoredQuestion = Question;

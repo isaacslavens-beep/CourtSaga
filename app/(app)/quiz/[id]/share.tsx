@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { nameResults, sameQuestions } from "../actions";
+import { nameResults, sameQuestions, showAnswers } from "../actions";
 
 /* Sharing results: a name to put on them, and the link to copy (or a phone's share sheet). For anyone
    else who opens them, the same questions to try. */
@@ -63,5 +63,26 @@ export function TakeSame({ id }: { id: string }) {
       </button>
       {failed && <span className="text-sm font-medium text-fault">That didn&apos;t work. Try again.</span>}
     </>
+  );
+}
+
+/** "Just show the answers": once seen, the same questions can't be taken from here */
+export function ShowAnswers({ id }: { id: string }) {
+  const router = useRouter();
+  const [pending, start] = useTransition();
+  return (
+    <button
+      type="button"
+      disabled={pending}
+      onClick={() =>
+        start(async () => {
+          await showAnswers(id);
+          router.refresh();
+        })
+      }
+      className="cursor-pointer text-sm font-semibold text-muted underline-offset-4 hover:text-foreground hover:underline"
+    >
+      Just show the answers (then it can&apos;t be taken)
+    </button>
   );
 }

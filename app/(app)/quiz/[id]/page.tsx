@@ -9,9 +9,9 @@ import type { Tour } from "../../../diary/library";
 import { Chevron, PageBar, StatBox } from "../../../ui";
 import { OpeningDiary } from "../../loading-page";
 import { describe, difficultyName, eventColour, LevelTag, QuizCredit } from "../parts";
-import { asked, OWNER_COOKIE, tourQuery, type QuizAnswer, type StoredQuestion } from "../shared";
+import { asked, OWNER_COOKIE, SEEN_COOKIE, seenIds, tourQuery, type QuizAnswer, type StoredQuestion } from "../shared";
 import { PlayQuiz } from "./play";
-import { ShareResults, TakeSame } from "./share";
+import { ShareResults, ShowAnswers, TakeSame } from "./share";
 
 /* One quiz: while it's being taken, the questions one at a time (for the browser taking it); once it's
    finished, the results for anyone with the link: the score, how it compares, and every question with
@@ -31,7 +31,7 @@ export async function generateMetadata({ params }: PageProps<"/quiz/[id]">): Pro
   return { title, description, robots: { index: false, follow: false }, openGraph: { title, description, siteName: "CourtSaga", type: "website" } };
 }
 
-export default function QuizRun({ params, searchParams }: PageProps<"/quiz/[id]">) {
+export default function QuizRun({ params }: PageProps<"/quiz/[id]">) {
   return (
     <div className="flex flex-1 flex-col">
       <Suspense
@@ -42,14 +42,14 @@ export default function QuizRun({ params, searchParams }: PageProps<"/quiz/[id]"
           </>
         }
       >
-        <Run params={params} searchParams={searchParams} />
+        <Run params={params} />
       </Suspense>
     </div>
   );
 }
 
-async function Run({ params, searchParams }: PageProps<"/quiz/[id]">) {
-  const [{ id }, { answers }, jar] = await Promise.all([params, searchParams, cookies()]);
+async function Run({ params }: Pick<PageProps<"/quiz/[id]">, "params">) {
+  const [{ id }, jar] = await Promise.all([params, cookies()]);
   const quiz = await loadQuiz(id);
   if (!quiz) notFound();
   const mine = jar.get(OWNER_COOKIE)?.value === quiz.owner;
@@ -75,11 +75,12 @@ async function Run({ params, searchParams }: PageProps<"/quiz/[id]">) {
     );
   }
   // Someone else's results from a shared link: the same questions to take first, and the answers only once
-  // they're taken (or asked for)
-  if (!mine && answers === undefined) {
+  // they're taken. Seeing the answers instead rules out taking them from this browser.
+  if (!mine) {
     const own = await takenBy(jar.get(OWNER_COOKIE)?.value, quiz.id);
-    if (!own) return <Challenge quiz={quiz} about={about} />;
-    if (!own.finishedAt) redirect(`/quiz/${own.id}`);
+    const seen = seenIds(jar.get(SEEN_COOKIE)?.value).includes(quiz.id);
+    if (own && !own.finishedAt) redirect(`/quiz/${own.id}`);
+    if (!own && !seen) return <Challenge quiz={quiz} about={about} />;
   }
   return <Results quiz={quiz} mine={mine} about={about} settings={settings} />;
 }
@@ -108,9 +109,7 @@ function Challenge({ quiz, about }: { quiz: KeptQuiz; about: string }) {
             </p>
             <div className="flex flex-wrap items-center gap-4">
               <TakeSame id={quiz.id} />
-              <Link href={`/quiz/${quiz.id}?answers`} className="text-sm font-semibold text-muted underline-offset-4 hover:text-foreground hover:underline">
-                Just show the answers
-              </Link>
+              <ShowAnswers id={quiz.id} />
             </div>
           </div>
         </div>
@@ -212,7 +211,7 @@ async function Results({ quiz, mine, about, settings }: { quiz: KeptQuiz; mine: 
                 </div>
                 <div className="panel-body grid grid-cols-2 gap-2">
                   <StatBox label={quiz.name ?? "This quiz"} value={score(quiz)} />
-                  <Link href={`/quiz/${rivalDone.id}?answers`} className="block">
+                  <Link href={`/quiz/${rivalDone.id}`} className="block">
                     <StatBox label={rivalDone.name ?? "The original"} value={score(rivalDone)} className="hover:border-foreground" />
                   </Link>
                 </div>
@@ -239,13 +238,11 @@ async function Results({ quiz, mine, about, settings }: { quiz: KeptQuiz; mine: 
                   <h2 className="panel-title">Know more?</h2>
                 </div>
                 <div className="panel-body space-y-4">
-                  <p className="text-sm leading-snug text-muted">Take the same {questions.length} questions and compare, or make a quiz of your own. No account needed.</p>
-                  <div className="flex flex-wrap items-center gap-3">
-                    <TakeSame id={quiz.id} />
-                    <Link href={again} className="btn btn-secondary">
-                      A new quiz
-                    </Link>
-                  </div>
+                  {/* Here once these questions were taken, or their answers seen: either way, a new quiz */}
+                  <p className="text-sm leading-snug text-muted">A new set of {questions.length} questions, to share a score of your own. No account needed.</p>
+                  <Link href={again} className="btn btn-primary">
+                    A new quiz
+                  </Link>
                 </div>
               </div>
             )}
