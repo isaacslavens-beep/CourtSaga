@@ -13,6 +13,7 @@
     "import:matches": "tsx scripts/import-matches.ts"
   },
   "dependencies": {
+    "@vercel/analytics": "^2.0.1",
     "@vercel/functions": "^3.10.2",
     "better-auth": "^1.7.12",
     "drizzle-orm": "^0.45.4",
