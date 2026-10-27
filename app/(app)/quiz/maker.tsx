@@ -1,10 +1,12 @@
 "use client";
 
+import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useTransition } from "react";
 import { QUIZ_LENGTH } from "../../diary/quiz";
 import { Segmented } from "../../ui";
 import { startQuiz } from "./actions";
+import photo from "@/public/photos/djokovic-uso-2015.jpg";
 
 /* Making a quiz: only which tour. Every quiz is ten questions at a mix of levels picked for you, so
    there's nothing else to set. A link can carry the tour (a results page's "Another quiz"). */
@@ -37,7 +39,8 @@ function Maker({ initial }: { initial: Tours }) {
 
   return (
     <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
-      <section className="panel" aria-labelledby="make-quiz">
+      <section className="panel overflow-hidden" aria-labelledby="make-quiz">
+        <Image src={photo} alt="Djokovic tapping his temple at the US Open" priority sizes="(min-width: 1024px) 44rem, 100vw" className="h-48 w-full border-b border-line object-cover object-[50%_25%] sm:h-72" />
         <div className="panel-head">
           <h2 id="make-quiz" className="panel-title">
             Take a quiz
@@ -46,7 +49,7 @@ function Maker({ initial }: { initial: Tours }) {
         </div>
         <div className="panel-body space-y-6">
           <p className="max-w-xl text-[0.9375rem] leading-snug">
-            {QUIZ_LENGTH} questions on who won and who lost the finals of the big tournaments: the Slams, the 1000s, the tour finals and the Olympics. One of them asks for a year or a number instead. Some are famous, some are obscure.
+            {QUIZ_LENGTH} questions, mostly on who won and who lost the finals of the big tournaments: the Slams, the 1000s, the tour finals and the Olympics. A few are odder, like who won the most titles in a year or who leads a rivalry, and one asks for a year or a number. Some are famous, some are obscure.
           </p>
           <div>
             <span className="mb-2 block text-sm font-semibold">Tour</span>

@@ -490,6 +490,28 @@ export function buildQuestions({ tour, matches, players, last, books }: QuizInpu
       });
     }
   }
+  // Who leads it, between two Slam champions who've met a few times and aren't level
+  const slamWinners = new Set(finals.filter((f) => f.tier === "slam").map((f) => f.w));
+  for (const [k, ms] of pairs) {
+    const [a, b] = k.split("|");
+    if (!slamWinners.has(a) || !slamWinners.has(b) || ms.length < 3) continue;
+    const { aw, bw } = h2h(a, b);
+    if (aw === bw) continue;
+    const [lead, trail, w, l] = aw > bw ? [a, b, aw, bw] : [b, a, bw, aw];
+    const level = Math.min(4, (fame(a) === 3 && fame(b) === 3 ? 2 : 3) + (w - l <= 1 ? 1 : 0)) as Level;
+    add({
+      id: `h2h-leader:${k}`,
+      rule: "h2h-leader",
+      topic: "rivalries",
+      level,
+      prompt: `Who has the better record against the other${since(a) || since(b) ? ` since ${from}` : ""}: ${name(a)} or ${name(b)}?`,
+      answer: { kind: "name", key: lead, text: name(lead) },
+      fact: `${name(lead)} leads ${name(trail)} ${w}–${l}.`,
+      go: ms[ms.length - 1].id,
+      about: [a, b],
+      season: null,
+    });
+  }
   for (const [k, ms] of pairs) {
     const [a, b] = k.split("|");
     const both = Math.min(fame(a), fame(b));
@@ -718,18 +740,21 @@ function boardQuestions(books: RecordBooks, tw: string, from: number): Omit<Ques
 
 /* ---------- Drawing a quiz ---------- */
 
-// Every quiz is the same shape: ten questions, nine asking who won or lost the final of a big tournament
-// (a Slam, a 1000, the tour finals, the Olympics) and one asking for a year or a count of titles. The
-// levels are picked for you, the same mix every time, so every quiz has the famous and the obscure.
+// Every quiz is the same shape: ten questions. Six ask who won or lost the final of a big tournament (a
+// Slam, a 1000, the tour finals, the Olympics); three are odder (who won the most titles or matches in a
+// year, who leads the head-to-head between two Slam champions); one asks for a year or a count of titles.
+// The levels are picked for you, the same mix every time, so every quiz has the famous and the obscure.
 export const QUIZ_LENGTH = 10;
 const finalRules = new Set(["slam-champion", "slam-runner-up", "big-champion", "big-runner-up"]);
+const oddRules = new Set(["season-titles", "season-wins", "h2h-leader"]);
+const ODD_QUESTIONS = 3;
 const numberRules = new Set(["final-year", "slam-once", "slam-count", "slam-event-count", "title-count"]);
 const levelMix: Record<Level, number> = { 1: 0.3, 2: 0.35, 3: 0.25, 4: 0.1 };
 
 /**
  * A quiz drawn at random from the banks of the tours asked for: each question's level by the mix, then
  * any question at that level. No match or player's name twice, and questions in `avoid` (asked
- * recently) only once the rest run out. The numeric question goes in at a random place.
+ * recently) only once the rest run out. Then they're shuffled.
  */
 export function drawQuiz(banks: QuestionBank[], tours: Tour[], avoid: Set<string>, random = Math.random): Question[] {
   const pool = banks.flatMap((b) => b.questions).filter((q) => tours.includes(q.tour));
@@ -769,11 +794,13 @@ export function drawQuiz(banks: QuestionBank[], tours: Tour[], avoid: Set<string
     }
     return out;
   };
-  const finals = take(finalRules, QUIZ_LENGTH - 1);
-  const [number] = take(numberRules, 1);
-  if (!number) return finals;
-  const at = Math.floor(random() * (finals.length + 1));
-  return [...finals.slice(0, at), number, ...finals.slice(at)];
+  const odd = take(oddRules, ODD_QUESTIONS);
+  const all = [...odd, ...take(numberRules, 1), ...take(finalRules, QUIZ_LENGTH - 1 - odd.length)];
+  for (let i = all.length - 1; i > 0; i--) {
+    const j = Math.floor(random() * (i + 1));
+    [all[i], all[j]] = [all[j], all[i]];
+  }
+  return all;
 }
 
 /* ---------- Checking an answer ---------- */

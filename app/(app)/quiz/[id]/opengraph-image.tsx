@@ -16,7 +16,7 @@ export default async function Image({ params }: { params: Promise<{ id: string }
   const quiz = await loadQuiz((await params).id).catch(() => null);
   if (!quiz?.finishedAt) return SiteCard();
   const n = (quiz.questions as unknown[]).length;
-  const title = `${quiz.name ? `${quiz.name}: ` : ""}${quiz.correct ?? 0} of ${n}`;
+  const title = `Results: ${quiz.correct ?? 0}/${n}`;
   const titleSize = title.length > 22 ? 64 : title.length > 15 ? 78 : 92;
-  return ogCard({ eyebrow: "A TENNIS QUIZ", title, titleSize, tags: [...(difficultyName(quiz.difficulty) ? [`${difficultyName(quiz.difficulty)} quiz`] : []), "Typed answers", "Think you can beat it?"], photo, focus: "45% 30%" });
+  return ogCard({ eyebrow: quiz.name ? `${quiz.name.toUpperCase()} · TENNIS QUIZ` : "A TENNIS QUIZ", title, titleSize, tags: [...(difficultyName(quiz.difficulty) ? [`${difficultyName(quiz.difficulty)} quiz`] : []), "Typed answers", "Think you can beat it?"], photo, focus: "45% 30%" });
 }

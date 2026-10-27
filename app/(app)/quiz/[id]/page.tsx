@@ -20,14 +20,12 @@ import { ShareResults, TakeSame } from "./share";
 type Kept = { tours: Tour[]; challenge?: string };
 
 const score = (q: KeptQuiz) => `${q.correct ?? 0}/${(q.questions as unknown[]).length}`;
-const headline = (q: KeptQuiz) => {
-  const level = difficultyName(q.difficulty);
-  return `${q.name ? `${q.name}: ` : ""}${score(q)} on a ${level ? `${level.toLowerCase()} ` : ""}tennis quiz`;
-};
+/** What a shared link says: "Results: 6/10", with whose they are if there's a name on them */
+const headline = (q: KeptQuiz) => `Results: ${q.name ? `${q.name}, ` : ""}${score(q)}`;
 
 export async function generateMetadata({ params }: PageProps<"/quiz/[id]">): Promise<Metadata> {
   const quiz = await loadQuiz((await params).id).catch(() => null);
-  const title = quiz?.finishedAt ? `${headline(quiz)} · CourtSaga` : "Quiz · CourtSaga";
+  const title = quiz?.finishedAt ? headline(quiz) : "Quiz · CourtSaga";
   const description = "A tennis quiz from every tour-level match since 2003. Typed answers only: think you can beat it?";
   return { title, description, robots: { index: false, follow: false }, openGraph: { title, description, siteName: "CourtSaga", type: "website" } };
 }
@@ -94,7 +92,7 @@ async function Results({ quiz, mine, about, settings }: { quiz: KeptQuiz; mine: 
     <>
       <PageBar
         n={5}
-        title={quiz.name ? `${quiz.name}'s quiz` : "Quiz results"}
+        title={`Results: ${score(quiz)}`}
         foot={
           <div className="flex flex-wrap gap-2">
             <StatBox label="Score" value={score(quiz)} className="min-w-24" />
@@ -106,7 +104,10 @@ async function Results({ quiz, mine, about, settings }: { quiz: KeptQuiz; mine: 
           </div>
         }
       >
-        <span className="text-sm text-muted">{about}</span>
+        <span className="text-sm text-muted">
+          {quiz.name && <strong className="font-semibold text-foreground">{quiz.name} · </strong>}
+          {about}
+        </span>
       </PageBar>
 
       <section className="flex-1 pb-16 pt-6 sm:pt-8">

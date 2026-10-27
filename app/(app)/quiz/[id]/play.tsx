@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { Chevron, PageBar, StatBox } from "../../../ui";
 import { answerQuestion } from "../actions";
-import { LevelTag, QuizCredit, topicName, tourName } from "../parts";
+import { QuizCredit, topicName, tourName } from "../parts";
 import type { AskedQuestion, QuizAnswer, Turn } from "../shared";
 
 /* Taking a quiz: one question at a time, typed, checked on the server, then what the answer was and the
@@ -128,11 +128,8 @@ export function PlayQuiz({ id, questions, answered, about }: { id: string; quest
 
           <div className="panel">
             <div className="panel-head">
-              <span className="flex items-center gap-2">
-                <LevelTag level={q.level} />
-                <span className="panel-meta">
-                  {topicName(q.topic)} · {tourName(q.tour)}
-                </span>
+              <span className="panel-meta">
+                {topicName(q.topic)} · {tourName(q.tour)}
               </span>
               <span className="panel-meta">
                 {index + 1} / {questions.length}
