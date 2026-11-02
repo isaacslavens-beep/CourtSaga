@@ -78,3 +78,4 @@ migrations never reach the production database before it's merged. Every setting
 | `npm run db:generate` | Writes a new migration to `drizzle/` after a change to `db/schema.ts`. |
 | `npm run db:migrate` | Applies migrations to `DATABASE_URL_UNPOOLED` (or `DATABASE_URL`). |
 | `npm run import:matches -- <folder>` | Loads or refreshes the match data. |
+| `npm run books` | Works out the record books, Advanced's models and the quiz into `assets/books/`. Vercel runs it before every build; the matches are only read from the database when an import has changed them, because the free Neon plan allows 5 GB of transfer a month and one full read is about 60 MB. |
