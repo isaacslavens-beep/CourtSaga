@@ -56,8 +56,8 @@ export async function startQuiz(input: QuizRequest): Promise<{ id: string } | { 
 }
 
 /**
- * Answer the next question of a quiz this browser is taking: a year or a number as typed, a player as
- * picked from the list (`player`, with the name shown). Nothing typed means "don't know".
+ * Answer the next question of a quiz this browser is taking: a year or a number as given, a player as
+ * clicked or picked from the list (`player`, with the name shown). Nothing given means "don't know".
  */
 export async function answerQuestion(id: string, index: number, typed: string, player: string | null = null): Promise<Turn> {
   const text = String(typed).slice(0, 80);

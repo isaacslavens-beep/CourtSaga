@@ -11,7 +11,7 @@ export const seenIds = (value: string | undefined) => (value ?? "").split(" ").f
 /** A question as it's kept (quizzes from before this change also kept what a typed name answer would take) */
 export type StoredQuestion = Question;
 
-/** What was typed for a question, and whether it was right */
+/** What was typed or clicked for a question, and whether it was right */
 export type QuizAnswer = { typed: string; right: boolean };
 
 /** A question as the player sees it before answering: no answer, nothing that gives it away */

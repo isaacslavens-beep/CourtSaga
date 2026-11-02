@@ -1,7 +1,7 @@
 // The quiz: questions written by rule from every match in the data, one tour at a time, and quizzes drawn
 // from them at random. Like the record books (records.ts), the questions come from fixed rules, so the
 // same data always gives the same bank; only the draw is random, so the same settings give a new quiz each
-// time. Every answer is typed: a name, a year or a number, never a choice from a list.
+// time. A year is typed; every other answer is a click on one of its choices.
 
 import type { RecordBooks, RecordMatch } from "./records";
 import type { Player, Round, Tier, Tour } from "./library";
@@ -40,8 +40,8 @@ export type Question = {
   about: string[]; // the players it's about or answered by, for a quiz on one player
   season: number | null; // the season it's about, or null for a whole career or record
   events: string[]; // the tournament it's about, as the data names it, or none
-  choices?: { key: string; name: string; short: string }[]; // the players or Slams a click picks between
-  choose?: "player" | "slam"; // what those choices are: two players, or the four Slams as logos
+  choices?: { key: string; name: string; short: string }[]; // what a click picks between, the right one among them
+  choose?: "player" | "slam" | "number"; // what those choices are: players, the four Slams as logos, or numbers
 };
 
 export type BankPlayer = { key: string; name: string; short: string; matches: number };
@@ -620,6 +620,34 @@ export function buildQuestions({ tour, matches, players, last, books }: QuizInpu
   }
   if (books) for (const q of boardQuestions(books, tw, from)) add({ ...q, level: (fame(q.answer.kind === "name" ? q.answer.key : "") === 3 ? 3 : 4) as Level });
 
+  /* The wrong choices: for a final, whoever else went deep in that draw, the best known first, so the
+     choices are all people it could have been; then that season's leaders */
+  const editions = new Map<string, RecordMatch[]>();
+  for (const m of played) editions.set(m.tourneyId, [...(editions.get(m.tourneyId) ?? []), m]);
+  const mostWins = new Map<number, string[]>();
+  const mostTitles = new Map<number, string[]>();
+  for (const [season, ms] of bySeason) {
+    const wins = new Map<string, number>();
+    const titles = new Map<string, number>();
+    for (const m of ms) {
+      wins.set(m.w, (wins.get(m.w) ?? 0) + 1);
+      if (isTitle(m)) titles.set(m.w, (titles.get(m.w) ?? 0) + 1);
+    }
+    const count = (k: string) => wins.get(k) ?? 0;
+    mostWins.set(season, [...wins.keys()].sort((x, y) => count(y) - count(x) || x.localeCompare(y)));
+    mostTitles.set(season, [...wins.keys()].sort((x, y) => (titles.get(y) ?? 0) - (titles.get(x) ?? 0) || count(y) - count(x) || x.localeCompare(y)));
+  }
+  for (const q of out) {
+    if (q.answer.kind !== "name" || !(finalRules.has(q.rule) || oddRules.has(q.rule))) continue;
+    const right = q.answer.key;
+    const m = q.go ? byId.get(q.go) : undefined;
+    const deep = m ? (editions.get(m.tourneyId) ?? []).filter((x) => x.round === "SF" || x.round === "QF").map((x) => x.l).sort((x, y) => fame(y) - fame(x)) : [];
+    const leaders = (q.rule === "season-titles" ? mostTitles : mostWins).get(q.season ?? to) ?? [];
+    const wrong = [...new Set([...(m ? [m.l] : []), ...deep, ...leaders])].filter((k) => k !== right && !q.about.includes(k)).slice(0, WRONG_CHOICES);
+    q.choices = [right, ...wrong].map((key) => ({ key, name: name(key), short: players[key]?.short ?? name(key) }));
+    q.choose = "player";
+  }
+
   /* Oddities: in each Slam, the most aces in a match, the longest match, and qualifiers who went deep */
   const slamEditions = new Map<string, RecordMatch[]>();
   for (const m of played) if (m.tier === "slam") slamEditions.set(m.tourneyId, [...(slamEditions.get(m.tourneyId) ?? []), m]);
@@ -772,9 +800,9 @@ function boardQuestions(books: RecordBooks, tw: string, from: number): Omit<Ques
 /* ---------- Drawing a quiz ---------- */
 
 // Every quiz is the same shape: ten questions. Four ask who won or lost the final of a big tournament (a
-// Slam, a 1000, the tour finals, the Olympics); four are answered with a click: two either-or (which of two
-// Slam champions leads their head-to-head) and two picked from the four Slams' logos; one is odder (who won
-// the most titles or matches in a year); one asks for a year or a count of titles.
+// Slam, a 1000, the tour finals, the Olympics); two are either-or (which of two Slam champions leads their
+// head-to-head) and two are picked from the four Slams' logos; one is odder (who won the most titles or
+// matches in a year); one asks for a year or a count of titles. Only a year is typed; the rest are clicks.
 // The levels are picked for you, the same mix every time, so every quiz has the famous and the obscure.
 export const QUIZ_LENGTH = 10;
 const finalRules = new Set(["slam-champion", "slam-runner-up", "big-champion", "big-runner-up"]);
@@ -783,8 +811,25 @@ const CHOICE_QUESTIONS = 2;
 const slamRules = new Set(["slam-pick"]);
 const SLAM_QUESTIONS = 2;
 const oddRules = new Set(["season-titles", "season-wins"]);
+const WRONG_CHOICES = 3;
 const numberRules = new Set(["final-year", "slam-once", "slam-count", "slam-event-count", "title-count"]);
 const levelMix: Record<Level, number> = { 1: 0.3, 2: 0.35, 3: 0.25, 4: 0.1 };
+
+function shuffled<T>(items: T[], random: () => number) {
+  const all = [...items];
+  for (let i = all.length - 1; i > 0; i--) {
+    const j = Math.floor(random() * (i + 1));
+    [all[i], all[j]] = [all[j], all[i]];
+  }
+  return all;
+}
+
+/** The right count and three near it, in order: where the right one falls differs from quiz to quiz */
+function numberChoices(value: number, random: () => number) {
+  const step = Math.max(1, Math.round(value * 0.15));
+  const near = [-3, -2, -1, 1, 2, 3].map((n) => value + n * step).filter((n) => n >= 1);
+  return [value, ...shuffled(near, random).slice(0, WRONG_CHOICES)].sort((a, b) => a - b).map((n) => ({ key: String(n), name: String(n), short: String(n) }));
+}
 
 /**
  * A quiz drawn at random from the banks of the tours asked for: each question's level by the mix, then
@@ -831,11 +876,14 @@ export function drawQuiz(banks: QuestionBank[], tours: Tour[], avoid: Set<string
   };
   const odd = [...take(choiceRules, CHOICE_QUESTIONS), ...take(slamRules, SLAM_QUESTIONS), ...take(oddRules, 1)];
   const all = [...odd, ...take(numberRules, 1), ...take(finalRules, QUIZ_LENGTH - 1 - odd.length)];
-  for (let i = all.length - 1; i > 0; i--) {
-    const j = Math.floor(random() * (i + 1));
-    [all[i], all[j]] = [all[j], all[i]];
-  }
-  return all;
+  // The bank lists the right player first, so a quiz's choices are always shuffled
+  return shuffled(all, random).map((q) =>
+    q.answer.kind === "number"
+      ? { ...q, choices: numberChoices(q.answer.value, random), choose: "number" as const }
+      : q.choose === "player" && q.choices
+        ? { ...q, choices: shuffled(q.choices, random) }
+        : q,
+  );
 }
 
 /* ---------- Checking an answer ---------- */

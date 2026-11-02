@@ -11,10 +11,10 @@ import { answerQuestion } from "../actions";
 import { eventColour, QuizCredit, topicName, tourName } from "../parts";
 import type { AskedQuestion, QuizAnswer, Turn } from "../shared";
 
-/* Taking a quiz: one question at a time, typed, checked on the server, then what the answer was and the
-   match behind it. A player's name is picked from a list as it's typed, so a misspelling can't cost the
-   point; a year or a number is just typed, and an either-or question is a click on one of its two players (or
-   one of the four Slams' logos), with no "don't know": one of them is right.
+/* Taking a quiz: one question at a time, checked on the server, then what the answer was and the match
+   behind it. A year is typed; everything else is a click on one of its choices (players, a number, or the
+   four Slams' logos), with no "don't know": one of them is right. Quizzes drawn before player questions
+   had choices, and shared ones made from them, still pick the name from a list as it's typed.
    A question about a big tournament wears its colour. A quiz left halfway carries on where it stopped. */
 
 type Shown = Extract<Turn, { status: "answered" }>;
@@ -146,7 +146,7 @@ export function PlayQuiz({ id, questions, answered, about }: { id: string; quest
 
               {!shown && q.choices ? (
                 <div className="mt-5">
-                  <p className="mb-2 text-sm font-semibold text-muted">{q.choose === "slam" ? "Click a Slam" : "Click a player"}</p>
+                  <p className="mb-2 text-sm font-semibold text-muted">{q.choose === "slam" ? "Click a Slam" : q.choose === "number" ? "Click a number" : "Click a player"}</p>
                   {q.choose === "slam" ? (
                     <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                       {q.choices.map((c) => (
@@ -162,6 +162,23 @@ export function PlayQuiz({ id, questions, answered, about }: { id: string; quest
                         >
                           <SlamLogo event={c.name} size="h-14 w-14" />
                           <span className="text-sm font-bold leading-tight">{c.name}</span>
+                        </button>
+                      ))}
+                    </div>
+                  ) : q.choose === "number" ? (
+                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                      {q.choices.map((c) => (
+                        <button
+                          key={c.key}
+                          type="button"
+                          disabled={pending}
+                          onClick={() => {
+                            setTyped(c.name);
+                            send(c.name);
+                          }}
+                          className="cursor-pointer rounded border-2 border-line bg-surface px-3 py-4 text-center font-display text-2xl font-bold transition-colors hover:border-foreground hover:bg-sunk focus-visible:border-foreground disabled:cursor-wait"
+                        >
+                          {c.name}
                         </button>
                       ))}
                     </div>

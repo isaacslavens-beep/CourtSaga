@@ -15,7 +15,7 @@ import { ShareResults, ShowAnswers, TakeSame } from "./share";
 
 /* One quiz: while it's being taken, the questions one at a time (for the browser taking it); once it's
    finished, the results for anyone with the link: the score, how it compares, and every question with
-   what was typed and the answer. */
+   what was answered and the right answer. */
 
 type Kept = { tours: Tour[]; challenge?: string };
 
@@ -158,7 +158,7 @@ async function Results({ quiz, mine, about, settings }: { quiz: KeptQuiz; mine: 
           <div className="panel lg:order-1">
             <div className="panel-head">
               <h2 className="panel-title">Every question</h2>
-              <span className="panel-meta">What was typed, and the answer</span>
+              <span className="panel-meta">What was answered, and the right answer</span>
             </div>
             <ol>
               {questions.map((q, i) => {
