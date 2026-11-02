@@ -5,13 +5,12 @@ import { getDb } from "@/db";
 import { quizzes } from "@/db/schema";
 import { buildQuestions, findPlayers, type QuestionBank } from "@/app/diary/quiz";
 import type { Tour } from "@/app/diary/library";
-import { readFile } from "node:fs/promises";
-import { join } from "node:path";
+import { builtBook } from "./built-books";
 import { recordBooks } from "./records";
 import { readTour } from "./tour-data";
 
 // The quiz's questions (app/diary/quiz.ts), from the same matches as the record books, and from the
-// books themselves. Each build writes them to a file (scripts/quiz-bank.ts), so a new server reads them
+// books themselves. Each build writes them to a file (scripts/books.ts), so a new server reads them
 // in a moment; without the file they're worked out from the database. Like the books, they only change
 // when matches are imported, so they're cached for days.
 
@@ -20,8 +19,8 @@ export async function questionBank(tour: Tour): Promise<QuestionBank | null> {
   "use cache";
   cacheLife("days");
   cacheTag("matches");
-  const built = await readFile(join(process.cwd(), "assets", "quiz", `${tour}.json`), "utf8").catch(() => null);
-  if (built) return JSON.parse(built) as QuestionBank;
+  const built = await builtBook<QuestionBank>("quiz", tour);
+  if (built) return built;
   const [data, books] = await Promise.all([readTour(getDb(), tour), recordBooks(tour)]);
   return data && buildQuestions({ ...data, books });
 }

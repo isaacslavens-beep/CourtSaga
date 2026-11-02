@@ -11,6 +11,8 @@ const nextConfig: NextConfig = {
     qualities: [75, 90],
   },
   partialPrefetching: true,
+  // The books each build works out (scripts/books.ts), read from disk at runtime
+  outputFileTracingIncludes: { "/**": ["./assets/books/**"] },
   // The ranking was replaced by exploring a match, and
   async redirects() {
     // Logging became starring
