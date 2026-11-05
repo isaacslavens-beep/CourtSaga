@@ -170,7 +170,6 @@ export function buildQuestions({ tour, matches, players, last, books }: QuizInpu
   }
   const fame = (key: string) => fameOf(careers.get(key));
   const active = (key: string) => (Date.parse(last) - Date.parse(careers.get(key)!.last.date)) / 86_400_000 < 200;
-  const since = (key: string) => (careers.get(key)!.first.season === from ? ` since ${from}` : "");
 
   const finals = played.filter(isTitle);
 
@@ -255,7 +254,7 @@ export function buildQuestions({ tour, matches, players, last, books }: QuizInpu
         rule: "slam-count",
         topic: "slams",
         level: won.length >= 4 ? 2 : 3,
-        prompt: `How many Grand Slam singles titles ${active(key) ? `has ${name(key)} won` : `did ${name(key)} win`}${since(key)}?`,
+        prompt: `How many Grand Slam singles titles ${active(key) ? `has ${name(key)} won` : `did ${name(key)} win`}?`,
         answer: { kind: "number", value: won.length },
         fact: `${won.length}: ${summarise(won)}.`,
         go: won[won.length - 1].id,
@@ -284,7 +283,7 @@ export function buildQuestions({ tour, matches, players, last, books }: QuizInpu
           rule: "slam-event-count",
           topic: "slams",
           level: ms.length >= 5 ? 2 : 3,
-          prompt: `How many ${event} titles ${active(key) ? `has ${name(key)} won` : `did ${name(key)} win`}${since(key)}?`,
+          prompt: `How many ${event} titles ${active(key) ? `has ${name(key)} won` : `did ${name(key)} win`}?`,
           answer: { kind: "number", value: ms.length },
           fact: `${ms.length}: ${ms.map((m) => m.season).join(", ")}.`,
           go: ms[ms.length - 1].id,
@@ -317,7 +316,7 @@ export function buildQuestions({ tour, matches, players, last, books }: QuizInpu
         if (n >= 2 && counts.filter((x) => x.n === n).length === 1)
           pick(
             `slam-pick:count:${key}:${event}`,
-            `At which Grand Slam ${wonIt} the title ${n === 2 ? "twice" : `${n} times`}${since(key)}?`,
+            `At which Grand Slam ${wonIt} the title ${n === 2 ? "twice" : `${n} times`}?`,
             event,
             (Math.min(4, (f === 3 ? 1 : 3) + (n <= 3 ? 1 : 0)) as Level),
             `${event}: ${ms.map((m) => m.season).join(", ")}.`,
@@ -325,10 +324,10 @@ export function buildQuestions({ tour, matches, players, last, books }: QuizInpu
           );
       if (counts.length === 3) {
         const missing = slamEvents.find((e) => !byEvent.has(e))!;
-        pick(`slam-pick:missing:${key}`, `Which is the only Grand Slam ${name(key)} ${active(key) ? "hasn't won" : "never won"}${since(key)}?`, missing, f === 3 ? 2 : 3, `${name(key)} won the other three: ${counts.map((x) => x.event).join(", ")}.`, won[won.length - 1].id);
+        pick(`slam-pick:missing:${key}`, `Which is the only Grand Slam ${name(key)} ${active(key) ? "hasn't won" : "never won"}?`, missing, f === 3 ? 2 : 3, `${name(key)} won the other three: ${counts.map((x) => x.event).join(", ")}.`, won[won.length - 1].id);
       }
       if (counts.length === 1 && won.length >= 2)
-        pick(`slam-pick:only:${key}`, `${name(key)} ${active(key) ? "has won" : "won"} ${won.length} Grand Slam titles${since(key)}, all at the same one. Which?`, counts[0].event, f === 3 ? 2 : 3, `${counts[0].event}: ${won.map((m) => m.season).join(", ")}.`, won[won.length - 1].id);
+        pick(`slam-pick:only:${key}`, `${name(key)} ${active(key) ? "has won" : "won"} ${won.length} Grand Slam titles, all at the same one. Which?`, counts[0].event, f === 3 ? 2 : 3, `${counts[0].event}: ${won.map((m) => m.season).join(", ")}.`, won[won.length - 1].id);
     }
   }
   // Upsets: a legend beaten before the semifinals of a Slam by someone less known
@@ -396,7 +395,7 @@ export function buildQuestions({ tour, matches, players, last, books }: QuizInpu
         rule: "title-count",
         topic: "careers",
         level: 4,
-        prompt: `How many tour-level singles titles ${active(key) ? `has ${name(key)} won` : `did ${name(key)} win`}${since(key)}?`,
+        prompt: `How many tour-level singles titles ${active(key) ? `has ${name(key)} won` : `did ${name(key)} win`}?`,
         answer: { kind: "number", value: c.titles.length },
         fact: `${c.titles.length} titles, from ${c.titles[0].event} ${c.titles[0].season} to ${c.titles[c.titles.length - 1].event} ${c.titles[c.titles.length - 1].season}.`,
         go: c.titles[c.titles.length - 1].id,
@@ -438,7 +437,7 @@ export function buildQuestions({ tour, matches, players, last, books }: QuizInpu
     if (c.titles.length >= 5 && f >= 1) {
       const p = players[key];
       const clues = [
-        `I won ${plural(c.titles.length, "title")}${since(key) ? ` from ${from} on` : ""}, the first ${at(c.titles[0].event)} in ${c.titles[0].season}, the last ${at(c.titles[c.titles.length - 1].event)} in ${c.titles[c.titles.length - 1].season}.`,
+        `I won ${plural(c.titles.length, "title")}, the first ${at(c.titles[0].event)} in ${c.titles[0].season}, the last ${at(c.titles[c.titles.length - 1].event)} in ${c.titles[c.titles.length - 1].season}.`,
         c.slams.length ? `${plural(c.slams.length, "of them was a Slam", "of them were Slams")}.` : "None of them was a Slam.",
         c.best <= 10 ? `My best ranking was No. ${c.best}.` : `I never made the top 10; my best was No. ${c.best}.`,
         p?.hand === "L" ? "I'm left-handed." : null,
@@ -533,7 +532,7 @@ export function buildQuestions({ tour, matches, players, last, books }: QuizInpu
       rule: "h2h-leader",
       topic: "rivalries",
       level,
-      prompt: `Who has the better record against the other${since(a) || since(b) ? ` since ${from}` : ""}: ${name(a)} or ${name(b)}?`,
+      prompt: `Who has the better record against the other: ${name(a)} or ${name(b)}?`,
       answer: { kind: "name", key: lead, text: name(lead) },
       fact: `${name(lead)} leads ${name(trail)} ${w}–${l}.`,
       go: ms[ms.length - 1].id,
@@ -553,7 +552,7 @@ export function buildQuestions({ tour, matches, players, last, books }: QuizInpu
         rule: "h2h-count",
         topic: "rivalries",
         level: both === 3 ? 3 : 4,
-        prompt: `How many times did ${name(a)} and ${name(b)} play each other${since(a) || since(b) ? ` since ${from}` : ""}?`,
+        prompt: `How many times did ${name(a)} and ${name(b)} play each other?`,
         answer: { kind: "number", value: ms.length },
         fact: `${ms.length} meetings: ${name(a)} won ${aw}, ${name(b)} ${ms.length - aw}.`,
         go: ms[ms.length - 1].id,
@@ -618,7 +617,7 @@ export function buildQuestions({ tour, matches, players, last, books }: QuizInpu
         season,
       });
   }
-  if (books) for (const q of boardQuestions(books, tw, from)) add({ ...q, level: (fame(q.answer.kind === "name" ? q.answer.key : "") === 3 ? 3 : 4) as Level });
+  if (books) for (const q of boardQuestions(books, tw)) add({ ...q, level: (fame(q.answer.kind === "name" ? q.answer.key : "") === 3 ? 3 : 4) as Level });
 
   /* The wrong choices: for a final, whoever else went deep in that draw, the best known first, so the
      choices are all people it could have been; then that season's leaders */
@@ -769,7 +768,7 @@ const boardPrompts: Record<string, { ask: (view: string, other: string) => strin
   "long-shots": { ask: (v) => (v === "Slams" ? "Who was the lowest-ranked player to win a Slam?" : "Who was the lowest-ranked player to win a 1000, a tour finals or the Olympics?") },
 };
 
-function boardQuestions(books: RecordBooks, tw: string, from: number): Omit<Question, "tour" | "level" | "events">[] {
+function boardQuestions(books: RecordBooks, tw: string): Omit<Question, "tour" | "level" | "events">[] {
   const out: Omit<Question, "tour" | "level" | "events">[] = [];
   for (const b of books.boards) {
     const p = boardPrompts[b.id];
@@ -785,7 +784,7 @@ function boardQuestions(books: RecordBooks, tw: string, from: number): Omit<Ques
         id: `board:${b.id}:${v.id}`,
         rule: "board",
         topic: "records",
-        prompt: `${tw[0].toUpperCase()}${tw.slice(1)} tour since ${from}: ${p.ask(view, leader)}`,
+        prompt: `${tw[0].toUpperCase()}${tw.slice(1)} tour: ${p.ask(view, leader)}`,
         answer: { kind: "name", key: answer, text: books.full[answer] ?? answer },
         fact: `${top.stat} ${b.unit}${top.note ? `: ${top.note}` : ""}.`,
         go: top.go?.id ?? null,

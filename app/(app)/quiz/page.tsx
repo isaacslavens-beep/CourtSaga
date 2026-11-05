@@ -8,7 +8,7 @@ import { QuizCredit } from "./parts";
 /* The quiz: pick a tour, then answer the questions. The page is the same for everyone; each quiz is drawn
    when it starts. */
 
-const description = "A tennis quiz from every tour-level final since 2003: ten questions on who won and who lost the big finals, then share your score.";
+const description = "A tennis quiz from every tour-level final: ten questions on who won and who lost the big finals, then share your score.";
 
 export const metadata: Metadata = {
   title: "Quiz · CourtSaga",
