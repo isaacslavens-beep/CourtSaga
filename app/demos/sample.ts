@@ -167,3 +167,18 @@ export const sampleEntries: Record<string, StoredEntry> = Object.fromEntries(
 export const sampleOrder = logged
   .map((m) => m.id)
   .sort((a, b) => (sampleLog[b].rating ?? 0) - (sampleLog[a].rating ?? 0) || sampleMatches[b].date.localeCompare(sampleMatches[a].date));
+
+/** The sample names its players by surname alone; their initials, first name and surname, for the avatars */
+export const sampleInitials: [string, string][] = [
+  ["Alcaraz", "CA"],
+  ["Djokovic", "ND"],
+  ["Federer", "RF"],
+  ["Jabeur", "OJ"],
+  ["Medvedev", "DM"],
+  ["Nadal", "RN"],
+  ["Rybakina", "ER"],
+  ["Sabalenka", "AS"],
+  ["Shelton", "BS"],
+  ["Sinner", "JS"],
+  ["Zverev", "AZ"],
+];

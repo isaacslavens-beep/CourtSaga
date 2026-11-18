@@ -91,8 +91,8 @@ export type MatchRow = Omit<Match, "event" | "winner" | "loser"> & {
   loser: Player;
 };
 
-// The players with a headshot or a colour of their own (see fun.tsx) are the only ones the site calls by
-// surname whatever else is in the log, so no one else who shares it can borrow their photo or colour.
+// The players with a colour of their own (see fun.tsx) are the only ones the site calls by surname
+// whatever else is in the log, so no one else who shares it can borrow their colour.
 export const namedPlayers: Record<string, string> = {
   Alcaraz: "atp:A0E2",
   Sinner: "atp:S0AG",
@@ -129,6 +129,40 @@ export function displayNames(players: Player[]) {
     }),
   );
 }
+
+/**
+ * A player's initials, first name and surname: "RF" for Roger Federer, "JD" for Juan Martin del Potro
+ * (whose surname the data gives as "Del Potro"). A one-word name gives one letter.
+ */
+export function initialsOf(p: { name: string; short?: string }) {
+  const words = p.name.trim().split(/\s+/).filter(Boolean);
+  if (!words.length) return "?";
+  if (words.length === 1) return words[0][0].toUpperCase();
+  const surname = p.short?.trim() || words[words.length - 1];
+  // A name given surname first ("Zheng Qinwen") still starts with the given name's letter
+  const given = p.short && p.name.startsWith(`${p.short} `) ? p.name.slice(p.short.length + 1) : words[0];
+  return `${given[0]}${surname[0]}`.toUpperCase();
+}
+
+/** Whose initials each shown name stands for, for a set of players named together (see displayNames) */
+export function initialsByName(players: Player[]): [string, string][] {
+  const unique = [...new Map(players.map((p) => [p.key, p])).values()];
+  const names = displayNames(unique);
+  return unique.map((p) => [names.get(p.key)!, initialsOf(p)]);
+}
+
+/** The same, from lists that name players by key: what each is called, and their full names */
+export function initialsFromNames(names: Record<string, string>, full: Record<string, string>): [string, string][] {
+  return Object.keys(names).map((k) => {
+    const whole = full[k] ?? names[k];
+    // What they're called is their surname unless it's their full name (with a country, where even that clashes)
+    const surname = names[k] !== whole && !names[k].startsWith(whole) ? names[k] : undefined;
+    return [names[k], initialsOf({ name: whole, short: surname })];
+  });
+}
+
+/** A match's own page */
+export const matchHref = (id: string) => `/matches/${encodeURIComponent(id)}`;
 
 /** Matches from the database, named for showing together. */
 export function toMatches(rows: MatchRow[]): Record<string, Match> {

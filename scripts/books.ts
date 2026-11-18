@@ -1,5 +1,5 @@
-// Writes each tour's record books, Advanced's models and the quiz's questions to assets/books/, so the
-// site reads them from files instead of working them out from 130,000 matches in the database.
+// Writes each tour's record books and models (Statistics) and its matches (Matches) to assets/books/, so
+// the site reads them from files instead of working them out from 130,000 matches in the database.
 //
 //   npm run books
 //
@@ -7,7 +7,7 @@
 // a month and all the matches come to about 60 MB, so they're read once per import, not once per build:
 // a tiny query says whether the data has changed, and if it hasn't the matches come from Vercel's build
 // cache (.next/cache). Without a database or a kept copy it writes nothing, and the site works everything
-// out itself (lib/records.ts, lib/models.ts, lib/quiz.ts).
+// out itself (lib/records.ts, lib/models.ts; Matches only on a local copy, lib/match-index.ts).
 
 import { loadEnvConfig } from "@next/env";
 import { createHash } from "node:crypto";
@@ -17,8 +17,8 @@ import { count, max } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 import * as schema from "../db/schema";
+import { buildMatchFile } from "../app/diary/match-index";
 import { buildModels } from "../app/diary/models";
-import { buildQuestions } from "../app/diary/quiz";
 import { buildRecords } from "../app/diary/records";
 import { readTour, readTourModels } from "../lib/tour-data";
 import type { Db } from "../db";
@@ -80,14 +80,13 @@ async function main() {
   await mkdir(folder, { recursive: true });
   for (const name of tours) {
     const { tour, models } = matches[name];
-    if (tour) {
-      const books = buildRecords(tour);
-      await writeFile(join(folder, `records-${name}.json`), JSON.stringify(books));
-      const bank = buildQuestions({ ...tour, books });
-      await writeFile(join(folder, `quiz-${name}.json`), JSON.stringify(bank));
-      console.log(`books: ${bank.questions.length} ${name} questions, ${bank.from}–${bank.to}.`);
+    if (tour) await writeFile(join(folder, `records-${name}.json`), JSON.stringify(buildRecords(tour)));
+    if (models) {
+      await writeFile(join(folder, `models-${name}.json`), JSON.stringify(buildModels(models)));
+      const file = buildMatchFile(models);
+      await writeFile(join(folder, `matches-${name}.json`), JSON.stringify(file));
+      console.log(`books: ${file.rows.length} ${name} matches; impossible serve stats dropped from ${file.dropped.stats}, impossible lengths from ${file.dropped.minutes}.`);
     }
-    if (models) await writeFile(join(folder, `models-${name}.json`), JSON.stringify(buildModels(models)));
   }
 }
 

@@ -5,11 +5,10 @@ import { usePathname } from "next/navigation";
 
 // The site's parts, in order
 const steps = [
-  { href: "/explore", n: 1, label: "Explore" },
-  { href: "/statistics", n: 2, label: "Statistics" },
-  { href: "/advanced", n: 3, label: "Advanced" },
+  { href: "/tournaments", n: 1, label: "Tournaments" },
+  { href: "/matches", n: 2, label: "Matches" },
+  { href: "/statistics", n: 3, label: "Statistics" },
   { href: "/saga", n: 4, label: "Saga" },
-  { href: "/quiz", n: 5, label: "Quiz" },
 ];
 
 /** The parts as tabs along the header, the open one underlined in ball yellow: on a phone a row of their own under the logo */
@@ -17,11 +16,11 @@ export function AppNav() {
   return <Tabs path={usePathname()} />;
 }
 
-/** The tabs with the open one marked: the path is "" while a page whose address is only known when it's opened (a quiz) is on its way */
+/** The tabs with the open one marked */
 export function Tabs({ path }: { path: string }) {
   const on = (href: string) => path === href || path.startsWith(`${href}/`);
   return (
-    <nav aria-label="Explore, statistics, advanced, saga and quiz" className="order-3 -mb-px flex w-full self-stretch sm:order-2 sm:ml-auto sm:w-auto">
+    <nav aria-label="Tournaments, matches, statistics and saga" className="order-3 -mb-px flex w-full self-stretch sm:order-2 sm:ml-auto sm:w-auto">
       {steps.map((s) => (
         <Link
           key={s.href}

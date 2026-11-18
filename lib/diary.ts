@@ -350,7 +350,7 @@ export async function findMatches(ids: string[]) {
 }
 
 /**
- * Where Explore starts, newest first: every Slam final, and the finals, semifinals and bronze medal matches of
+ * Where Tournaments starts, newest first: every Slam final, and the finals, semifinals and bronze medal matches of
  * the big events after them (bigEvents: the 1000s, the tour finals and the Olympics).
  */
 export async function bigFinals() {

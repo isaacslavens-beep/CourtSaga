@@ -240,10 +240,10 @@ function Faces({ names, size, tones }: { names: string[]; size: string; tones?: 
   return names.map((p) => <Avatar key={p} name={p} size={size} tone={t.get(p)} />);
 }
 
-/** On to a match's story in Explore, to read it or change your take. In a shared saga, just where it is. */
+/** On to a match's page, to read its story or change your take. In a shared saga, just where it is. */
 function PageLink({ page, onClick }: { page: number | undefined; onClick?: () => void }) {
   if (!onClick) return <span className="whitespace-nowrap text-xs font-semibold text-muted">p. {page}</span>;
-  const label = `Open page ${page} in Explore`;
+  const label = `Open page ${page}`;
   return (
     <button
       type="button"
@@ -1001,7 +1001,7 @@ export function SagaSection({ only }: { only?: string[] } = {}) {
           <span>
             The more matches you star, the more your saga grows.{" "}
             {mode === "diary" && (
-              <Link href="/explore" className="font-semibold text-foreground underline underline-offset-4">
+              <Link href="/tournaments" className="font-semibold text-foreground underline underline-offset-4">
                 Find a match to star
               </Link>
             )}

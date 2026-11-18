@@ -7,8 +7,8 @@ import { Avatar } from "./fun";
 import { diaryPages, eventLabel, scoreText, toMatches, type MatchRow } from "./library";
 import { useLog } from "./store";
 
-/* Finding a match: players, tournament, year and round, in any order. Picking one opens its story in
-   Explore, where it can be starred, rated and noted. */
+/* Finding a match: players, tournament, year and round, in any order. Picking one opens its page, where
+   it can be starred, rated and noted. */
 
 type Results = { results: MatchRow[]; total: number; page: number; pages: number; size: number; query: string; corrected: string | null };
 
@@ -164,7 +164,7 @@ export function MatchFinder({ seasons, onPick, inside }: { seasons: [number, num
                           {page ? (
                             <span className="shrink-0 rounded-[3px] bg-ball px-2 py-0.5 text-sm font-bold">★ In your saga</span>
                           ) : (
-                            <span className="tag shrink-0 group-hover:border-court">Explore</span>
+                            <span className="tag shrink-0 group-hover:border-court">Open</span>
                           )}
                         </button>
                       </li>

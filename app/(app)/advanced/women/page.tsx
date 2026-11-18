@@ -1,12 +1,8 @@
 import type { Metadata } from "next";
-import { AdvancedPage, advancedDescription } from "../view";
+import { Moved } from "../moved";
 
-export const metadata: Metadata = {
-  title: "Women's advanced · CourtSaga",
-  description: advancedDescription,
-  openGraph: { title: "Play with women's tennis numbers · CourtSaga", description: advancedDescription },
-};
+export const metadata: Metadata = { title: "Women's statistics · CourtSaga", robots: { index: false } };
 
 export default function WomensAdvanced() {
-  return <AdvancedPage tour="wta" />;
+  return <Moved to="/statistics/women" />;
 }

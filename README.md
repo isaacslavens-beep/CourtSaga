@@ -1,8 +1,10 @@
 # CourtSaga
 
-A free, simple diary for the tennis you watch: explore the story of any tour-level singles match since
-2003, star the ones you care about, read your saga back, look up the records in Statistics, and play with
-models of the numbers in Interact. Live at [courtsaga.com](https://www.courtsaga.com).
+A free, simple diary for the tennis you watch, in four parts: **Tournaments** (every big final since 2003,
+each opening the story around it), **Matches** (every tour-level singles match since 2003, sorted by any
+statistic and filtered by anything), **Statistics** (record lists, the top 10 at any moment, and models of
+the numbers to play with) and, with an account, your **Saga** of the matches you've starred. Live at
+[courtsaga.com](https://www.courtsaga.com).
 
 ## How it's built
 
@@ -19,16 +21,16 @@ models of the numbers in Interact. Live at [courtsaga.com](https://www.courtsaga
 | `app/page.tsx`, `app/hero*.tsx` | The landing page. Its demos run on a sample log and save nothing. |
 | `app/demos/` | The sample log and its hand-checked rivalry records, for the demos only. |
 | `app/diary/` | The log, ranking and saga, used by both the demos and real diaries. `library.ts` holds the shared types and rules, `books.ts` the saga's rules, `store.tsx` the state and saving, and `finder.tsx` match search. |
-| `app/(app)/` | The app's pages (`/explore`, `/saga`, `/statistics`, `/interact`, `/account`) and the server actions that keep a diary. Explore opens signed out only for a shared match, with nowhere to go from it. |
-| `app/diary/records.ts`, `lib/records.ts` | Statistics: every board's rules, and the loader that reads a tour's matches and builds them. The pages are prerendered and rebuilt daily. |
-| `app/diary/models.ts`, `lib/models.ts` | Interact: models fitted to a tour's matches (the top 10 at any moment, upset odds, Elo ratings across eras, serving, big points under pressure, ages), and the loader that fits them. Built ahead of time and rebuilt daily, like Statistics. |
+| `app/(app)/` | The app's pages: home (`/`), `/tournaments`, `/matches` (and `/matches/<id>`, one match's story), `/statistics`, `/saga`, and the server actions that keep a diary. Every page is open to anyone; starring asks for an account. `/advanced` forwards to Statistics' chapter of the same name, and next.config.ts redirects the older addresses (`/explore?m=<id>` is `/matches/<id>`). |
+| `app/diary/matches.ts`, `app/diary/match-index.ts`, `lib/match-index.ts` | Matches: every statistic, filter, oddity and example search; the engine that keeps a tour's matches in memory as typed columns, checks them (serve stats that don't add up to the score and impossible lengths are left out) and searches, sorts and ranks them; the drama score; and "How extreme" on a match's page. The API is `GET /api/matches` and `/api/matches/find`. |
+| `app/diary/records.ts`, `lib/records.ts` | Statistics' record lists: every board's rules, and the loader that builds them. The pages are prerendered and rebuilt daily. |
+| `app/diary/models.ts`, `lib/models.ts` | Statistics' models: the top 10 at any moment, Elo ratings across eras, serving, big points under pressure and ages, fitted to a tour's matches. The browser fetches them (`GET /api/models`) when one of their chapters opens. |
 | `app/(auth)/` | Sign up and log in. |
 | `app/s/[slug]/` | A shared saga: read-only, kept out of search engines. |
-| `app/api/` | Better Auth's endpoints and `GET /api/search`. |
+| `app/api/` | Better Auth's endpoints, match search (`/api/search`), stories (`/api/story`), Matches (`/api/matches`) and the models (`/api/models`). |
 | `lib/` | Accounts (`auth.ts`), diary and search queries (`diary.ts`). |
 | `db/`, `drizzle/` | The schema and database client, and the migrations generated from them. |
 | `scripts/` | `migrate.ts` and `import-matches.ts`. |
-| `proxy.ts` | Sends signed-in fans from `/` to their log, and everyone else from diary pages to log in. |
 
 ## Running it locally
 
@@ -78,4 +80,4 @@ migrations never reach the production database before it's merged. Every setting
 | `npm run db:generate` | Writes a new migration to `drizzle/` after a change to `db/schema.ts`. |
 | `npm run db:migrate` | Applies migrations to `DATABASE_URL_UNPOOLED` (or `DATABASE_URL`). |
 | `npm run import:matches -- <folder>` | Loads or refreshes the match data. |
-| `npm run books` | Works out the record books, Advanced's models and the quiz into `assets/books/`. Vercel runs it before every build; the matches are only read from the database when an import has changed them, because the free Neon plan allows 5 GB of transfer a month and one full read is about 60 MB. |
+| `npm run books` | Works out the record books, the models and Matches' table of every match into `assets/books/`. Vercel runs it before every build; the matches are only read from the database when an import has changed them, because the free Neon plan allows 5 GB of transfer a month and one full read is about 60 MB. |

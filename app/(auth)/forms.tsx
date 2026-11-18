@@ -6,8 +6,8 @@ import { useState, type FormEvent } from "react";
 import { authClient } from "@/lib/auth-client";
 import { Field, Message, SubmitButton, problem } from "../form-ui";
 
-// Only ever send someone back to a page of this site
-const safeNext = (next: string | null) => (next && next.startsWith("/") && !next.startsWith("//") ? next : "/explore");
+// Only ever send someone back to a page of this site: by default, back to their saga
+const safeNext = (next: string | null) => (next && next.startsWith("/") && !next.startsWith("//") ? next : "/saga");
 
 const text = (form: FormData, name: string) => String(form.get(name) ?? "").trim();
 
@@ -45,7 +45,8 @@ export function SignUpForm({ onDone, onSwitch }: InPlace = {}) {
       return;
     }
     if (onDone) return onDone();
-    router.replace("/explore");
+    // A new saga starts with finding matches to star
+    router.replace("/tournaments");
     router.refresh();
   }
 

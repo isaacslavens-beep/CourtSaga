@@ -4,7 +4,7 @@ import { Logo } from "../ui";
 import { AppNav, Tabs } from "./nav";
 import { SignedIn } from "./signed-in";
 
-/* The site's pages: home, Explore, Statistics, Advanced and the saga, under one bar with the parts as
+/* The site's pages: home, Tournaments, Matches, Statistics and the saga, under one bar with the parts as
    tabs, and who's signed in (or the ways in) at the foot. Open to anyone; starring and the saga check
    the session themselves. */
 export default function DiaryLayout({ children }: { children: React.ReactNode }) {

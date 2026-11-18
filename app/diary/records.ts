@@ -1,7 +1,7 @@
 // The record books: leaderboards from every match in the data, one tour at a time. Like the story
 // (story.ts) and the saga's books (books.ts), every board comes from fixed rules over the data, so the
 // same data always gives the same boards. Each board ranks one kind of feat (a streak, a rivalry, a run
-// at one event, a season, a single match) and every row opens a match in Explore.
+// at one event, a season, a single match) and every row opens a match.
 
 import { bigEvents, displayNames, parseScore, type Outcome, type Player, type Round, type Surface, type Tier, type Tour } from "./library";
 
@@ -38,18 +38,17 @@ export type RecordsInput = { tour: Tour; matches: RecordMatch[]; players: Record
 
 /* ---------- What it gives ---------- */
 
-export type ChapterId = "rivalries" | "events" | "streaks" | "seasons" | "matches" | "specialists";
+export type ChapterId = "rivalries" | "events" | "streaks" | "seasons" | "specialists";
 
 export const chapters: { id: ChapterId; title: string; blurb: string }[] = [
   { id: "rivalries", title: "Rivalries", blurb: "Head-to-heads: the one-sided, the closest, the most played and the turned around." },
   { id: "events", title: "Tournaments", blurb: "Titles and unbeaten runs at one event, Slams in a row, and the unlikeliest champions." },
   { id: "streaks", title: "Streaks", blurb: "Wins in a row: anywhere, on one surface, in finals, over the top 10, and in sets." },
   { id: "seasons", title: "Seasons", blurb: "The best single years: by wins, titles, Slams and wins over the top 10." },
-  { id: "matches", title: "Matches", blurb: "The longest matches, the most aces, the unlikeliest wins and the comebacks." },
-  { id: "specialists", title: "Specialists", blurb: "Bagels, tiebreaks, deciding sets, serving, returning, and the youngest and oldest champions." },
+  { id: "specialists", title: "Specialists", blurb: "Bagels, tiebreaks, deciding sets, comebacks, serving, returning, and the youngest and oldest champions." },
 ];
 
-/** One line of a board: who, the number, a line about it, and the match it opens in Explore */
+/** One line of a board: who, the number, a line about it, and the match it opens */
 export type BoardRow = {
   rank: number; // shared by rows with the same number
   // One player; a pair, the leader first; or a match, the winner first
@@ -106,10 +105,7 @@ const days = (a: string, b: string) => (Date.parse(b) - Date.parse(a)) / 86_400_
 const opp = (m: RecordMatch, p: string) => (m.w === p ? m.l : m.w);
 const won = (m: RecordMatch, p: string) => m.w === p;
 const isTitle = (m: RecordMatch) => m.round === "F" && titleTiers.has(m.tier);
-const hm = (min: number) => `${Math.floor(min / 60)} h ${String(min % 60).padStart(2, "0")}`;
 const at = (m: RecordMatch) => `${m.event} ${m.season}`;
-/** A score from the loser's side: "4-6 7-6(5) 9-7" becomes "6-4 6-7(5) 7-9" */
-const flipped = (score: string) => score.replace(/(\[?)(\d+)-(\d+)/g, "$1$3-$2");
 /** Age in years as "19 years, 4 months" */
 const age = (a: number) => {
   const y = Math.floor(a);
@@ -800,152 +796,6 @@ export function buildRecords({ tour, matches: all, players, last }: RecordsInput
     ),
   });
 
-  /* ----- Matches ----- */
-
-  // Times the data can't have right are left out: over twelve hours, or more than eight minutes a game
-  const timed = matches.filter((m) => {
-    if (!m.minutes) return false;
-    const g = gamesOf(m);
-    return m.minutes <= 720 && m.minutes <= 8 * (g.w + g.l);
-  });
-  const timedFrom = firstMostly(matches, (m) => m.minutes !== null);
-  const statsFrom = firstMostly(matches, (m) => m.wst !== null);
-  const coverage = (y: number | null, what: string) => (y && y > from ? ` The data has ${what} for most ${tourWord} matches from ${y}.` : "");
-
-  add({
-    id: "longest",
-    chapter: "matches",
-    title: "Longest matches",
-    rule: `By time on court.${coverage(timedFrom, "times")}`,
-    unit: "hours",
-    rows: ranked(
-      timed,
-      (m) => m.minutes!,
-      (m) => row("match", [m.w, m.l], hm(m.minutes!), m.score, go(m, where(m))),
-      (x, y) => x.date.localeCompare(y.date),
-    ),
-  });
-
-  add({
-    id: "most-games",
-    chapter: "matches",
-    title: "Most games in a match",
-    rule: "Games played in one match, a tiebreak counting as one game.",
-    unit: "games",
-    rows: ranked(
-      matches.map((m) => ({ m, g: gamesOf(m) })),
-      ({ g }) => g.w + g.l,
-      ({ m, g }) => row("match", [m.w, m.l], String(g.w + g.l), m.score, go(m, where(m))),
-      (x, y) => x.m.date.localeCompare(y.m.date),
-    ),
-  });
-
-  add({
-    id: "aces",
-    chapter: "matches",
-    title: "Most aces in a match",
-    rule: `Aces by one player in one match, won or lost.${coverage(statsFrom, "serve stats")}`,
-    unit: "aces",
-    rows: ranked(
-      matches.flatMap((m) => [
-        ...(statsOk(m.wst, m) ? [{ m, who: m.w, aces: m.wst[STAT.ace] }] : []),
-        ...(statsOk(m.lst, m) ? [{ m, who: m.l, aces: m.lst[STAT.ace] }] : []),
-      ]),
-      (x) => x.aces,
-      ({ m, who, aces }) => row("pair", [who, opp(m, who)], String(aces), won(m, who) ? `Won ${m.score}` : `Lost ${flipped(m.score)}`, go(m, where(m))),
-      (x, y) => x.m.date.localeCompare(y.m.date),
-    ),
-  });
-
-  add({
-    id: "beat-no1",
-    chapter: "matches",
-    title: "Beat the No. 1 from furthest down",
-    rule: "The lowest-ranked players to beat the world No. 1.",
-    unit: "ranking",
-    rows: ranked(
-      matches.filter((m) => m.lr === 1 && m.wr !== null && m.wr > 1),
-      (m) => m.wr!,
-      (m) => row("match", [m.w, m.l], `No. ${m.wr}`, m.score, go(m, where(m))),
-      (x, y) => x.date.localeCompare(y.date),
-    ),
-  });
-
-  // Comebacks from two sets down, in best-of-five
-  const twoDown = (m: RecordMatch) => {
-    if (m.bestOf !== 5 || m.outcome !== "completed") return false;
-    const sets = parseScore(m.score).sets;
-    return sets.length === 5 && sets[0].l > sets[0].w && sets[1].l > sets[1].w;
-  };
-  const comebacks = new Map<string, RecordMatch[]>();
-  const collapses = new Map<string, number>();
-  for (const m of matches.filter(twoDown)) {
-    push(comebacks, m.w, m);
-    collapses.set(m.l, (collapses.get(m.l) ?? 0) + 1);
-  }
-  add({
-    id: "two-sets-down",
-    chapter: "matches",
-    title: "Most wins from two sets down",
-    rule: "Best-of-five matches won after losing the first two sets.",
-    unit: "comebacks",
-    rows: ranked(
-      [...comebacks].filter(([, list]) => list.length >= 3),
-      ([, list]) => list.length,
-      ([who, list]) => {
-        const m = list[list.length - 1];
-        const lost = collapses.get(who) ?? 0;
-        return row("player", [who], String(list.length), lost ? `And ${s(lost, "match", "matches")} lost from two sets up` : "Never lost from two sets up", go(m, `Latest · ${nameOf(m.l)}, ${where(m)}`));
-      },
-      ([, a], [, b]) => a[0].date.localeCompare(b[0].date),
-    ),
-  });
-
-  add({
-    id: "fewer-games",
-    chapter: "matches",
-    title: "Won the match, lost on games",
-    rule: "Matches won by the player who won fewer games, by how many fewer.",
-    unit: "games fewer",
-    rows: ranked(
-      matches
-        .filter((m) => {
-          if (m.outcome !== "completed") return false;
-          // The winner has to have won the most sets, or the score is wrong
-          const sets = parseScore(m.score).sets;
-          const ws = sets.filter((x) => x.w > x.l).length;
-          return ws >= 2 && ws > sets.length - ws;
-        })
-        .map((m) => ({ m, g: gamesOf(m) }))
-        .filter(({ g }) => g.w < g.l),
-      ({ g }) => g.l - g.w,
-      ({ m, g }) => row("match", [m.w, m.l], String(g.l - g.w), `${record(g.w, g.l)} in games · ${m.score}`, go(m, where(m))),
-      (x, y) => x.m.date.localeCompare(y.m.date),
-    ),
-  });
-
-  const fromBagel = new Map<string, RecordMatch[]>();
-  for (const m of matches) {
-    const first = m.outcome === "completed" ? parseScore(m.score).sets[0] : null;
-    if (first && !first.super && first.w === 0 && first.l === 6) push(fromBagel, m.w, m);
-  }
-  add({
-    id: "from-a-bagel",
-    chapter: "matches",
-    title: "Won after a 0–6 first set",
-    rule: "Matches won after losing the first set without winning a game.",
-    unit: "times",
-    rows: ranked(
-      [...fromBagel].filter(([, list]) => list.length >= 2),
-      ([, list]) => list.length,
-      ([who, list]) => {
-        const m = list[list.length - 1];
-        return row("player", [who], String(list.length), `Latest: ${m.score} over ${nameOf(m.l)}`, go(m, where(m)));
-      },
-      ([, a], [, b]) => a[0].date.localeCompare(b[0].date),
-    ),
-  });
-
   /* ----- Specialists ----- */
 
   type Tally = { who: string; bagels: number; lastBagel: RecordMatch | null; doubles: RecordMatch[]; tbW: number; tbL: number; lastTb: RecordMatch | null; decW: number; decL: number; lastDec: RecordMatch | null };
@@ -1042,6 +892,8 @@ export function buildRecords({ tour, matches: all, players, last }: RecordsInput
     }
   }
   const servers = [...serves.values()].filter((x) => x.matches >= 150);
+  const statsFrom = firstMostly(matches, (m) => m.wst !== null);
+  const coverage = (y: number | null, what: string) => (y && y > from ? ` The data has ${what} for most ${tourWord} matches from ${y}.` : "");
   const statsRule = `for players with 150 matches or more with serve stats.${coverage(statsFrom, "serve stats")}`;
 
   add({
@@ -1124,6 +976,58 @@ export function buildRecords({ tour, matches: all, players, last }: RecordsInput
         r.note = fill(r.note);
         if (r.go) r.go.text = fill(r.go.text);
       }
+
+  // Comebacks from two sets down, in best-of-five
+  const twoDown = (m: RecordMatch) => {
+    if (m.bestOf !== 5 || m.outcome !== "completed") return false;
+    const sets = parseScore(m.score).sets;
+    return sets.length === 5 && sets[0].l > sets[0].w && sets[1].l > sets[1].w;
+  };
+  const comebacks = new Map<string, RecordMatch[]>();
+  const collapses = new Map<string, number>();
+  for (const m of matches.filter(twoDown)) {
+    push(comebacks, m.w, m);
+    collapses.set(m.l, (collapses.get(m.l) ?? 0) + 1);
+  }
+  add({
+    id: "two-sets-down",
+    chapter: "specialists",
+    title: "Most wins from two sets down",
+    rule: "Best-of-five matches won after losing the first two sets.",
+    unit: "comebacks",
+    rows: ranked(
+      [...comebacks].filter(([, list]) => list.length >= 3),
+      ([, list]) => list.length,
+      ([who, list]) => {
+        const m = list[list.length - 1];
+        const lost = collapses.get(who) ?? 0;
+        return row("player", [who], String(list.length), lost ? `And ${s(lost, "match", "matches")} lost from two sets up` : "Never lost from two sets up", go(m, `Latest · ${nameOf(m.l)}, ${where(m)}`));
+      },
+      ([, a], [, b]) => a[0].date.localeCompare(b[0].date),
+    ),
+  });
+
+  const fromBagel = new Map<string, RecordMatch[]>();
+  for (const m of matches) {
+    const first = m.outcome === "completed" ? parseScore(m.score).sets[0] : null;
+    if (first && !first.super && first.w === 0 && first.l === 6) push(fromBagel, m.w, m);
+  }
+  add({
+    id: "from-a-bagel",
+    chapter: "specialists",
+    title: "Won after a 0–6 first set",
+    rule: "Matches won after losing the first set without winning a game.",
+    unit: "times",
+    rows: ranked(
+      [...fromBagel].filter(([, list]) => list.length >= 2),
+      ([, list]) => list.length,
+      ([who, list]) => {
+        const m = list[list.length - 1];
+        return row("player", [who], String(list.length), `Latest: ${m.score} over ${nameOf(m.l)}`, go(m, where(m)));
+      },
+      ([, a], [, b]) => a[0].date.localeCompare(b[0].date),
+    ),
+  });
 
   return {
     tour,

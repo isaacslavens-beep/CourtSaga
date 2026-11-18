@@ -1,4 +1,4 @@
-import { ogCard, ogPhoto, ogSize } from "../../og-card";
+import { ogCard, ogPhoto, ogSize } from "../../../og-card";
 
 /* The card a shared match shows, the same for every match: Nadal and Federer after the 2009 Australian
    Open final. The link's title says which match it is. */

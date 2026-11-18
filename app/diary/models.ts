@@ -1,4 +1,4 @@
-// The models behind Advanced: small statistical models fitted to every match in the data, one tour at a
+// The models behind Statistics' model chapters: small statistical models fitted to every match in the data, one tour at a
 // time, for a fan to play with. Like the record books (records.ts), everything comes from fixed rules over
 // the data, so the same data always gives the same models. Each model also says what it was fitted on and
 // how well it does, because the page shows that next to every answer.
@@ -37,6 +37,13 @@ export type ModelMatch = {
   la: number | null;
   wst: number[] | null; // serve stats, see STAT
   lst: number[] | null;
+  // Read for Matches (match-index.ts), which builds from the same rows; the models leave them alone
+  date?: string; // when it was played (an estimate from the start date and the round)
+  indoor?: boolean | null;
+  ws?: number | null; // seeds
+  ls?: number | null;
+  we?: string | null; // how each got in: Q, WC, LL, PR…
+  le?: string | null;
 };
 
 export type ModelsInput = { tour: Tour; matches: ModelMatch[]; players: Record<string, Player>; last: string };

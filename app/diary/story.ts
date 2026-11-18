@@ -6,7 +6,7 @@
 // weight, from how rare or how big it was, against the event's own past and every match like it since
 // the data begins). The heaviest lines lead, each thread keeps its best few, and the rest are dropped.
 
-import { parseScore, slams, displayNames, type Outcome, type Player, type Round, type Surface, type Tier, type Tour } from "./library";
+import { parseScore, slams, displayNames, initialsOf, type Outcome, type Player, type Round, type Surface, type Tier, type Tour } from "./library";
 
 /* ---------- What the engine reads ---------- */
 
@@ -127,6 +127,7 @@ export type Story = {
   a: StorySide; // the winner
   b: StorySide;
   names: Record<string, string>; // what to call everyone the story mentions, by key
+  initials: Record<string, string>; // their initials, by what they're called, for the avatars
   lede: Fact[];
   threads: Thread[];
   refs: Record<string, Ref>;
@@ -1234,6 +1235,7 @@ export function tellStory(input: StoryInput): Story {
     a: sideOf(A, F.ws, F.we, F.wr, F.wa),
     b: sideOf(B, F.ls, F.le, F.lr, F.la),
     names,
+    initials: Object.fromEntries(known.map((p) => [names[p.key], initialsOf(p)])),
     lede: lede.map(fillFact),
     threads: threads.map((t) => ({ ...t, title: fill(t.title), kicker: fill(t.kicker), facts: t.facts.map(fillFact) })),
     refs,

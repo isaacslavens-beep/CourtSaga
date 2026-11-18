@@ -290,7 +290,7 @@ function RowsChart({ book, players, spotId, hover }: { book: Glance; players: To
   );
 }
 
-/** What a chart draws: a book's, or any set of matches shaped like one (Explore draws its own) */
+/** What a chart draws: a book's, or any set of matches shaped like one (a match's page draws its own) */
 export type Glance = Pick<BookData, "faces" | "strip" | "stripLegend" | "stripMode">;
 
 /** The at-a-glance chart for any book, with its legend, caption and a tooltip for the match under the pointer. */

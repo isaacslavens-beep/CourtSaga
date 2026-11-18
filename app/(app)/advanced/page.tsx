@@ -1,12 +1,8 @@
 import type { Metadata } from "next";
-import { AdvancedPage, advancedDescription } from "./view";
+import { Moved } from "./moved";
 
-export const metadata: Metadata = {
-  title: "Advanced · CourtSaga",
-  description: advancedDescription,
-  openGraph: { title: "Play with tennis numbers · CourtSaga", description: advancedDescription },
-};
+export const metadata: Metadata = { title: "Statistics · CourtSaga", robots: { index: false } };
 
 export default function MensAdvanced() {
-  return <AdvancedPage tour="atp" />;
+  return <Moved to="/statistics" />;
 }

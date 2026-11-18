@@ -6,7 +6,7 @@ import type { Tour } from "@/app/diary/library";
 import { builtBook } from "./built-books";
 import { readTourModels } from "./tour-data";
 
-// Advanced's models (app/diary/models.ts), from the match data. Each build writes them to a file
+// Statistics' models (app/diary/models.ts), from the match data. Each build writes them to a file
 // (scripts/books.ts); without the file every row a tour has is read and fitted. Like the record books
 // they only change when matches are imported, so they're cached for days and the page is built ahead of
 // time.

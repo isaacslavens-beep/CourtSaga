@@ -2,8 +2,11 @@
 
 import { useRouter } from "next/navigation";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { PlayerInitials } from "./fun";
 import {
   findRivalries,
+  initialsByName,
+  matchHref,
   placeByRating,
   toFanEntry,
   toMatches,
@@ -55,7 +58,7 @@ type LogStore = {
   /** The last "see it in the next step" request */
   spotlight: Spotlight | null;
   goTo: (target: Spotlight["target"], id: string) => void;
-  /** Open a starred match's story in Explore, from the saga */
+  /** Open a starred match's page, from the saga */
   openInLog: (id: string) => void;
   saving: SaveState;
 };
@@ -197,10 +200,10 @@ export function LogProvider({ mode, rows: initialRows, matches: fixed, entries: 
     [mode, flush, router],
   );
 
-  // A match's own page is its story in Explore, where it's rated and noted too
+  // A match's own page is its story in Matches, where it's rated and noted too
   const openInLog = useCallback(
     (id: string) => {
-      if (mode === "diary") return router.push(`/explore?m=${encodeURIComponent(id)}`);
+      if (mode === "diary") return router.push(matchHref(id));
       setFocusId(id);
       setSpotlight((s) => ({ target: "explore", id, n: (s?.n ?? 0) + 1 }));
     },
@@ -211,7 +214,13 @@ export function LogProvider({ mode, rows: initialRows, matches: fixed, entries: 
     () => ({ mode, matches, entries, order, records, rivalries, update, add, remove, view, focusId, setFocusId, spotlight, goTo, openInLog, saving }),
     [mode, matches, entries, order, records, rivalries, update, add, remove, view, focusId, spotlight, goTo, openInLog, saving],
   );
-  return <LogContext.Provider value={value}>{children}</LogContext.Provider>;
+  // Whose initials each name in the diary stands for, for the avatars
+  const initials = useMemo(() => initialsByName(Object.values(rows).flatMap((r) => [r.winner, r.loser])), [rows]);
+  return (
+    <LogContext.Provider value={value}>
+      <PlayerInitials names={initials}>{children}</PlayerInitials>
+    </LogContext.Provider>
+  );
 }
 
 export function useLog() {

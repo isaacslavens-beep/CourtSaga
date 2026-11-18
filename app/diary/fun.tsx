@@ -1,17 +1,7 @@
 "use client";
 
-import Image, { type StaticImageData } from "next/image";
-import { useState, type ReactNode } from "react";
-import alcarazHead from "@/public/players/alcaraz.png";
-import djokovicHead from "@/public/players/djokovic.png";
-import federerHead from "@/public/players/federer.png";
-import nadalHead from "@/public/players/nadal.png";
-import rybakinaHead from "@/public/players/rybakina.png";
-import sabalenkaHead from "@/public/players/sabalenka.png";
-import sheltonHead from "@/public/players/shelton.png";
-import sinnerHead from "@/public/players/sinner.png";
-import zverevHead from "@/public/players/zverev.png";
-import type { Surface } from "./library";
+import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
+import { initialsOf, type Surface } from "./library";
 
 /* ---------- Players ---------- */
 
@@ -38,21 +28,20 @@ export function chartStyles(names: string[]) {
   return new Map(names.map((n) => [n, playerStyles[n] ?? (free.length ? playerStyles[free.shift()!] : neutralStyle)]));
 }
 
-const headshots: Record<string, StaticImageData> = {
-  Alcaraz: alcarazHead,
-  Sinner: sinnerHead,
-  Djokovic: djokovicHead,
-  Rybakina: rybakinaHead,
-  Sabalenka: sabalenkaHead,
-  Federer: federerHead,
-  Nadal: nadalHead,
-  Shelton: sheltonHead,
-  Zverev: zverevHead,
-};
+/* Avatars show a player's initials, first name and surname ("RF"). What the site calls a player is often
+   just the surname, so whatever lists the players (a story, the record books, a diary) says whose initials
+   each name stands for, through PlayerInitials. Names it doesn't know fall back to their own words. */
 
-export const hasHeadshot = (name: string) => name in headshots;
+const InitialsContext = createContext<ReadonlyMap<string, string>>(new Map());
 
-/** A player's headshot in a circle ringed with their colour. Players without a photo get their initial. */
+/** Tell the avatars inside whose initials each name stands for: shown name → initials, added to any outer list */
+export function PlayerInitials({ names, children }: { names: Iterable<readonly [string, string]>; children: ReactNode }) {
+  const outer = useContext(InitialsContext);
+  const merged = useMemo(() => new Map([...outer, ...names]), [outer, names]);
+  return <InitialsContext.Provider value={merged}>{children}</InitialsContext.Provider>;
+}
+
+/** A player's initials in a circle in their colour */
 export function Avatar({
   name,
   size = "h-8 w-8 text-sm",
@@ -65,25 +54,15 @@ export function Avatar({
   tone?: PlayerStyle; // a chart's colour for this player, when it differs from their usual one
 }) {
   const s = tone ?? playerStyle(name);
-  const photo = headshots[name];
-  if (photo) {
-    return (
-      <span
-        aria-hidden
-        title={name}
-        className={`relative inline-block shrink-0 select-none overflow-hidden rounded-full border-2 bg-surface ${s.border} ${size} ${className}`}
-      >
-        <Image src={photo} alt="" fill sizes="48px" className={`object-cover ${s.soft}`} />
-      </span>
-    );
-  }
+  const known = useContext(InitialsContext).get(name);
+  const initials = known ?? initialsOf({ name: name.replace(/\s*\(.*\)$/, "") });
   return (
     <span
       aria-hidden
       title={name}
       className={`inline-flex shrink-0 select-none items-center justify-center rounded-full font-display font-bold ${s.bg} ${s.ink} ${size} ${className}`}
     >
-      {name[0].toUpperCase()}
+      <span className={initials.length > 1 ? "text-[0.82em] tracking-[-0.01em]" : ""}>{initials}</span>
     </span>
   );
 }

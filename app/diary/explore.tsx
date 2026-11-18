@@ -6,8 +6,8 @@ import { useEffect, useMemo, useRef, useState, useSyncExternalStore, useTransiti
 import { glideTo } from "../glide";
 import { HighlightsLink, SlamLogo, TournamentLabel, slamColours } from "../match-ui";
 import { Chevron, SectionHead, Segmented } from "../ui";
-import { Avatar, BallRating, BallScore, CollectionIcon, CourtArt, chartStyles } from "./fun";
-import { bigEventOf, bigEvents, diaryPages, finished, parseScore, roundName, scoreText, setWinner, toMatches, watched, watchedHow, type Match, type MatchRow, type Round, type WatchMode } from "./library";
+import { Avatar, BallRating, BallScore, CollectionIcon, CourtArt, PlayerInitials, chartStyles } from "./fun";
+import { bigEventOf, bigEvents, diaryPages, finished, matchHref, parseScore, roundName, scoreText, setWinner, toMatches, watched, watchedHow, type Match, type MatchRow, type Round, type WatchMode } from "./library";
 import { highlightVideos } from "./media";
 import { MatchFinder } from "./finder";
 import { JoinDialog } from "./join";
@@ -17,9 +17,9 @@ import type { Bracket, BracketSlot, DrawVisual, EventVisual, Fact, H2HVisual, Pa
 import type { Surface } from "./library";
 import { ShapeChart, type Glance } from "./saga-ui";
 
-/* Exploring one match at a time: the story around it from the whole record (see story.ts), with every
-   match it mentions one click away. Each match is its own address (/explore?m=…), so the back button
-   walks back along the trail. */
+/* One match at a time: the story around it from the whole record (see story.ts), with every match it
+   mentions one click away, and Tournaments, where the Slams' and big events' finals start a trail. Each
+   match is its own address (/matches/<id>), so the back button walks back along the trail. */
 
 type Follow = (id: string) => void;
 
@@ -110,7 +110,7 @@ function H2HChart({ v, story, follow, page, starOf, still }: { v: H2HVisual; sto
       caption={`The head-to-head after every meeting: above the middle line ${A} leads, below it ${B} does.${still ? " The dark-ringed dot is this match." : " Filled dots are the meetings you starred; the dark-ringed one is this match."}`}
       spotId={story.id}
       onMark={(x) => x.key !== story.id && follow(x.key)}
-      markVerb="Explore it."
+      markVerb="Open it."
     />
   );
 }
@@ -180,7 +180,7 @@ function EventGrid({ v, story, colors, follow }: { v: EventVisual; story: Story;
                     won={cell.won}
                     color={colors[row.side]}
                     focus={v.seasons[i] === story.season}
-                    title={`${v.seasons[i]}: ${resultTitle[cell.result] ?? cell.result}. Explore it.`}
+                    title={`${v.seasons[i]}: ${resultTitle[cell.result] ?? cell.result}. Open it.`}
                     onClick={() => follow(cell.id)}
                   />
                 ) : (
@@ -245,7 +245,7 @@ function SeasonChart({ v, story, follow }: { v: SeasonVisual; story: Story; foll
       caption={`Every match each of them played in ${story.season}, in order. The marked one is this match.`}
       spotId={story.id}
       onMark={(x) => x.key !== story.id && follow(x.key)}
-      markVerb="Explore it."
+      markVerb="Open it."
     />
   );
 }
@@ -361,7 +361,7 @@ function BracketMatch({ slot, story, follow }: { slot: BracketSlot; story: Story
       type="button"
       onClick={() => open && follow(slot.id)}
       disabled={!slot.played}
-      title={slot.focus ? "This match" : slot.played ? "Explore it" : "A walkover: never played"}
+      title={slot.focus ? "This match" : slot.played ? "Open it" : "A walkover: never played"}
       className={`flex w-full min-w-0 flex-col gap-1 rounded border px-3 py-2 text-left text-sm transition-colors ${
         slot.focus ? "cursor-default border-foreground bg-ball/25" : open ? "cursor-pointer border-line bg-surface hover:border-foreground/50" : "border-dashed border-line bg-surface/60"
       }`}
@@ -460,6 +460,7 @@ export function StoryView({
   lite = false,
   still = false,
   short = false,
+  extra,
 }: {
   story: Story;
   follow: Follow;
@@ -471,6 +472,7 @@ export function StoryView({
   lite?: boolean; // the landing's demo: on a phone, only the threads that read quickest
   still?: boolean; // the story to read and nothing more: its matches named but not links, no trail onwards
   short?: boolean; // the landing page: only the head-to-head after the story
+  extra?: ReactNode; // across the page under the story: how extreme the match was
 }) {
   const match = asMatch(story);
   const [nameA, nameB] = [story.names[story.a.key], story.names[story.b.key]];
@@ -505,92 +507,96 @@ export function StoryView({
   );
 
   return (
-    <div className={`transition-opacity duration-300 ${pending ? "opacity-50" : ""}`} aria-busy={pending}>
-      {/* Which match this is, before anything else */}
-      <header key={story.id} className="fade-in mb-6 flex flex-wrap items-center gap-x-4 gap-y-4">
-        <SlamLogo event={story.event} size="h-14 w-14 text-4xl sm:h-16 sm:w-16 sm:text-5xl" />
-        <div className="min-w-0">
-          <h2 className="font-display text-3xl font-bold leading-[1.05] sm:text-[2.75rem]">
-            {story.event} {story.season} · {roundName(match)}
-          </h2>
-          <p className="mt-1 text-[1.0625rem] text-muted">
-            <span className="font-semibold text-foreground">{story.a.name}</span> beat <span className="font-semibold text-foreground">{story.b.name}</span>{" "}
-            <span className="whitespace-nowrap font-semibold tabular-nums text-foreground">{scoreText(story.score)}</span>
-          </p>
-        </div>
-        {star && <div className="w-full sm:ml-auto sm:w-auto">{star}</div>}
-      </header>
-      {take && <div className="mb-6">{take}</div>}
-
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1fr)]">
-        {/* The match, as a page of the record */}
-        <div className="min-w-0">
-          <div key={story.id} className={`page-turn page-stack overflow-hidden rounded-md border bg-surface ${here ? "border-foreground" : "border-line"}`}>
-            {/* Starred: say so across the top of the card */}
-            {here && (
-              <p className="flex items-center gap-2 bg-ball px-4 py-2 font-display text-lg font-bold">
-                <span aria-hidden>★</span> In your saga
-                <span className="ml-auto font-sans text-sm font-semibold opacity-75">page {here}</span>
-              </p>
-            )}
-            <p className="flex items-baseline justify-between gap-3 border-b border-line px-4 py-2 text-sm">
-              <span className="font-semibold">{here ? <span className="text-muted">Starred</span> : still ? null : <span className="font-normal text-muted">Not in your saga</span>}</span>
-              <span className="tabular-nums text-muted">
-                {new Date(`${story.date.slice(0, 7)}-15`).toLocaleDateString("en-GB", { month: "short", year: "numeric" })}
-                {story.minutes ? ` · ${Math.floor(story.minutes / 60)} h ${String(story.minutes % 60).padStart(2, "0")}` : ""}
-              </span>
+    <PlayerInitials names={Object.entries(story.initials)}>
+      <div className={`transition-opacity duration-300 ${pending ? "opacity-50" : ""}`} aria-busy={pending}>
+        {/* Which match this is, before anything else */}
+        <header key={story.id} className="fade-in mb-6 flex flex-wrap items-center gap-x-4 gap-y-4">
+          <SlamLogo event={story.event} size="h-14 w-14 text-4xl sm:h-16 sm:w-16 sm:text-5xl" />
+          <div className="min-w-0">
+            <h2 className="font-display text-3xl font-bold leading-[1.05] sm:text-[2.75rem]">
+              {story.event} {story.season} · {roundName(match)}
+            </h2>
+            <p className="mt-1 text-[1.0625rem] text-muted">
+              <span className="font-semibold text-foreground">{story.a.name}</span> beat <span className="font-semibold text-foreground">{story.b.name}</span>{" "}
+              <span className="whitespace-nowrap font-semibold tabular-nums text-foreground">{scoreText(story.score)}</span>
             </p>
-            <div className="relative">
-              <CourtArt surface={story.surface} className="aspect-[16/9] w-full" />
-              <div className="absolute inset-x-0 top-0 flex flex-wrap items-center justify-between gap-2 bg-[#0a1220]/55 px-4 py-2.5 text-white">
-                <TournamentLabel event={label} surface={story.surface} onPhoto />
-                <HighlightsLink videoId={highlightVideos[story.id]} players={[nameA, nameB]} event={label} onPhoto />
+          </div>
+          {star && <div className="w-full sm:ml-auto sm:w-auto">{star}</div>}
+        </header>
+        {take && <div className="mb-6">{take}</div>}
+
+        <div className="grid gap-5 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1fr)]">
+          {/* The match, as a page of the record */}
+          <div className="min-w-0">
+            <div key={story.id} className={`page-turn page-stack overflow-hidden rounded-md border bg-surface ${here ? "border-foreground" : "border-line"}`}>
+              {/* Starred: say so across the top of the card */}
+              {here && (
+                <p className="flex items-center gap-2 bg-ball px-4 py-2 font-display text-lg font-bold">
+                  <span aria-hidden>★</span> In your saga
+                  <span className="ml-auto font-sans text-sm font-semibold opacity-75">page {here}</span>
+                </p>
+              )}
+              <p className="flex items-baseline justify-between gap-3 border-b border-line px-4 py-2 text-sm">
+                <span className="font-semibold">{here ? <span className="text-muted">Starred</span> : still ? null : <span className="font-normal text-muted">Not in your saga</span>}</span>
+                <span className="tabular-nums text-muted">
+                  {new Date(`${story.date.slice(0, 7)}-15`).toLocaleDateString("en-GB", { month: "short", year: "numeric" })}
+                  {story.minutes ? ` · ${Math.floor(story.minutes / 60)} h ${String(story.minutes % 60).padStart(2, "0")}` : ""}
+                </span>
+              </p>
+              <div className="relative">
+                <CourtArt surface={story.surface} className="aspect-[16/9] w-full" />
+                <div className="absolute inset-x-0 top-0 flex flex-wrap items-center justify-between gap-2 bg-[#0a1220]/55 px-4 py-2.5 text-white">
+                  <TournamentLabel event={label} surface={story.surface} onPhoto />
+                  <HighlightsLink videoId={highlightVideos[story.id]} players={[nameA, nameB]} event={label} onPhoto />
+                </div>
               </div>
-            </div>
-            <div className="relative -mt-12 space-y-3 px-4 pb-4">
-              <Scoreboard match={match} />
-              <div className="space-y-0.5">
-                <SideLine side={story.a} name={story.a.name} />
-                <SideLine side={story.b} name={story.b.name} />
+              <div className="relative -mt-12 space-y-3 px-4 pb-4">
+                <Scoreboard match={match} />
+                <div className="space-y-0.5">
+                  <SideLine side={story.a} name={story.a.name} />
+                  <SideLine side={story.b} name={story.b.name} />
+                </div>
               </div>
             </div>
           </div>
+
+          {/* The story in three lines */}
+          <div className="min-w-0 space-y-5">
+            <section aria-label="The story" className="panel">
+              <header className="panel-head">
+                <h3 className="panel-title">The story</h3>
+              </header>
+              <div className="panel-body">
+                {story.lede.length ? (
+                  <ol className="space-y-3">
+                    {story.lede.map((f, i) => (
+                      <li
+                        key={`${story.id}-${f.key}`}
+                        className={i === 0 ? "font-display text-2xl font-bold leading-tight sm:text-[1.75rem]" : "border-t border-line pt-3 text-[1.0625rem] leading-relaxed"}
+                      >
+                        <Parts parts={f.parts} follow={follow} still={still} />.
+                      </li>
+                    ))}
+                  </ol>
+                ) : (
+                  <p className="text-[1.0625rem] text-muted">A quiet one: nothing in the record stands out about it. The threads below still lead somewhere.</p>
+                )}
+              </div>
+            </section>
+            {story.bracket && <MiniBracket b={story.bracket} story={story} follow={follow} />}
+          </div>
         </div>
 
-        {/* The story in three lines */}
-        <div className="min-w-0 space-y-5">
-          <section aria-label="The story" className="panel">
-            <header className="panel-head">
-              <h3 className="panel-title">The story</h3>
-            </header>
-            <div className="panel-body">
-              {story.lede.length ? (
-                <ol className="space-y-3">
-                  {story.lede.map((f, i) => (
-                    <li
-                      key={`${story.id}-${f.key}`}
-                      className={i === 0 ? "font-display text-2xl font-bold leading-tight sm:text-[1.75rem]" : "border-t border-line pt-3 text-[1.0625rem] leading-relaxed"}
-                    >
-                      <Parts parts={f.parts} follow={follow} still={still} />.
-                    </li>
-                  ))}
-                </ol>
-              ) : (
-                <p className="text-[1.0625rem] text-muted">A quiet one: nothing in the record stands out about it. The threads below still lead somewhere.</p>
-              )}
-            </div>
-          </section>
-          {story.bracket && <MiniBracket b={story.bracket} story={story} follow={follow} />}
+        {extra && <div className="mt-5">{extra}</div>}
+
+        {/* The rivalry first, then where to go next, then everything else */}
+        <div className="mt-5 grid items-start gap-5 lg:grid-flow-dense lg:grid-cols-2">
+          {h2h && thread(h2h)}
+          {story.trail.length > 0 && !still && <Trail story={story} follow={follow} page={page} lite={lite} />}
+          {rest.map(thread)}
         </div>
       </div>
-
-      {/* The rivalry first, then where to go next, then everything else */}
-      <div className="mt-5 grid items-start gap-5 lg:grid-flow-dense lg:grid-cols-2">
-        {h2h && thread(h2h)}
-        {story.trail.length > 0 && !still && <Trail story={story} follow={follow} page={page} lite={lite} />}
-        {rest.map(thread)}
-      </div>
-    </div>
+    </PlayerInitials>
   );
 }
 
@@ -904,7 +910,7 @@ function YourTake({ story, ask = false, guest = false }: { story: Story; ask?: b
 function ShareLink({ story }: { story: Story }) {
   const [copied, setCopied] = useState(false);
   const share = async () => {
-    const url = `${location.origin}/explore?m=${encodeURIComponent(story.id)}`;
+    const url = `${location.origin}${matchHref(story.id)}`;
     const title = `${story.event} ${story.season} · ${roundName(asMatch(story))}`;
     try {
       if (navigator.share && matchMedia("(pointer: coarse)").matches) return await navigator.share({ title, url });
@@ -937,32 +943,7 @@ const namesOf = (rows: MatchRow[]) => {
   return (row: MatchRow) => [named[row.id].winner, named[row.id].loser] as const;
 };
 
-function MatchCard({ row, why, page, onOpen, names }: { row: MatchRow; why?: string; page: number | null; onOpen: () => void; names: readonly [string, string] }) {
-  return (
-    <button
-      type="button"
-      onClick={onOpen}
-      className="group flex h-full w-full cursor-pointer items-center gap-3 rounded-md border border-line bg-surface px-3 py-2.5 text-left transition-colors hover:border-foreground/45"
-    >
-      <span className="flex shrink-0 -space-x-2">
-        <Avatar name={names[0]} size="h-8 w-8 text-xs ring-2 ring-surface" />
-        <Avatar name={names[1]} size="h-8 w-8 text-xs ring-2 ring-surface" />
-      </span>
-      <span className="min-w-0 flex-1">
-        {why && <span className="block truncate text-xs font-semibold text-muted">{why}</span>}
-        <span className="block truncate text-sm font-semibold">
-          {row.event} {row.season} · {roundName({ ...row, event: row.event })}
-        </span>
-        <span className="block truncate text-sm text-muted">
-          {names[0]} beat {names[1]} <span className="tabular-nums">{scoreText(row.score)}</span>
-        </span>
-      </span>
-      {page ? <span className="shrink-0 rounded-[3px] bg-ball/60 px-1.5 py-px text-xs font-semibold tabular-nums">p. {page}</span> : null}
-    </button>
-  );
-}
-
-type StartData = { finals: MatchRow[]; classics: { row: MatchRow; why: string }[]; diary: MatchRow[] };
+type StartData = { finals: MatchRow[] };
 
 const slamTiles = ["Australian Open", "Roland Garros", "Wimbledon", "US Open"] as const;
 
@@ -1017,7 +998,7 @@ function FinalRow({
 // How many finals an event shows before "Show all"
 const RECENT_FINALS = 10;
 
-const surpriseHref = (slam: string | null) => (slam ? `/explore?m=random&slam=${encodeURIComponent(slam)}` : "/explore?m=random");
+const surpriseHref = (slam: string | null) => (slam ? `/matches/random?slam=${encodeURIComponent(slam)}` : "/matches/random");
 const surpriseWhat = (slam: string | null) => (slam ? `Random ${slam} match` : "Random Grand Slam match");
 
 /** A random Slam semifinal or final, from one Slam once one is picked: at the foot of every story */
@@ -1031,6 +1012,9 @@ function SurpriseMe({ className = "", again = false, slam = null }: { className?
   );
 }
 
+/** The list of every match on the story's tour */
+const tourMatches = (story: Story) => (story.tour === "wta" ? "/matches/women" : "/matches");
+
 /** Surprise me, small: at the right end of the search bar */
 function SurpriseSmall({ slam }: { slam: string | null }) {
   return (
@@ -1040,7 +1024,7 @@ function SurpriseSmall({ slam }: { slam: string | null }) {
   );
 }
 
-/** With no match open: pick a Slam and a final, a match everyone talks about, or let chance pick */
+/** Tournaments: pick a Slam or a big event and one of its finals, or let chance pick */
 function Start({ start, follow, slam, setSlam }: { start: StartData; follow: Follow; slam: string | null; setSlam: (slam: string | null) => void }) {
   const page = usePages();
   const isSlamTile = (slamTiles as readonly string[]).includes(slam ?? "");
@@ -1048,7 +1032,6 @@ function Start({ start, follow, slam, setSlam }: { start: StartData; follow: Fol
   const finals = start.finals.filter((r) => (isSlamTile ? r.event === slam : bigEventOf(r)?.key === slam));
   const finalNames = useMemo(() => namesOf(start.finals), [start.finals]);
   const teasers = useTeasers();
-  const cardNames = useMemo(() => namesOf([...start.classics.map((c) => c.row), ...start.diary]), [start.classics, start.diary]);
   const panel = useRef<HTMLDivElement>(null);
   // A newly picked event starts at its last few finals again
   const [everything, setEverything] = useState(false);
@@ -1163,42 +1146,6 @@ function Start({ start, follow, slam, setSlam }: { start: StartData; follow: Fol
         </div>
         {slam && !isSlamTile && finalsPanel}
       </section>
-
-      {start.classics.length > 0 && (
-        <section>
-          <SectionHead title="Matches everyone talks about" body="Start with one you've heard of. Point at a card for a taste of its story." />
-          <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {start.classics.map(({ row, why }) => (
-              <li key={row.id}>
-                <StoryCard
-                  label={`${row.event} ${row.season} · ${roundName({ ...row, event: row.event })}`}
-                  surface={row.surface}
-                  names={cardNames(row)}
-                  score={row.score}
-                  headline={why}
-                  page={page(row.id)}
-                  teaser={teasers.get(row.id)}
-                  onPeek={() => teasers.want(row.id)}
-                  onOpen={() => follow(row.id)}
-                />
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-
-      {start.diary.length > 0 && (
-        <section>
-          <SectionHead title="From your saga" />
-          <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-            {start.diary.map((row) => (
-              <li key={row.id}>
-                <MatchCard row={row} page={page(row.id)} onOpen={() => follow(row.id)} names={cardNames(row)} />
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
     </div>
   );
 }
@@ -1273,22 +1220,24 @@ function Crumbs({ story, follow }: { story: Story; follow: Follow }) {
   );
 }
 
-/* ---------- Explore ---------- */
+/* ---------- Tournaments, and a match's page ---------- */
 
 export function ExploreSection({
   story,
-  missing,
+  missing = false,
   slam,
   guest = false,
   seasons,
   start: startData,
+  extremes,
 }: {
   story: Story | null;
-  missing: boolean;
+  missing?: boolean;
   slam: string | null;
   seasons: [number, number] | null;
   guest?: boolean; // signed out: the star asks for an account first
-  start: StartData;
+  start?: StartData; // Tournaments: the finals to start from
+  extremes?: ReactNode; // a match's page: how extreme it was, under the story
 }) {
   // The Slam picked on the start page, which Surprise me then keeps to
   const [picked, setPicked] = useState<string | null>(null);
@@ -1297,7 +1246,7 @@ export function ExploreSection({
   const page = usePages();
   const starOf = useStarState();
   const top = useRef<HTMLDivElement>(null);
-  const follow = (id: string) => start(() => router.push(`/explore?m=${encodeURIComponent(id)}`, { scroll: false }));
+  const follow = (id: string) => start(() => router.push(matchHref(id), { scroll: false }));
   const first = useRef(true);
 
   // A new story: bring its top into view
@@ -1316,10 +1265,15 @@ export function ExploreSection({
         {missing && <p className="mb-6 rounded border border-fault/30 bg-fault/5 px-4 py-3 font-medium text-fault">That match isn&apos;t in the record.</p>}
         {story ? (
           <>
-            {/* Back to where Explore starts */}
-            <Link href="/explore" className="mb-4 inline-block text-sm font-semibold text-court underline-offset-4 hover:underline">
-              ← All Slams
-            </Link>
+            {/* Back to every match, or to the finals */}
+            <p className="mb-4 flex flex-wrap gap-x-5 gap-y-1 text-sm font-semibold">
+              <Link href={tourMatches(story)} className="text-court underline-offset-4 hover:underline">
+                ← All matches
+              </Link>
+              <Link href="/tournaments" className="text-court underline-offset-4 hover:underline">
+                Tournaments
+              </Link>
+            </p>
             <Crumbs story={story} follow={follow} />
             <StoryView
               story={story}
@@ -1329,6 +1283,7 @@ export function ExploreSection({
               star={<ShareLink story={story} />}
               take={<YourTake story={story} guest={guest} />}
               starOf={starOf}
+              extra={extremes}
             />
             {/* At the foot of the story: keep this match, or try another */}
             <div className="mt-12 flex flex-col items-center gap-8">
@@ -1337,9 +1292,7 @@ export function ExploreSection({
             </div>
           </>
         ) : (
-          <>
-            <Start start={startData} follow={follow} slam={picked} setSlam={setPicked} />
-          </>
+          startData && <Start start={startData} follow={follow} slam={picked} setSlam={setPicked} />
         )}
       </div>
     </div>

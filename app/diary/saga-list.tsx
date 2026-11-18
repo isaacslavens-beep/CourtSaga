@@ -8,8 +8,8 @@ import { eventLabel, monthLabel, roundOrder, scoreText, slams, watched, type Mat
 import { useLog } from "./store";
 
 /* Below the books: every match you've starred, both tours together, in the order they were played. The
-   four Slams sit on top as tiles to pick, like Explore's, and a search over them is always there. Each
-   match opens its story in Explore, where it's rated and noted. */
+   four Slams sit on top as tiles to pick, like Tournaments', and a search over them is always there. Each
+   match opens its page, where it's rated and noted. */
 
 // Lower case without accents, so "djokovic" finds Đoković and "monfils" Monfils
 const fold = (t: string) => t.normalize("NFKD").replace(/[̀-ͯ]/g, "").toLowerCase();
@@ -53,7 +53,7 @@ export function AllMatches() {
         }
       />
 
-      {/* The Slams, as on Explore: each with how many of your matches were played there */}
+      {/* The Slams, as in Tournaments: each with how many of your matches were played there */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {slams.map((s) => {
           const n = perSlam[s];

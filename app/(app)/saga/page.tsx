@@ -4,10 +4,10 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { getSession } from "@/lib/auth";
 import { coverLines, loadDiary, shareSlugOf } from "@/lib/diary";
-import { sampleLog, sampleMatches } from "../../demos/sample";
+import { sampleInitials, sampleLog, sampleMatches } from "../../demos/sample";
 import { TournamentLabel } from "../../match-ui";
 import { SAGA_MIN_MATCHES } from "../../diary/books";
-import { Avatar, BallScore } from "../../diary/fun";
+import { Avatar, BallScore, PlayerInitials } from "../../diary/fun";
 import { eventLabel, scoreText, toMatches, watched } from "../../diary/library";
 import { SagaSection } from "../../diary/saga";
 import { AllMatches } from "../../diary/saga-list";
@@ -81,7 +81,7 @@ async function Saga({ searchParams }: Pick<PageProps<"/saga">, "searchParams">) 
 const examples = ["wim23", "uso22"].map((id) => ({ m: sampleMatches[id], fan: sampleLog[id] }));
 
 const steps = [
-  ["Star a match", "Find any match since 2003 in Explore and star it, then mark it watched if it was."],
+  ["Star a match", "Find any match since 2003 in Tournaments or Matches and star it, then mark it watched if it was."],
   ["Rate it and note it", "One to five balls, and a line on how it felt: where, who with, what stuck."],
   [`At ${SAGA_MIN_MATCHES} matches, books`, "The saga sorts the matches into books: each rivalry followed, every final seen, each season, with the story of how they connect."],
 ];
@@ -98,31 +98,33 @@ function GuestSaga() {
               <h2 className="panel-title">Two logged matches</h2>
               <span className="panel-meta">A sample</span>
             </div>
-            <ul className="divide-y divide-line">
-              {examples.map(({ m, fan }) => (
-                <li key={m.id} className="flex gap-3 px-4 py-4 sm:px-5">
-                  <span className="flex shrink-0 -space-x-2 max-sm:hidden">
-                    <Avatar name={m.winner} size="h-9 w-9 text-xs ring-2 ring-surface" />
-                    <Avatar name={m.loser} size="h-9 w-9 text-xs ring-2 ring-surface" />
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <TournamentLabel event={eventLabel(m)} surface={m.surface} logo="h-5 w-5" className="text-sm" />
-                      <BallScore value={fan.rating} size="xs" />
+            <PlayerInitials names={sampleInitials}>
+              <ul className="divide-y divide-line">
+                {examples.map(({ m, fan }) => (
+                  <li key={m.id} className="flex gap-3 px-4 py-4 sm:px-5">
+                    <span className="flex shrink-0 -space-x-2 max-sm:hidden">
+                      <Avatar name={m.winner} size="h-9 w-9 text-xs ring-2 ring-surface" />
+                      <Avatar name={m.loser} size="h-9 w-9 text-xs ring-2 ring-surface" />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <TournamentLabel event={eventLabel(m)} surface={m.surface} logo="h-5 w-5" className="text-sm" />
+                        <BallScore value={fan.rating} size="xs" />
+                      </div>
+                      <p className="mt-1 text-sm">
+                        <span className="font-semibold">{m.winner}</span> <span className="text-muted">beat {m.loser}</span>{" "}
+                        <span className="whitespace-nowrap text-xs tabular-nums text-muted">{scoreText(m.score)}</span>
+                      </p>
+                      <p className="mt-2 border-l-2 border-line pl-3 text-[0.9375rem] leading-snug">{fan.note}</p>
+                      <p className="mt-1 text-xs text-muted">
+                        Watched on {fan.watchedOn}
+                        {fan.cheering && ` · cheering for ${fan.cheering}`}
+                      </p>
                     </div>
-                    <p className="mt-1 text-sm">
-                      <span className="font-semibold">{m.winner}</span> <span className="text-muted">beat {m.loser}</span>{" "}
-                      <span className="whitespace-nowrap text-xs tabular-nums text-muted">{scoreText(m.score)}</span>
-                    </p>
-                    <p className="mt-2 border-l-2 border-line pl-3 text-[0.9375rem] leading-snug">{fan.note}</p>
-                    <p className="mt-1 text-xs text-muted">
-                      Watched on {fan.watchedOn}
-                      {fan.cheering && ` · cheering for ${fan.cheering}`}
-                    </p>
-                  </div>
-                </li>
-              ))}
-            </ul>
+                  </li>
+                ))}
+              </ul>
+            </PlayerInitials>
           </div>
 
           <aside className="panel self-start">

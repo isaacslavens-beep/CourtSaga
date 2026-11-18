@@ -1,13 +1,9 @@
 "use client";
 
-import Image, { type StaticImageData } from "next/image";
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
-import ratingsPhoto from "@/public/photos/alcaraz-nadal-paris-2024.jpg";
-import servePhoto from "@/public/photos/djokovic-serve-roland-garros.jpg";
-import pressurePhoto from "@/public/photos/djokovic-wimbledon-centre-court.jpg";
-import agesPhoto from "@/public/photos/venus-williams-us-open.jpg";
-import { SearchIcon, SectionHead } from "../ui";
-import { Avatar, chartStyles } from "./fun";
+import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
+import { SearchIcon } from "../ui";
+import { Avatar, PlayerInitials, chartStyles } from "./fun";
+import { initialsFromNames, type Tour } from "./library";
 import {
   ageEras,
   bestOfFive,
@@ -31,9 +27,11 @@ import {
   type ServeStat,
 } from "./models";
 
-/* Advanced on screen: pick a model, move its numbers, and read the answer beside what it was built from.
-   The models themselves come from models.ts; everything here runs in the browser, so every change shows
-   at once. Every chart is drawn with one kit (Plot, Figure, Callout), so they read as one set of figures. */
+/* Statistics' model chapters on screen (the top 10 at any moment, ratings, serving, pressure, ages): move a
+   model's numbers and read the answer beside what it was built from. The models themselves come from
+   models.ts and are fetched when a chapter opens, as this module is (see records-ui.tsx); everything here
+   runs in the browser, so every change shows at once. Every chart is drawn with one kit (Plot, Figure,
+   Callout), so they read as one set of figures. */
 
 const fold = (s: string) => s.normalize("NFKD").replace(/[̀-ͯ]/g, "").toLowerCase();
 const pct = (x: number) => (x > 0 && x < 0.005 ? "<1%" : x < 1 && x > 0.995 ? ">99%" : `${Math.round(x * 100)}%`);
@@ -61,36 +59,6 @@ function wilson(won: number, n: number, z = 1.96): [number, number] {
   const scale = 1 + (z * z) / n;
   return [(centre - half) / scale, (centre + half) / scale];
 }
-
-/* ---------- The panels, and which is open ---------- */
-
-type PanelId = "ratings" | "serve" | "pressure" | "ages";
-const panels: { id: PanelId; title: string; blurb: string; photo: StaticImageData; alt: string; position: string }[] = [
-  { id: "ratings", title: "Across eras", blurb: "Put any two players, each in any season, against each other, and see who led when.", photo: ratingsPhoto, alt: "Alcaraz and Nadal clenching their fists side by side at the Paris Olympics", position: "object-[55%_30%]" },
-  { id: "serve", title: "Serving", blurb: "Set a serving line and see what it's worth.", photo: servePhoto, alt: "Djokovic tossing the ball to serve on clay at Roland Garros", position: "object-[50%_45%]" },
-  { id: "pressure", title: "Under pressure", blurb: "Break points, tiebreaks and deciding sets: who wins more of the big points than the rest of their play says they should, and whether that lasts.", photo: pressurePhoto, alt: "Djokovic lunging on Centre Court at Wimbledon", position: "object-center" },
-  { id: "ages", title: "Ages", blurb: "When players do their best tennis, and how any player's career compares.", photo: agesPhoto, alt: "Venus Williams ready to return at the US Open", position: "object-[65%_35%]" },
-];
-
-const tours = [
-  { tour: "atp", label: "Men" },
-  { tour: "wta", label: "Women" },
-] as const;
-
-// The open panel lives in the address (#serve), as Statistics' chapters do
-const hashEvent = "courtsaga-hash";
-const subscribeHash = (on: () => void) => {
-  window.addEventListener("hashchange", on);
-  window.addEventListener(hashEvent, on);
-  return () => {
-    window.removeEventListener("hashchange", on);
-    window.removeEventListener(hashEvent, on);
-  };
-};
-const setHash = (hash: string) => {
-  history.replaceState(history.state, "", hash);
-  window.dispatchEvent(new Event(hashEvent));
-};
 
 /* ---------- Pieces every panel uses ---------- */
 
@@ -1059,7 +1027,7 @@ function TopTen({ books }: { books: AdvancedBooks }) {
     <Card>
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h2 className="font-display text-2xl font-bold sm:text-[1.75rem]">The top 10 at any moment</h2>
+          <h3 className="panel-title text-xl sm:text-2xl">Ranked by Elo rating</h3>
           <p className="text-sm text-muted">
             Every month since {e.months[0]?.slice(0, 4)}, by Elo rating at the month&apos;s end, for anyone with a match in the year before and 20 matches in all (10 on the surface).
           </p>
@@ -2064,56 +2032,51 @@ function AgesPanel({ books }: { books: AdvancedBooks }) {
   );
 }
 
-/* ---------- The page ---------- */
+/* ---------- A chapter ---------- */
 
-export function AdvancedView({ books }: { books: AdvancedBooks }) {
-  const hash = useSyncExternalStore(subscribeHash, () => location.hash, () => "");
-  const panel = panels.find((p) => `#${p.id}` === hash)?.id ?? "ratings";
-  const current = panels.find((p) => p.id === panel)!;
-  const here = tours.find((t) => t.tour === books.tour)!;
+export type ModelChapterId = "top10" | "ratings" | "serve" | "pressure" | "ages";
 
+// Each tour's models, fetched once a visit, whichever chapter asks first
+const fetched = new Map<Tour, Promise<AdvancedBooks | null>>();
+const modelsFor = (tour: Tour) => {
+  let p = fetched.get(tour);
+  if (!p) {
+    p = fetch(`/api/models?tour=${tour}`)
+      .then((r) => (r.ok ? (r.json() as Promise<AdvancedBooks>) : null))
+      .catch(() => null);
+    fetched.set(tour, p);
+    // A failure is forgotten, so the next chapter opened tries again
+    p.then((b) => b === null && fetched.delete(tour));
+  }
+  return p;
+};
+
+/** One model chapter of Statistics, once its tour's models have arrived */
+export function ModelChapter({ tour, id }: { tour: Tour; id: ModelChapterId }) {
+  const [got, setGot] = useState<{ tour: Tour; books: AdvancedBooks | null } | null>(null);
+  useEffect(() => {
+    let live = true;
+    modelsFor(tour).then((books) => live && setGot({ tour, books }));
+    return () => {
+      live = false;
+    };
+  }, [tour]);
+  const books = got?.tour === tour ? got.books : undefined;
+  const initials = useMemo(() => (books ? initialsFromNames(books.names, books.full) : []), [books]);
+  if (books === undefined) return <p className="panel px-4 py-10 text-center text-muted sm:px-5">Fitting the models…</p>;
+  if (books === null) return <p className="rounded border border-fault/30 bg-fault/5 px-4 py-3 font-medium text-fault">The models aren&apos;t available right now. Try again in a little while.</p>;
   return (
-    <div className="space-y-8">
-      <TopTen key={books.tour} books={books} />
-
-      <section aria-labelledby="models-title">
-        <SectionHead id="models-title" title="Pick a model" body="Four ways to play with the numbers." />
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
-          {panels.map((p, i) => (
-            <button
-              key={p.id}
-              type="button"
-              aria-pressed={panel === p.id}
-              onClick={() => setHash(`#${p.id}`)}
-              className={`group flex cursor-pointer flex-col overflow-hidden rounded-md border bg-surface text-left transition-colors ${
-                panel === p.id ? "border-foreground" : "border-line hover:border-foreground/45"
-              }`}
-            >
-              <span className="relative block aspect-[16/9] w-full">
-                <Image src={p.photo} alt={p.alt} fill placeholder="blur" sizes="(min-width: 1152px) 17rem, (min-width: 640px) 25vw, 50vw" quality={90} className={`object-cover ${p.position}`} />
-              </span>
-              <span className={`flex items-center gap-2 px-2.5 py-2 transition-colors sm:px-3 ${panel === p.id ? "bg-foreground text-white" : ""}`}>
-                <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-[3px] text-[11px] font-bold tabular-nums ${panel === p.id ? "bg-ball text-foreground" : "bg-sunk text-muted ring-1 ring-inset ring-line"}`}>{i + 1}</span>
-                <span className="block font-display text-sm font-bold leading-tight sm:text-base">{p.title}</span>
-              </span>
-            </button>
-          ))}
-        </div>
-      </section>
-
-      <section aria-labelledby="panel-title" key={`${books.tour}-${panel}`} className="fade-in">
-        <SectionHead id="panel-title" n={panels.indexOf(current) + 1} title={current.title} body={current.blurb} />
-        {panel === "ratings" && <RatingsPanel books={books} />}
-        {panel === "serve" && <ServePanel books={books} />}
-        {panel === "pressure" && <PressurePanel books={books} />}
-        {panel === "ages" && <AgesPanel books={books} />}
-      </section>
-
-      <p className="text-sm text-muted">
-        Every model is fitted to {here.label.toLowerCase()}&apos;s tour-level singles from {books.from} to{" "}
+    <PlayerInitials names={initials}>
+      {id === "top10" && <TopTen key={tour} books={books} />}
+      {id === "ratings" && <RatingsPanel books={books} />}
+      {id === "serve" && <ServePanel books={books} />}
+      {id === "pressure" && <PressurePanel books={books} />}
+      {id === "ages" && <AgesPanel books={books} />}
+      <p className="mt-8 text-sm text-muted">
+        {id === "top10" ? "The ratings are" : "The model is"} fitted to every {tour === "atp" ? "men" : "women"}&apos;s tour-level singles match from {books.from} to{" "}
         {new Date(`${books.last}T12:00:00Z`).toLocaleDateString("en-GB", { month: "long", year: "numeric" })}, team cups and the Olympics included, and rebuilt as new matches come in. Intervals are 95%.
         Models describe the past; none of this is a betting tip.
       </p>
-    </div>
+    </PlayerInitials>
   );
 }

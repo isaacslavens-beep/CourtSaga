@@ -58,7 +58,7 @@ export function SagaHero({
         </span>{" "}
         matches. Star {need - have} more to open your saga.
       </span>
-      <Link href="/explore" className="btn btn-primary">
+      <Link href="/tournaments" className="btn btn-primary">
         Find a match to star
       </Link>
     </div>
