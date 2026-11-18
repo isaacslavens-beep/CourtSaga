@@ -32,6 +32,7 @@ import {
   type ResultRow,
   type Search,
   type Side,
+  type Sort,
   type StatDef,
   type Suggestion,
 } from "./matches";
@@ -401,6 +402,48 @@ function ResultLine({ row, columns, focus }: { row: ResultRow; columns: { stat: 
   );
 }
 
+/* ---------- The simple controls ---------- */
+
+// What most searches want, in plain words: each is one sort. Anything else is under "More filters".
+const quickSorts: { label: string; sort: Sort }[] = [
+  { label: "Newest first", sort: { stat: "date", side: "m", dir: "desc" } },
+  { label: "Oldest first", sort: { stat: "date", side: "m", dir: "asc" } },
+  { label: "Most dramatic", sort: { stat: "drama", side: "m", dir: "desc" } },
+  { label: "Longest (time on court)", sort: { stat: "minutes", side: "m", dir: "desc" } },
+  { label: "Quickest", sort: { stat: "minutes", side: "m", dir: "asc" } },
+  { label: "Most games", sort: { stat: "totalGames", side: "m", dir: "desc" } },
+  { label: "Most one-sided", sort: { stat: "gameMargin", side: "m", dir: "desc" } },
+  { label: "Biggest upsets", sort: { stat: "rankRatio", side: "m", dir: "desc" } },
+  { label: "Most aces by a player", sort: { stat: "aces", side: "x", dir: "desc" } },
+  { label: "Most double faults by a player", sort: { stat: "df", side: "x", dir: "desc" } },
+  { label: "Most break points saved", sort: { stat: "bpSaved", side: "x", dir: "desc" } },
+  { label: "Longest tiebreak", sort: { stat: "longestTb", side: "m", dir: "desc" } },
+  { label: "Longest set", sort: { stat: "longestSet", side: "m", dir: "desc" } },
+  { label: "Youngest winner", sort: { stat: "age", side: "w", dir: "asc" } },
+  { label: "Oldest winner", sort: { stat: "age", side: "w", dir: "desc" } },
+];
+const sortKey = (x: Sort) => `${x.stat}.${x.side}.${x.dir}`;
+
+// The filters that have a drop-down of their own up top
+const simpleFacets: FacetId[] = ["tier", "round", "surface"];
+const isYears = (r: Range) => r.stat === "season" && r.side === "m";
+
+/** One labelled drop-down, in ink once it's set to something */
+function Pick({ label, value, onChange, children, className = "" }: { label: string; value: string; onChange: (v: string) => void; children: ReactNode; className?: string }) {
+  return (
+    <label className={`block min-w-0 text-sm font-semibold ${className}`}>
+      {label}
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className={`field mt-1 block w-full cursor-pointer py-2 text-[0.9375rem] font-semibold ${value ? "border-foreground" : ""}`}
+      >
+        {children}
+      </select>
+    </label>
+  );
+}
+
 /* ---------- The page ---------- */
 
 type Loaded = { key: string; result: MatchesResult | null; error: boolean };
@@ -414,6 +457,7 @@ export function MatchesView({ tour }: { tour: Tour }) {
   const [adding, setAdding] = useState("");
   const [moreExamples, setMoreExamples] = useState(false);
   const [allOdd, setAllOdd] = useState(false); // on a phone, every oddity rather than the first four
+  const [more, setMore] = useState(false); // "More filters" open
   const results = useRef<HTMLDivElement>(null);
   const router = useRouter();
 
@@ -483,9 +527,40 @@ export function MatchesView({ tour }: { tour: Tour }) {
   };
   const visibleExamples = examples.filter((e) => !e.tours || e.tours.includes(tour));
   const activeExample = qs !== null ? visibleExamples.find((e) => sameSearch(e.query, qs))?.id : undefined;
+  // The simple drop-downs' values, and whether the search needs more than they can show
+  const facetPick = (id: FacetId) => {
+    const v = s.facets[id];
+    return !v || !v.length ? "" : v.length === 1 ? v[0] : "*";
+  };
+  const setFacet = (id: FacetId, v: string) => {
+    if (v === "*") return;
+    const next = { ...s.facets };
+    if (v) next[id] = [v];
+    else delete next[id];
+    change({ facets: next });
+  };
+  const years = s.ranges.find(isYears);
+  // The years the data covers, once it has answered
+  const firstYear = result?.from ?? 2003;
+  const lastYear = result ? Number(result.last.slice(0, 4)) : firstYear;
+  const yearList = Array.from({ length: Math.max(0, lastYear - firstYear + 1) }, (_, i) => lastYear - i);
+  const setYears = (min: number | null, max: number | null) => {
+    const rest = s.ranges.filter((r) => !isYears(r));
+    if (min !== null && max !== null && min > max) [min, max] = [max, min];
+    change({ ranges: min === null && max === null ? rest : [...rest, { stat: "season", side: "m", min, max }] });
+  };
+  const quickSort = quickSorts.find((q) => sortKey(q.sort) === sortKey(s.sort));
+  const advancedInUse =
+    !quickSort ||
+    s.ranges.some((r) => !isYears(r)) ||
+    Object.entries(s.facets).some(([k, v]) => !simpleFacets.includes(k as FacetId) || (v?.length ?? 0) > 1) ||
+    s.odd.length > 1;
+  const showMore = more || advancedInUse;
+  const count = (n: number | undefined) => (n === undefined ? "" : ` (${n.toLocaleString("en-GB")})`);
+
   const anything = s.players.length + s.events.length + s.nations.length + s.ranges.length + Object.keys(s.facets).length + s.odd.length > 0 || s.sort.stat !== "date" || s.sort.dir !== "desc";
 
-  const columns = [...(sortStat ? [{ stat: sortStat, side: s.sort.side }] : []), ...s.ranges.map((r) => ({ stat: statById.get(r.stat)!, side: r.side }))];
+  const columns = [...(sortStat ? [{ stat: sortStat, side: s.sort.side }] : []), ...s.ranges.filter((r) => !isYears(r)).map((r) => ({ stat: statById.get(r.stat)!, side: r.side }))];
   const initials = useMemo(() => (result ? result.rows.flatMap((r) => [[r.w.name, r.w.initials] as const, [r.l.name, r.l.initials] as const]) : []), [result]);
   const pages = result ? Math.max(1, Math.ceil(result.total / PAGE_SIZE)) : 1;
   const turnPage = (page: number) => {
@@ -565,6 +640,102 @@ export function MatchesView({ tour }: { tour: Tour }) {
           </div>
         )}
 
+        {/* The simple controls: what to show first, and the filters most searches want */}
+        <div className="grid grid-cols-2 gap-3 px-4 py-4 sm:grid-cols-3 sm:px-5 lg:grid-cols-6">
+          <Pick
+            label="Show"
+            value={quickSort ? sortKey(quickSort.sort) : "custom"}
+            onChange={(v) => {
+              const q = quickSorts.find((x) => sortKey(x.sort) === v);
+              if (q) change({ sort: q.sort });
+            }}
+            className="col-span-2 sm:col-span-1"
+          >
+            {!quickSort && <option value="custom">{sortStat ? `${statName(sortStat, s.sort.side, playerShort ?? undefined)}, ${s.sort.dir === "desc" ? "most" : "least"} first` : "Custom"}</option>}
+            {quickSorts.map((q) => (
+              <option key={sortKey(q.sort)} value={sortKey(q.sort)}>
+                {q.label}
+              </option>
+            ))}
+          </Pick>
+          {simpleFacets.map((id) => {
+            const f = facets.find((x) => x.id === id)!;
+            const v = facetPick(id);
+            return (
+              <Pick key={id} label={id === "tier" ? "Tournaments" : f.label} value={v} onChange={(x) => setFacet(id, x)}>
+                <option value="">{id === "tier" ? "All tournaments" : id === "round" ? "Any round" : "Any surface"}</option>
+                {v === "*" && <option value="*">Several (see More filters)</option>}
+                {f.values.map((x) => (
+                  <option key={x.id} value={x.id}>
+                    {x.label}
+                    {count(result?.facets[id]?.[x.id])}
+                  </option>
+                ))}
+              </Pick>
+            );
+          })}
+          <div className="min-w-0 text-sm font-semibold">
+            Years
+            <div className="mt-1 flex items-center gap-1">
+              <select
+                aria-label="From"
+                value={years?.min ?? ""}
+                onChange={(e) => setYears(e.target.value ? Number(e.target.value) : null, years?.max ?? null)}
+                className={`field min-w-0 flex-1 cursor-pointer px-2 py-2 text-[0.9375rem] font-semibold ${years?.min != null ? "border-foreground" : ""}`}
+              >
+                <option value="">{firstYear}</option>
+                {yearList.map((y) => (
+                  <option key={y} value={y}>
+                    {y}
+                  </option>
+                ))}
+              </select>
+              <span className="text-muted">–</span>
+              <select
+                aria-label="To"
+                value={years?.max ?? ""}
+                onChange={(e) => setYears(years?.min ?? null, e.target.value ? Number(e.target.value) : null)}
+                className={`field min-w-0 flex-1 cursor-pointer px-2 py-2 text-[0.9375rem] font-semibold ${years?.max != null ? "border-foreground" : ""}`}
+              >
+                <option value="">{lastYear}</option>
+                {yearList.map((y) => (
+                  <option key={y} value={y}>
+                    {y}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <Pick
+            label="Something unusual"
+            value={s.odd.length === 1 ? s.odd[0] : s.odd.length ? "*" : ""}
+            onChange={(v) => v !== "*" && change({ odd: v ? [v] : [] })}
+          >
+            <option value="">Any match</option>
+            {s.odd.length > 1 && <option value="*">Several (see More filters)</option>}
+            {oddities.map((o) => (
+              <option key={o.id} value={o.id}>
+                {o.label}
+                {count(result?.odd[o.id])}
+              </option>
+            ))}
+          </Pick>
+        </div>
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-1 px-4 pb-4 sm:px-5">
+          {!advancedInUse && (
+            <button type="button" aria-expanded={showMore} onClick={() => setMore(!more)} className="cursor-pointer text-sm font-semibold text-court underline-offset-4 hover:underline">
+              {showMore ? "Fewer filters ▴" : "More filters: any statistic, any number ▾"}
+            </button>
+          )}
+          {anything && (
+            <button type="button" onClick={() => (setEditing(null), setMore(false), putSearch(emptySearch))} className="cursor-pointer text-sm font-semibold text-court underline-offset-4 hover:underline">
+              Clear everything
+            </button>
+          )}
+        </div>
+
+        {showMore && (
+        <div className="border-t border-line bg-sunk/60">
         <div className="space-y-4 px-4 py-4 sm:px-5">
           {/* Sort */}
           <div className="flex flex-wrap items-center gap-2">
@@ -586,8 +757,9 @@ export function MatchesView({ tour }: { tour: Tour }) {
 
           {/* Filters */}
           <div className="flex flex-wrap items-center gap-2">
-            <span className="w-20 shrink-0 text-sm font-semibold max-sm:w-full">Filters</span>
+            <span className="w-20 shrink-0 text-sm font-semibold max-sm:w-full">Numbers</span>
             {s.ranges.map((r, i) => {
+              if (isYears(r)) return null;
               const def = statById.get(r.stat)!;
               const bounds = r.min !== null && r.max !== null ? (r.min === r.max ? `= ${formatValue(def.format, r.min)}` : `${formatValue(def.format, r.min)} to ${formatValue(def.format, r.max)}`) : r.min !== null ? `≥ ${formatValue(def.format, r.min)}` : r.max !== null ? `≤ ${formatValue(def.format, r.max)}` : "recorded · set a range";
               return (
@@ -598,7 +770,7 @@ export function MatchesView({ tour }: { tour: Tour }) {
             })}
             {facets.map((f) => {
               const chosen = s.facets[f.id];
-              if (!chosen) return null;
+              if (!chosen || (simpleFacets.includes(f.id) && chosen.length <= 1)) return null;
               const names = chosen.map((v) => f.values.find((x) => x.id === v)?.label ?? v);
               return (
                 <Chip key={f.id} open={editing === `t:${f.id}`} onClick={() => setEditing(editing === `t:${f.id}` ? null : `t:${f.id}`)} onRemove={() => (setEditing(null), change({ facets: Object.fromEntries(Object.entries(s.facets).filter(([k]) => k !== f.id)) }))}>
@@ -676,13 +848,6 @@ export function MatchesView({ tour }: { tour: Tour }) {
               </button>
             )}
           </div>
-          {anything && (
-            <p>
-              <button type="button" onClick={() => (setEditing(null), putSearch(emptySearch))} className="cursor-pointer text-sm font-semibold text-court underline-offset-4 hover:underline">
-                Clear everything
-              </button>
-            </p>
-          )}
         </div>
 
         {/* How the sorted number spreads */}
@@ -702,6 +867,8 @@ export function MatchesView({ tour }: { tour: Tour }) {
               }}
             />
           </div>
+        )}
+        </div>
         )}
       </section>
 

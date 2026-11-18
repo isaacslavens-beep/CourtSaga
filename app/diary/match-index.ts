@@ -709,7 +709,7 @@ export function runSearch(t: MatchTable, s: Search): MatchesResult {
   const page = Math.min(s.page, pages - 1);
   const shown = found.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
   const nameOf = namePlayers(t, [...shown.flatMap((i) => [t.w[i], t.l[i]]), ...playerIdx.filter((i) => i >= 0)]);
-  const columns = [...(sortStat ? [{ stat: sortStat, side: s.sort.side, least: !desc }] : []), ...s.ranges.map((r) => ({ stat: statById.get(r.stat)!, side: r.side, least: false }))];
+  const columns = [...(sortStat ? [{ stat: sortStat, side: s.sort.side, least: !desc }] : []), ...s.ranges.filter((r) => !(r.stat === "season" && r.side === "m")).map((r) => ({ stat: statById.get(r.stat)!, side: r.side, least: false }))]; // the years filter needs no column: the label has the year
   const getters = columns.map((c) => getter(t, c.stat, c.side, main, c.least));
   const person = (p: number, i: number, won: boolean): ResultPlayer => {
     const pl = t.players[p];
