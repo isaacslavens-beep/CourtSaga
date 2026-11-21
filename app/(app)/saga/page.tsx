@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import Link from "next/link";
 import { Suspense } from "react";
-import { getSession } from "@/lib/auth";
+import { sessionOrDown } from "@/lib/auth";
 import { coverLines, loadDiary, shareSlugOf } from "@/lib/diary";
 import { sampleInitials, sampleLog, sampleMatches } from "../../demos/sample";
 import { TournamentLabel } from "../../match-ui";
@@ -37,9 +37,13 @@ export default function SagaPage({ searchParams }: PageProps<"/saga">) {
 }
 
 async function Saga({ searchParams }: Pick<PageProps<"/saga">, "searchParams">) {
-  const user = (await getSession())?.user;
+  const session = await sessionOrDown();
+  if (session === "down") return <Resting />;
+  const user = session?.user;
   if (!user) return <GuestSaga />;
-  const [{ m }, diary, slug, request] = await Promise.all([searchParams, loadDiary(user.id, { records: true }), shareSlugOf(user.id), headers()]);
+  const read = await Promise.all([searchParams, loadDiary(user.id, { records: true }), shareSlugOf(user.id), headers()]).catch(() => null);
+  if (!read) return <Resting />;
+  const [{ m }, diary, slug, request] = read;
   const origin = `${request.get("x-forwarded-proto") ?? "https"}://${request.get("x-forwarded-host") ?? request.get("host")}`;
   const spot = typeof m === "string" && diary.entries[m] ? { target: "story" as const, id: m, n: 1 } : null;
   const have = diary.order.length;
@@ -74,6 +78,30 @@ async function Saga({ searchParams }: Pick<PageProps<"/saga">, "searchParams">) 
         </div>
       </section>
     </>
+  );
+}
+
+/** When the saga's database can't be reached: everything else on the site still works */
+function Resting() {
+  return (
+    <section className="flex-1 py-16">
+      <div className="mx-auto w-full max-w-2xl px-4 sm:px-8">
+        <div className="panel panel-body">
+          <h1 className="text-xl font-semibold">Sagas are taking a short break</h1>
+          <p className="mt-2 text-muted">
+            Saved matches can&apos;t be opened right now, and nothing saved is lost. Tournaments, Matches and Statistics all work as usual.
+          </p>
+          <p className="mt-4 flex flex-wrap gap-3">
+            <Link href="/matches" className="btn btn-primary">
+              Search every match
+            </Link>
+            <Link href="/tournaments" className="btn btn-secondary">
+              Tournaments
+            </Link>
+          </p>
+        </div>
+      </div>
+    </section>
   );
 }
 

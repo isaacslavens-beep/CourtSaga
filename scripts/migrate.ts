@@ -22,7 +22,19 @@ async function main() {
     console.log(`migrate: skipped on a ${process.env.VERCEL_ENV} build; only production builds migrate.`);
     return;
   }
-  const pool = new Pool({ connectionString: url, max: 1 });
+  const pool = new Pool({ connectionString: url, max: 1, connectionTimeoutMillis: 15000 });
+  // Can't reach the database at all (Neon's free monthly transfer used up, say): build anyway, since the
+  // public site runs from files and the migrations run on the next build that can reach it. A migration
+  // that reaches the database and fails still stops the build.
+  try {
+    const client = await pool.connect();
+    await client.query("select 1");
+    client.release();
+  } catch (err) {
+    console.log("migrate: skipped, the database can't be reached:", err instanceof Error ? err.message : err);
+    await pool.end().catch(() => {});
+    return;
+  }
   try {
     await migrate(drizzle(pool), { migrationsFolder: "drizzle" });
     console.log("migrate: the database is up to date.");

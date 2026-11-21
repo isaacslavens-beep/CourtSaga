@@ -6,7 +6,7 @@ import type { Tour } from "@/app/diary/library";
 // what keeps every tour's 65,000 matches from crossing the network each time a page is rebuilt.
 
 /** One tour's built file, or null if this build has none */
-export function builtBook<T>(kind: "records" | "models" | "matches", tour: Tour): Promise<T | null> {
+export function builtBook<T>(kind: "records" | "models" | "matches" | "played", tour: Tour): Promise<T | null> {
   return readFile(join(process.cwd(), "assets", "books", `${kind}-${tour}.json`), "utf8")
     .then((text) => JSON.parse(text) as T)
     .catch(() => null);

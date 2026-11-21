@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { getSession } from "@/lib/auth";
+import { sessionOrDown } from "@/lib/auth";
 import { bigFinals, latestPage, loadDiary, seasonRange, type DiaryData } from "@/lib/diary";
 import { ExploreSection } from "../../diary/explore";
 import { LogProvider } from "../../diary/store";
@@ -38,9 +38,10 @@ export default function TournamentsPage() {
 }
 
 async function Finals() {
-  const session = await getSession();
-  const user = session?.user ?? null;
-  const [diary, finals, seasons] = await Promise.all([user ? loadDiary(user.id) : noDiary, bigFinals(), seasonRange()]);
+  const session = await sessionOrDown();
+  const user = session === "down" ? null : (session?.user ?? null);
+  // A fan's stars are an extra: without the database the finals still show
+  const [diary, finals, seasons] = await Promise.all([user ? loadDiary(user.id).catch(() => noDiary) : noDiary, bigFinals(), seasonRange()]);
   return (
     <LogProvider
       key={diary.version}

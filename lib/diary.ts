@@ -8,6 +8,8 @@ import { getDb } from "@/db";
 import { diaryEntries, matches, players, sagaShares, user } from "@/db/schema";
 import { buildShelf, shelfCount } from "@/app/diary/books";
 import { vocabulary } from "./search-words";
+import { bigFinalsOf, findByWords, namesOf, newestFirst, toMatchRow, type PlayedTable } from "@/app/diary/played";
+import { playedTable, tourOfId } from "./played";
 import {
   diaryPages,
   bigEvents,
@@ -87,6 +89,17 @@ function toRow(r: MatchColumns): MatchRow {
 
 // Later rounds first among matches on the same day
 const roundRank = sql`array_position(array['RR','R128','R64','R32','R16','QF','SF','BR','3P','F'], ${matches.round})`;
+
+/** Both tours' built match files, or null where there are none (a local copy without them reads the database) */
+async function bothTables() {
+  const [atp, wta] = await Promise.all([playedTable("atp"), playedTable("wta")]);
+  return atp && wta ? [atp, wta] : null;
+}
+
+/** Rows from the files, newest first across both tours */
+function rowsOf(found: { t: PlayedTable; m: Parameters<typeof toMatchRow>[1] }[]) {
+  return found.sort((a, b) => newestFirst(a.m, b.m)).map(({ t, m }) => toMatchRow(t, m));
+}
 
 /* ---------- A fan's diary ---------- */
 
@@ -264,6 +277,8 @@ export async function searchMatches(query: string, page = 1): Promise<SearchResu
   const at = Math.max(1, Math.floor(page));
   const empty = { results: [], total: 0, page: 1, pages: 0, size: SEARCH_PAGE_SIZE, query, corrected: null };
   if (!words.length) return empty;
+  const tables = await bothTables();
+  if (tables) return searchFiles(tables, words, at, query);
 
   let found = await runSearch(words, at);
   let corrected: string | null = null;
@@ -325,10 +340,45 @@ async function eventWords() {
   return words;
 }
 
+/** Search in the built files: the same rules as the database's, without the network */
+function searchFiles(tables: PlayedTable[], words: string[], at: number, query: string): SearchResults {
+  const run = (w: string[]) => rowsFound(tables, w);
+  let found = run(words);
+  let corrected: string | null = null;
+  if (!found.length && at === 1) {
+    const known = new Set(tables.flatMap((t) => [...namesOf(t)]));
+    const fixed = words.map((w) => {
+      const f = w.normalize("NFKD").replace(/[\u0300-\u036f]/g, "");
+      if (/^\d+$/.test(w) || w.length < 3 || vocabulary.has(f) || [...known].some((k) => k.startsWith(f))) return w;
+      let best = w;
+      let bestD = Math.max(1, Math.floor(f.length / 3)) + 1;
+      for (const k of known) {
+        if (Math.abs(k.length - f.length) >= bestD) continue;
+        const d = editDistance(f, k);
+        if (d < bestD) [best, bestD] = [k, d];
+      }
+      return best;
+    });
+    if (fixed.join(" ") !== words.join(" ")) {
+      const again = run(fixed);
+      if (again.length) [found, corrected] = [again, fixed.join(" ")];
+    }
+  }
+  const results = found.slice((at - 1) * SEARCH_PAGE_SIZE, at * SEARCH_PAGE_SIZE).map(({ t, m }) => toMatchRow(t, m));
+  return { results, total: found.length, page: at, pages: Math.ceil(found.length / SEARCH_PAGE_SIZE), size: SEARCH_PAGE_SIZE, query, corrected };
+}
+
+function rowsFound(tables: PlayedTable[], words: string[]) {
+  return tables.flatMap((t) => findByWords(t, words).map((m) => ({ t, m }))).sort((a, b) => newestFirst(a.m, b.m));
+}
+
 /** The first and last seasons in the match data, for saying what search covers */
 export async function seasonRange(): Promise<[number, number] | null> {
   "use cache";
   cacheLife("hours");
+  const tables = await bothTables();
+  if (tables) return [Math.min(...tables.map((t) => t.from)), Math.max(...tables.map((t) => Number(t.last.slice(0, 4))))];
+  if (process.env.VERCEL_ENV === "production") return null;
   const [row] = await getDb()
     .select({ first: sql<number>`min(${matches.season})`.mapWith(Number), last: sql<number>`max(${matches.season})`.mapWith(Number) })
     .from(matches);
@@ -337,6 +387,12 @@ export async function seasonRange(): Promise<[number, number] | null> {
 
 /** One match from the data, with its players, if it can be logged (walkovers never happened). */
 export async function findMatch(id: string) {
+  const tour = tourOfId(id);
+  const t = tour && (await playedTable(tour));
+  if (t) {
+    const m = t.byId.get(id);
+    return m ? toMatchRow(t, m) : null;
+  }
   const [row] = await selectMatches().where(and(eq(matches.id, id), eq(matches.searchable, true))).limit(1);
   return row ? toRow(row) : null;
 }
@@ -344,6 +400,13 @@ export async function findMatch(id: string) {
 /** Several matches from the data, in the order asked for */
 export async function findMatches(ids: string[]) {
   if (!ids.length) return [];
+  const tables = await bothTables();
+  if (tables)
+    return ids.flatMap((id) => {
+      const t = tables.find((x) => x.tour === tourOfId(id));
+      const m = t?.byId.get(id);
+      return t && m ? [toMatchRow(t, m)] : [];
+    });
   const rows = await selectMatches().where(and(inArray(matches.id, ids), eq(matches.searchable, true)));
   const byId = new Map(rows.map((r) => [r.id, toRow(r)]));
   return ids.flatMap((id) => byId.get(id) ?? []);
@@ -356,6 +419,8 @@ export async function findMatches(ids: string[]) {
 export async function bigFinals() {
   "use cache";
   cacheLife("days");
+  const tables = await bothTables();
+  if (tables) return rowsOf(tables.flatMap((t) => bigFinalsOf(t).map((m) => ({ t, m }))));
   const big = bigEvents.map((b) => and(inArray(matches.event, b.events), inArray(matches.tour, b.tours)));
   const rows = await selectMatches()
     .where(

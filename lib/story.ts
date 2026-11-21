@@ -5,6 +5,8 @@ import { getDb } from "@/db";
 import { matches, players } from "@/db/schema";
 import { tellStory, type Played, type PlayerInfo, type Story } from "@/app/diary/story";
 import { bigEvents, bigRounds, type Outcome, type Round, type Surface, type Tier, type Tour } from "@/app/diary/library";
+import { randomPick, storyInputs } from "@/app/diary/played";
+import { playedTable, tourOfId } from "./played";
 
 // The story around a match (app/diary/story.ts), from the match data. The record only changes when matches
 // are imported, so each piece is cached for days: a player's matches, a tournament's draw, an event's
@@ -114,6 +116,14 @@ export async function matchStory(id: string): Promise<Story | null> {
   "use cache";
   cacheLife("days");
   cacheTag("matches");
+  // From the built file when there is one: nothing crosses the network
+  const tour = tourOfId(id);
+  const table = tour && (await playedTable(tour));
+  if (table) {
+    const inputs = storyInputs(table, id);
+    return inputs && tellStory(inputs);
+  }
+  if (!tour || process.env.VERCEL_ENV === "production") return null;
   const [row] = await select(and(eq(matches.id, id), eq(matches.searchable, true)));
   if (!row) return null;
   const focus = toPlayed(row);
@@ -148,6 +158,12 @@ export async function randomStoryId(event?: string) {
   const first: Tour = Math.random() < ATP_SHARE ? "atp" : "wta";
   for (const tour of [first, first === "atp" ? "wta" : "atp"] as Tour[]) {
     if (big && !big.tours.includes(tour)) continue;
+    const table = await playedTable(tour);
+    if (table) {
+      const picked = randomPick(table, event);
+      if (picked) return picked;
+      continue;
+    }
     const [row] = await getDb()
       .select({ id: matches.id })
       .from(matches)

@@ -88,6 +88,7 @@ export async function readTourModels(db: Db, tour: Tour): Promise<{ tour: Tour; 
       bestOf: matches.bestOf,
       outcome: matches.outcome,
       played: matches.searchable,
+      stage: matches.stage,
       ws: matches.winnerSeed,
       ls: matches.loserSeed,
       we: matches.winnerEntry,

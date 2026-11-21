@@ -19,6 +19,7 @@ import { Pool } from "pg";
 import * as schema from "../db/schema";
 import { buildMatchFile } from "../app/diary/match-index";
 import { buildModels } from "../app/diary/models";
+import { buildPlayedFile } from "../app/diary/played";
 import { buildRecords } from "../app/diary/records";
 import { readTour, readTourModels } from "../lib/tour-data";
 import type { Db } from "../db";
@@ -49,7 +50,7 @@ const kept = () => readFile(keptFile, "utf8").then((text) => JSON.parse(text) as
 
 async function matchData(url: string | undefined) {
   if (!url) return { matches: await kept(), from: "the last build, with no DATABASE_URL set" };
-  const pool = new Pool({ connectionString: url, max: 2 });
+  const pool = new Pool({ connectionString: url, max: 2, connectionTimeoutMillis: 15000 });
   try {
     const db = drizzle(pool, { schema });
     const stamp = await dataStamp(db);
@@ -72,6 +73,12 @@ async function matchData(url: string | undefined) {
 async function main() {
   const { matches, from } = await matchData(process.env.DATABASE_URL);
   if (!matches) {
+    // The live site never reads all the matches itself, so a production build without them would replace a
+    // working site with a broken one: stop, and the last deploy stays up
+    if (process.env.VERCEL_ENV === "production") {
+      console.error("books: no match data from the database or the build cache; stopping so the live site stays as it is.");
+      process.exit(1);
+    }
     console.log("books: no match data, so the site will work everything out itself.");
     return;
   }
@@ -83,6 +90,7 @@ async function main() {
     if (tour) await writeFile(join(folder, `records-${name}.json`), JSON.stringify(buildRecords(tour)));
     if (models) {
       await writeFile(join(folder, `models-${name}.json`), JSON.stringify(buildModels(models)));
+      await writeFile(join(folder, `played-${name}.json`), JSON.stringify(buildPlayedFile(models)));
       const file = buildMatchFile(models);
       await writeFile(join(folder, `matches-${name}.json`), JSON.stringify(file));
       console.log(`books: ${file.rows.length} ${name} matches; impossible serve stats dropped from ${file.dropped.stats}, impossible lengths from ${file.dropped.minutes}.`);

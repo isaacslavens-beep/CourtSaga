@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import { Suspense } from "react";
-import { getSession } from "@/lib/auth";
+import { sessionOrDown } from "@/lib/auth";
 import { findMatch, latestPage, loadDiary, seasonRange, type DiaryData } from "@/lib/diary";
 import { matchExtremes } from "@/lib/match-index";
 import { matchStory, randomStoryId } from "@/lib/story";
@@ -61,10 +61,11 @@ async function OneMatch({ params, searchParams }: Pick<PageProps<"/matches/[id]"
     redirect(picked ? `${matchHref(picked)}${atSlam ? `?slam=${encodeURIComponent(atSlam)}` : ""}` : "/tournaments");
   }
   const wanted = idOf(id);
-  const session = await getSession();
-  const user = session?.user ?? null;
+  const session = await sessionOrDown();
+  const user = session === "down" ? null : (session?.user ?? null);
   const [diary, story, seasons, row] = await Promise.all([
-    user ? loadDiary(user.id) : noDiary,
+    // A fan's stars are an extra: without the database the story still shows
+    user ? loadDiary(user.id).catch(() => noDiary) : noDiary,
     matchStory(wanted),
     seasonRange(),
     // The match itself, so it can be starred right here

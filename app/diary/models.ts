@@ -44,6 +44,7 @@ export type ModelMatch = {
   ls?: number | null;
   we?: string | null; // how each got in: Q, WC, LL, PR…
   le?: string | null;
+  stage?: string | null; // a team event's tie, for match pages (played.ts)
 };
 
 export type ModelsInput = { tour: Tour; matches: ModelMatch[]; players: Record<string, Player>; last: string };

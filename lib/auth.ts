@@ -56,6 +56,19 @@ export async function getSession() {
   return getAuth().api.getSession({ headers: request });
 }
 
+/**
+ * The signed-in fan, null, or "down" when the database can't be reached (Neon's free monthly transfer used
+ * up, say): pages that only add a fan's stars to public data carry on without them.
+ */
+export async function sessionOrDown() {
+  const request = await headers();
+  try {
+    return await getAuth().api.getSession({ headers: request });
+  } catch {
+    return "down" as const;
+  }
+}
+
 /** The signed-in fan; anyone else goes to the log-in page. */
 export async function requireUser() {
   const signedIn = await getSession();
